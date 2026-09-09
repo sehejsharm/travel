@@ -1,9 +1,11 @@
 import { MailroomForm } from "@/components/mailroom-form";
+import { getTrip } from "@/lib/db";
 import { hasCredentials } from "@/lib/extract";
 
 export const dynamic = "force-dynamic";
 
 export default function Mailroom() {
+  const trip = getTrip();
   return (
     <div className="flex flex-col gap-6">
       <section>
@@ -18,7 +20,7 @@ export default function Mailroom() {
         </p>
       </section>
 
-      <MailroomForm escalationAvailable={hasCredentials()} />
+      <MailroomForm escalationAvailable={hasCredentials()} travelers={trip.travelers} />
     </div>
   );
 }

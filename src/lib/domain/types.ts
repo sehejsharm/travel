@@ -60,6 +60,8 @@ export interface TripItem {
   confidence: number;
   extractionMethod: ExtractionMethod;
   createdAt: string;
+  /** Traveller who filed it, on a shared board. */
+  addedBy?: string;
 }
 
 export interface Traveler {

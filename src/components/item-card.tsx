@@ -10,7 +10,15 @@ export function SourceChip({ item }: { item: TripItem }) {
   );
 }
 
-export function ItemCard({ item, action }: { item: TripItem; action?: React.ReactNode }) {
+export function ItemCard({
+  item,
+  action,
+  addedByName,
+}: {
+  item: TripItem;
+  action?: React.ReactNode;
+  addedByName?: string;
+}) {
   const when = item.startsAt
     ? `${formatDay(item.startsAt)}${formatTime(item.startsAt) ? ` · ${formatTime(item.startsAt)}` : ""}`
     : "Not scheduled";
@@ -47,6 +55,12 @@ export function ItemCard({ item, action }: { item: TripItem; action?: React.Reac
           <div>
             <dt className="sr-only">Confirmation</dt>
             <dd>Ref {item.confirmationCode}</dd>
+          </div>
+        )}
+        {addedByName && (
+          <div>
+            <dt className="sr-only">Added by</dt>
+            <dd>Added by {addedByName}</dd>
           </div>
         )}
       </dl>

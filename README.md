@@ -28,23 +28,28 @@ low-confidence content is filed with the reason shown rather than guessed at.
 
 ## The pipeline
 
-Three screens, matching the three stages:
-
 | Screen | Route | What it does |
 | --- | --- | --- |
-| Mailroom | `/mailroom` | Paste content, watch it get extracted and grounded, file it |
+| Mailroom | `/mailroom` | Paste content or a Reel/TikTok/YouTube link, watch it get extracted and grounded, file it |
 | Filing cabinet | `/cabinet` | Everything filed, sorted into places, activities, purchases, bookings |
-| Planning desk | `/` | Timeline, budget, destination brief, and everything the checks caught |
+| Planning desk | `/` | Timeline, budget, destination brief, packing list, pre-trip tasks, and everything the checks caught |
+| Shared page | `/share/[tripId]` | Read-only trip page with prices and confirmation numbers stripped out |
+| Recap | `/recap` | Spend, places, and which platform each item actually came from |
+| Calendar | `/api/calendar` | The itinerary as an `.ics` file for any calendar app |
 
 ### Extract and ground
 
 `src/lib/extract/` runs cheapest-reliable-method-first:
 
-1. **Pattern pass** (`deterministic.ts`) — free and instant. Pulls prices,
+1. **Link pass** (`url.ts`) — a pasted Reel, TikTok or YouTube link sets the
+   source without the user picking it. Where the platform serves oEmbed without
+   a token, the title is fetched and read too; where it does not, or the network
+   is unavailable, the caption alone is used and the UI says so.
+2. **Pattern pass** (`deterministic.ts`) — free and instant. Pulls prices,
    dates, flight numbers, airport codes, confirmation codes, traveller names and
    cancellation deadlines out of the text, then grounds any place name against
    the gazetteer to get coordinates.
-2. **Model pass** (`llm.ts`) — only runs when the pattern pass scores below
+3. **Model pass** (`llm.ts`) — only runs when the pattern pass scores below
    `ESCALATION_THRESHOLD` (0.6). Returns null on any failure so the cheap result
    still stands.
 
@@ -62,17 +67,32 @@ unit tested without a database.
 
 - **Conflicts** — overlapping bookings, gaps too short for the distance between
   two stops, layovers under the airport's published minimum connection time,
-  traveller name mismatches, no bed on the arrival night, overloaded days.
+  traveller name mismatches, no bed on the arrival night, overloaded days,
+  venues booked on the day they are shut, venues that need booking ahead with no
+  confirmation filed, and city changes with no transport booked for the hop.
 - **Money** — budget rollup across currencies, planned vs booked, cancellation
-  deadlines coming up. Items with no price are counted separately, never
-  treated as free.
+  deadlines coming up, a stay running past the flight home, and the duty-free
+  allowance waiting on the way back. Items with no price are counted separately,
+  never treated as free.
 - **Compliance** — visa and entry rules by passport and destination, passport
-  validity against each country's requirement, insurance covering the trip.
-- **Prep** — plug and voltage mismatches, time zone shift, cash-heavy
-  destinations.
+  validity against each country's requirement, insurance covering the trip,
+  vaccination advice, and yellow fever proof where a route can trigger it.
+- **Prep** — plug and voltage mismatches, the weather you are packing for,
+  time zone shift, cash-heavy destinations, baggage allowance, roaming, and
+  public holidays that fall inside the trip.
 
 Countries you only change planes in are excluded from compliance and prep
 checks — you do not clear immigration on a connection.
+
+### Checklists
+
+Pre-trip tasks are generated from the checks, so anything that needs doing
+before departure becomes something you can tick off rather than a warning you
+read once. The packing list is built from the trip: the seasonal weather where
+you are going, the sockets there, how long you are away, and how much walking
+you have filed. Both survive regeneration — a ticked box or an assignment is
+never overwritten — and on a trip with more than one traveller, entries can be
+assigned.
 
 ## Reference data
 
@@ -83,8 +103,12 @@ changing:
 | Module | Stands in for | Swap for |
 | --- | --- | --- |
 | `entry-requirements.ts` | Visa and entry rules | Sherpa, Timatic |
-| `places.ts` | Place name → coordinates | Google Places, Mapbox |
+| `health.ts` | Vaccination and health advisories | WHO, CDC, NaTHNaC |
+| `places.ts` | Place name → coordinates, closing days | Google Places, Mapbox |
 | `airports.ts` | Airport coordinates, connection times | OAG, airline feeds |
+| `climate.ts` | Seasonal normals for packing | A forecast API, inside two weeks |
+| `allowances.ts` | Baggage and duty-free limits | Airline and customs feeds |
+| `holidays.ts` | Public holidays | Any holiday API |
 | `fx.ts` | Currency conversion | Any live FX feed |
 | `countries.ts` | Plugs, voltage, emergency numbers, tipping | — |
 
@@ -97,7 +121,13 @@ authoritative.
 
 - The gazetteer covers Japan; place names elsewhere file without coordinates and
   sit out the distance checks.
-- FX rates are static.
+- FX rates and climate normals are static, and holidays are loaded for 2026.
+- Instagram and TikTok gate oEmbed behind an app token, so a pasted link from
+  either sets the source but cannot fetch a title — the caption carries the
+  extraction. YouTube works without a key.
 - Ingestion is paste-only. Real capture would come through the device share
   sheet — not by scraping the platforms, which would breach their terms.
-- Single trip, single device. There is no auth or multi-user support yet.
+- Collaboration is modelled but not authenticated: travellers can be assigned
+  work and items record who filed them, but anyone with the URL is everyone.
+  The shared trip page is unguessable-by-design only in that it needs the trip
+  id — it is not a real access control.

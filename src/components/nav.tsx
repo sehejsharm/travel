@@ -12,6 +12,9 @@ const LINKS = [
 export function Nav() {
   const pathname = usePathname();
 
+  // A shared trip page stands on its own — whoever opens it is not a user here.
+  if (pathname.startsWith("/share/")) return null;
+
   return (
     <header className="border-b border-line bg-surface">
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { fileItem } from "@/app/actions";
 import { runExtraction } from "@/app/mailroom/actions";
-import { SOURCE_LABELS, type SourceKind } from "@/lib/domain/types";
+import { SOURCE_LABELS, type SourceKind, type Traveler } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/reference/fx";
 import type { ExtractionResult } from "@/lib/extract/types";
 
@@ -35,13 +35,26 @@ Free cancellation until 14 Sep 2026`,
     source: "reel",
     text: `this tiny standing sushi bar in tsukiji is unreal 🍣 no reservations, cash only, get there before it opens`,
   },
+  {
+    label: "Reel link",
+    source: "manual",
+    text: `https://www.instagram.com/reel/C9xArashiyama/
+bamboo grove at 6am before the crowds — free, arrive early`,
+  },
 ];
 
 const SOURCES: SourceKind[] = ["gmail", "screenshot", "reel", "tiktok", "youtube", "manual"];
 
-export function MailroomForm({ escalationAvailable }: { escalationAvailable: boolean }) {
+export function MailroomForm({
+  escalationAvailable,
+  travelers,
+}: {
+  escalationAvailable: boolean;
+  travelers: Traveler[];
+}) {
   const [text, setText] = useState(SAMPLES[0].text);
   const [source, setSource] = useState<SourceKind>("gmail");
+  const [addedBy, setAddedBy] = useState(travelers[0]?.id ?? "");
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [filed, setFiled] = useState<string | null>(null);
   const [extracting, startExtract] = useTransition();
@@ -58,7 +71,7 @@ export function MailroomForm({ escalationAvailable }: { escalationAvailable: boo
     if (!result) return;
     const title = result.draft.title;
     startFile(async () => {
-      await fileItem(result);
+      await fileItem(result, addedBy || undefined);
       setResult(null);
       setText("");
       setFiled(title);
@@ -109,6 +122,23 @@ export function MailroomForm({ escalationAvailable }: { escalationAvailable: boo
               ))}
             </select>
           </label>
+
+          {travelers.length > 1 && (
+            <label className="flex items-center gap-2 font-mono text-[11px] text-ink-soft">
+              Filing as
+              <select
+                value={addedBy}
+                onChange={(event) => setAddedBy(event.target.value)}
+                className="rounded-md border border-line bg-surface px-2 py-1.5 text-ink outline-none focus:border-accent"
+              >
+                {travelers.map((traveler) => (
+                  <option key={traveler.id} value={traveler.id}>
+                    {traveler.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <button
             type="button"
@@ -198,6 +228,15 @@ function Preview({
           />
         </div>
       </div>
+
+      {result.link && (
+        <p className="mt-3 rounded-md border border-accent-2 bg-accent-2/10 p-2.5 font-mono text-[11px]">
+          Detected {result.link.platform} link — source set automatically.{" "}
+          {result.link.metadataFetched
+            ? "Pulled the title from the platform."
+            : "The platform did not serve metadata, so only your caption was read."}
+        </p>
+      )}
 
       {result.escalationReason && (
         <p className="mt-3 rounded-md border border-line bg-surface-2 p-2.5 font-mono text-[11px] text-ink-soft">

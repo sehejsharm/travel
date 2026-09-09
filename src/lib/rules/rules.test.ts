@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Trip, TripItem } from "../domain/types";
 import { estimateTravel, haversineKm } from "../geo";
-import { entryRequirements, insuranceCoverage } from "./compliance";
+import { entryRequirements, healthAdvisories, insuranceCoverage } from "./compliance";
+import { lodgingAfterDeparture, lodgingCoverage, onwardTransport } from "./gaps";
+import { baggageAllowance, customsAllowance } from "./logistics";
+import { advanceBookingNeeded, venueClosures } from "./openings";
 import {
   bookingMismatches,
   geographicFeasibility,
@@ -65,6 +68,12 @@ const DEL = {
   countryCode: "IN",
   point: { lat: 28.5562, lng: 77.1 },
   airport: "DEL",
+};
+const KYOTO = {
+  name: "Fushimi Inari Taisha",
+  city: "Kyoto",
+  countryCode: "JP",
+  point: { lat: 34.9671, lng: 135.7727 },
 };
 
 const ctx = (items: TripItem[], trip: Trip = TRIP) => ({ trip, items, now: NOW });
@@ -420,6 +429,186 @@ describe("destinations vs transit", () => {
 describe("formatting", () => {
   it("keeps a post-midnight departure on its own local date", () => {
     expect(formatDay("2026-10-22T00:10:00+09:00")).toBe("Thu 22 Oct");
+  });
+});
+
+describe("opening hours and holidays", () => {
+  it("catches a museum booked on the day it is shut", () => {
+    const flags = venueClosures(
+      ctx([
+        item({
+          id: "ghibli",
+          title: "Ghibli Museum",
+          place: { name: "Ghibli Museum", countryCode: "JP", point: GHIBLI.point },
+          // 2026-10-20 is a Tuesday, and the museum closes on Tuesdays.
+          startsAt: "2026-10-20T10:00:00+09:00",
+          endsAt: "2026-10-20T12:00:00+09:00",
+        }),
+      ]),
+    );
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0].severity).toBe("critical");
+    expect(flags[0].title).toMatch(/shut on Tuesdays/);
+  });
+
+  it("stays quiet on a day the same venue is open", () => {
+    const flags = venueClosures(
+      ctx([
+        item({
+          id: "ghibli",
+          place: { name: "Ghibli Museum", countryCode: "JP", point: GHIBLI.point },
+          startsAt: "2026-10-21T10:00:00+09:00",
+        }),
+      ]),
+    );
+
+    expect(flags).toHaveLength(0);
+  });
+
+  it("warns when a venue that needs booking ahead has no confirmation", () => {
+    const unbooked = advanceBookingNeeded(
+      ctx([
+        item({
+          id: "ghibli",
+          place: { name: "Ghibli Museum", countryCode: "JP", point: GHIBLI.point },
+        }),
+      ]),
+    );
+    const booked = advanceBookingNeeded(
+      ctx([
+        item({
+          id: "ghibli",
+          confirmationCode: "GM1234",
+          place: { name: "Ghibli Museum", countryCode: "JP", point: GHIBLI.point },
+        }),
+      ]),
+    );
+
+    expect(unbooked).toHaveLength(1);
+    expect(booked).toHaveLength(0);
+  });
+});
+
+describe("gaps", () => {
+  const outbound = item({
+    id: "out",
+    category: "booking",
+    bookingKind: "flight",
+    place: DEL,
+    arrivalPlace: HND,
+    startsAt: "2026-10-14T19:55:00+05:30",
+    endsAt: "2026-10-15T07:25:00+09:00",
+  });
+  const home = item({
+    id: "home",
+    category: "booking",
+    bookingKind: "flight",
+    place: HND,
+    arrivalPlace: DEL,
+    startsAt: "2026-10-22T00:10:00+09:00",
+    endsAt: "2026-10-22T08:25:00+05:30",
+  });
+
+  it("finds nights at the destination with nothing booked", () => {
+    const shortStay = item({
+      id: "hotel",
+      category: "booking",
+      bookingKind: "lodging",
+      startsAt: "2026-10-15T15:00:00+09:00",
+      endsAt: "2026-10-19T11:00:00+09:00",
+    });
+
+    const flags = lodgingCoverage(ctx([outbound, home, shortStay]));
+    expect(flags).toHaveLength(1);
+    expect(flags[0].title).toMatch(/3 nights with nowhere booked/);
+  });
+
+  it("is quiet when the stay covers every night", () => {
+    const fullStay = item({
+      id: "hotel",
+      category: "booking",
+      bookingKind: "lodging",
+      startsAt: "2026-10-15T15:00:00+09:00",
+      endsAt: "2026-10-22T11:00:00+09:00",
+    });
+
+    expect(lodgingCoverage(ctx([outbound, home, fullStay]))).toHaveLength(0);
+  });
+
+  it("spots a hotel booked past the flight home", () => {
+    const overrun = item({
+      id: "hotel",
+      category: "booking",
+      bookingKind: "lodging",
+      startsAt: "2026-10-15T15:00:00+09:00",
+      endsAt: "2026-10-22T11:00:00+09:00",
+    });
+
+    const flags = lodgingAfterDeparture(ctx([outbound, home, overrun]));
+    expect(flags).toHaveLength(1);
+    expect(flags[0].category).toBe("money");
+  });
+
+  it("flags a city change with no transport booked for it", () => {
+    const flags = onwardTransport(
+      ctx([
+        item({ id: "tokyo", place: TEAMLAB, startsAt: "2026-10-19T10:00:00+09:00" }),
+        item({ id: "kyoto", place: KYOTO, startsAt: "2026-10-20T09:00:00+09:00" }),
+      ]),
+    );
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0].detail).toMatch(/km from where you were/);
+  });
+
+  it("accepts the same hop when a train is filed", () => {
+    const flags = onwardTransport(
+      ctx([
+        item({ id: "tokyo", place: TEAMLAB, startsAt: "2026-10-19T10:00:00+09:00" }),
+        item({
+          id: "shinkansen",
+          category: "booking",
+          bookingKind: "rail",
+          startsAt: "2026-10-20T06:30:00+09:00",
+        }),
+        item({ id: "kyoto", place: KYOTO, startsAt: "2026-10-20T09:00:00+09:00" }),
+      ]),
+    );
+
+    expect(flags).toHaveLength(0);
+  });
+});
+
+describe("logistics", () => {
+  it("reports the allowance for the airlines actually booked", () => {
+    const flags = baggageAllowance(
+      ctx([
+        item({ id: "f", title: "AI142 DEL → HND", category: "booking", bookingKind: "flight" }),
+        item({ id: "buy", category: "purchase" }),
+      ]),
+    );
+
+    expect(flags[0].detail).toMatch(/Air India: 25 kg checked/);
+  });
+
+  it("warns only when the shopping list passes the duty-free limit", () => {
+    const under = customsAllowance(
+      ctx([item({ id: "a", category: "purchase", cost: { amount: 8000, currency: "JPY" } })]),
+    );
+    const over = customsAllowance(
+      ctx([item({ id: "a", category: "purchase", cost: { amount: 900000, currency: "JPY" } })]),
+    );
+
+    expect(under[0].severity).toBe("info");
+    expect(over[0].severity).toBe("warning");
+  });
+
+  it("carries health advice with somewhere to verify it", () => {
+    const flags = healthAdvisories(ctx([item({ id: "a", place: TEAMLAB })]));
+
+    expect(flags[0].category).toBe("compliance");
+    expect(flags[0].verifyWith).toMatch(/travel clinic/);
   });
 });
 

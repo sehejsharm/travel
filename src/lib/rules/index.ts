@@ -6,9 +6,12 @@ import {
   overbookedDays,
   timeOverlaps,
 } from "./conflicts";
-import { entryRequirements, insuranceCoverage } from "./compliance";
+import { entryRequirements, healthAdvisories, insuranceCoverage } from "./compliance";
+import { lodgingAfterDeparture, lodgingCoverage, onwardTransport } from "./gaps";
+import { baggageAllowance, connectivity, customsAllowance } from "./logistics";
 import { budgetFlags, refundDeadlines } from "./money";
-import { cashReadiness, jetLag, powerCompatibility } from "./prep";
+import { advanceBookingNeeded, publicHolidays, venueClosures } from "./openings";
+import { cashReadiness, jetLag, powerCompatibility, weatherOutlook } from "./prep";
 import type { Rule, RuleContext } from "./shared";
 
 export * from "./shared";
@@ -21,13 +24,24 @@ const RULES: Rule[] = [
   layoverFeasibility,
   bookingMismatches,
   overbookedDays,
+  venueClosures,
+  advanceBookingNeeded,
+  lodgingCoverage,
+  lodgingAfterDeparture,
+  onwardTransport,
   entryRequirements,
+  healthAdvisories,
   insuranceCoverage,
   budgetFlags,
   refundDeadlines,
+  customsAllowance,
+  baggageAllowance,
   powerCompatibility,
+  weatherOutlook,
   jetLag,
   cashReadiness,
+  connectivity,
+  publicHolidays,
 ];
 
 const SEVERITY_ORDER = { critical: 0, warning: 1, info: 2 } as const;

@@ -22,6 +22,12 @@ export const SEED_TRIP: Trip = {
       insuranceFrom: "2026-10-14",
       insuranceTo: "2026-10-20",
     },
+    {
+      id: "traveler-aanya",
+      name: "Aanya Rao",
+      passportCountry: "IN",
+      passportExpiry: "2029-03-11",
+    },
   ],
 };
 
@@ -195,6 +201,21 @@ const SEED_ITEMS: SeedItem[] = [
     costStatus: "actual",
   },
   {
+    id: "item-national-museum",
+    title: "Tokyo National Museum",
+    category: "activity",
+    source: "youtube",
+    place: {
+      name: "Tokyo National Museum",
+      city: "Tokyo",
+      countryCode: "JP",
+      point: { lat: 35.7188, lng: 139.7766 },
+    },
+    startsAt: "2026-10-19T10:00:00+09:00",
+    endsAt: "2026-10-19T12:30:00+09:00",
+    addedBy: "traveler-aanya",
+  },
+  {
     id: "item-flight-home-1",
     title: "TG683 HND → BKK",
     category: "booking",
@@ -252,13 +273,16 @@ const SEED_ITEMS: SeedItem[] = [
     title: "Fushimi Inari before sunrise",
     category: "place",
     source: "reel",
-    sourceRef: "instagram.com/reel/kyoto-torii",
+    sourceRef: "https://www.instagram.com/reel/C8kyoto2torii/",
     place: {
       name: "Fushimi Inari Taisha",
       city: "Kyoto",
       countryCode: "JP",
       point: { lat: 34.9671, lng: 135.7727 },
     },
+    startsAt: "2026-10-21T07:00:00+09:00",
+    endsAt: "2026-10-21T09:30:00+09:00",
+    addedBy: "traveler-aanya",
   },
   {
     id: "item-arashiyama",

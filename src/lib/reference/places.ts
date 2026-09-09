@@ -2,6 +2,15 @@ import type { PlaceRef } from "../domain/types";
 
 interface GazetteerEntry extends PlaceRef {
   aliases: string[];
+  /** Weekdays the place is shut, 0 = Sunday. */
+  closedDays?: number[];
+  /** Set where turning up without a ticket does not work. */
+  advanceBooking?: string;
+}
+
+export interface PlaceFacts {
+  closedDays?: number[];
+  advanceBooking?: string;
 }
 
 /**
@@ -79,6 +88,16 @@ const GAZETTEER: GazetteerEntry[] = [
     countryCode: "JP",
     point: { lat: 35.6962, lng: 139.5704 },
     aliases: ["ghibli museum", "ghibli", "mitaka ghibli"],
+    closedDays: [2],
+    advanceBooking: "Dated tickets only, released a month ahead and they sell out",
+  },
+  {
+    name: "Tokyo National Museum",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.7188, lng: 139.7766 },
+    aliases: ["tokyo national museum", "ueno museum"],
+    closedDays: [1],
   },
   {
     name: "Shibuya Crossing",
@@ -180,4 +199,11 @@ export function groundPlace(text: string): PlaceRef | undefined {
     countryCode: best.entry.countryCode,
     point: best.entry.point,
   };
+}
+
+/** Opening quirks for an already-grounded place, looked up by its name. */
+export function placeFacts(name: string): PlaceFacts | undefined {
+  const entry = GAZETTEER.find((candidate) => candidate.name === name);
+  if (!entry?.closedDays && !entry?.advanceBooking) return undefined;
+  return { closedDays: entry.closedDays, advanceBooking: entry.advanceBooking };
 }

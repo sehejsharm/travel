@@ -40,7 +40,8 @@ function classify(text: string): { category: ItemCategory; bookingKind?: Booking
 function deriveTitle(text: string, place?: PlaceRef): string {
   const firstLine = text
     .split("\n")
-    .map((line) => line.trim())
+    // A bare URL is never a good title, so strip links before picking a line.
+    .map((line) => line.replace(/https?:\/\/\S+/gi, "").trim())
     .find((line) => line.length > 2);
 
   const cleaned = firstLine

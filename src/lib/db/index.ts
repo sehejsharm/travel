@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
+import type { ChecklistEntry, ChecklistKind, GeneratedEntry } from "../checklists";
 import type { Money, PlaceRef, Trip, TripItem } from "../domain/types";
 import type { ItemDraft } from "../extract/types";
 import { SEED_TRIP, seedItems } from "./seed";
@@ -43,7 +44,29 @@ CREATE TABLE IF NOT EXISTS items (
 );
 
 CREATE INDEX IF NOT EXISTS items_trip_idx ON items(trip_id);
+
+CREATE TABLE IF NOT EXISTS checklist (
+  id TEXT PRIMARY KEY,
+  trip_id TEXT NOT NULL REFERENCES trips(id),
+  kind TEXT NOT NULL,
+  label TEXT NOT NULL,
+  detail TEXT,
+  generated_from TEXT,
+  assignee_id TEXT,
+  done INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS checklist_trip_idx ON checklist(trip_id, kind);
 `;
+
+/** Additive migrations for databases created by an earlier version. */
+function migrate(db: Db): void {
+  const columns = db.prepare("PRAGMA table_info(items)").all() as { name: string }[];
+  if (!columns.some((column) => column.name === "added_by")) {
+    db.exec("ALTER TABLE items ADD COLUMN added_by TEXT");
+  }
+}
 
 type Db = ReturnType<typeof Database>;
 
@@ -55,6 +78,7 @@ function connect(): Db {
   const db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
   db.exec(SCHEMA);
+  migrate(db);
 
   const hasTrip = db.prepare("SELECT COUNT(*) AS count FROM trips").get() as { count: number };
   if (hasTrip.count === 0) seed(db);
@@ -95,12 +119,12 @@ function itemInsert(db: Db) {
       id, trip_id, title, category, booking_kind, source, source_ref, notes,
       place, arrival_place, starts_at, ends_at, cost, cost_status,
       confirmation_code, traveler_name, refundable_until, confidence,
-      extraction_method, created_at
+      extraction_method, created_at, added_by
     ) VALUES (
       @id, @tripId, @title, @category, @bookingKind, @source, @sourceRef, @notes,
       @place, @arrivalPlace, @startsAt, @endsAt, @cost, @costStatus,
       @confirmationCode, @travelerName, @refundableUntil, @confidence,
-      @extractionMethod, @createdAt
+      @extractionMethod, @createdAt, @addedBy
     )`,
   );
 
@@ -126,6 +150,7 @@ function itemInsert(db: Db) {
       confidence: item.confidence,
       extractionMethod: item.extractionMethod,
       createdAt: item.createdAt,
+      addedBy: item.addedBy ?? null,
     });
 }
 
@@ -161,6 +186,7 @@ interface ItemRow {
   confidence: number;
   extraction_method: string;
   created_at: string;
+  added_by: string | null;
 }
 
 function toTrip(row: TripRow): Trip {
@@ -200,6 +226,7 @@ function toItem(row: ItemRow): TripItem {
     confidence: row.confidence,
     extractionMethod: row.extraction_method as TripItem["extractionMethod"],
     createdAt: row.created_at,
+    addedBy: row.added_by ?? undefined,
   };
 }
 
@@ -218,6 +245,7 @@ export function listItems(tripId: string): TripItem[] {
 export function addItem(tripId: string, draft: ItemDraft, meta: {
   confidence: number;
   extractionMethod: TripItem["extractionMethod"];
+  addedBy?: string;
 }): TripItem {
   const item: TripItem = {
     ...draft,
@@ -226,6 +254,7 @@ export function addItem(tripId: string, draft: ItemDraft, meta: {
     createdAt: new Date().toISOString(),
     confidence: meta.confidence,
     extractionMethod: meta.extractionMethod,
+    addedBy: meta.addedBy,
   };
 
   itemInsert(getDb())(item);
@@ -234,4 +263,102 @@ export function addItem(tripId: string, draft: ItemDraft, meta: {
 
 export function deleteItem(id: string): void {
   getDb().prepare("DELETE FROM items WHERE id = ?").run(id);
+}
+
+interface ChecklistRow {
+  id: string;
+  trip_id: string;
+  kind: string;
+  label: string;
+  detail: string | null;
+  generated_from: string | null;
+  assignee_id: string | null;
+  done: number;
+  created_at: string;
+}
+
+function toChecklistEntry(row: ChecklistRow): ChecklistEntry {
+  return {
+    id: row.id,
+    tripId: row.trip_id,
+    kind: row.kind as ChecklistKind,
+    label: row.label,
+    detail: row.detail ?? undefined,
+    generatedFrom: row.generated_from ?? undefined,
+    assigneeId: row.assignee_id ?? undefined,
+    done: row.done === 1,
+    createdAt: row.created_at,
+  };
+}
+
+export function listChecklist(tripId: string, kind: ChecklistKind): ChecklistEntry[] {
+  const rows = getDb()
+    .prepare("SELECT * FROM checklist WHERE trip_id = ? AND kind = ? ORDER BY done, created_at")
+    .all(tripId, kind) as ChecklistRow[];
+  return rows.map(toChecklistEntry);
+}
+
+/**
+ * Adds newly generated entries without touching what is already there — a
+ * ticked box or an assignment must survive the generator running again.
+ */
+export function syncChecklist(
+  tripId: string,
+  kind: ChecklistKind,
+  entries: GeneratedEntry[],
+): void {
+  const db = getDb();
+  const existing = new Set(
+    (
+      db
+        .prepare("SELECT label FROM checklist WHERE trip_id = ? AND kind = ?")
+        .all(tripId, kind) as { label: string }[]
+    ).map((row) => row.label),
+  );
+
+  const insert = db.prepare(
+    `INSERT INTO checklist (id, trip_id, kind, label, detail, generated_from, assignee_id, done, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, NULL, 0, ?)`,
+  );
+
+  const insertAll = db.transaction((toAdd: GeneratedEntry[]) => {
+    for (const entry of toAdd) {
+      insert.run(
+        `chk-${Math.random().toString(36).slice(2, 10)}`,
+        tripId,
+        kind,
+        entry.label,
+        entry.detail ?? null,
+        entry.generatedFrom ?? null,
+        new Date().toISOString(),
+      );
+    }
+  });
+
+  insertAll(entries.filter((entry) => !existing.has(entry.label)));
+}
+
+export function addChecklistEntry(
+  tripId: string,
+  kind: ChecklistKind,
+  label: string,
+): void {
+  getDb()
+    .prepare(
+      `INSERT INTO checklist (id, trip_id, kind, label, detail, generated_from, assignee_id, done, created_at)
+       VALUES (?, ?, ?, ?, NULL, NULL, NULL, 0, ?)`,
+    )
+    .run(`chk-${Math.random().toString(36).slice(2, 10)}`, tripId, kind, label, new Date().toISOString());
+}
+
+export function setChecklistDone(id: string, done: boolean): void {
+  getDb().prepare("UPDATE checklist SET done = ? WHERE id = ?").run(done ? 1 : 0, id);
+}
+
+export function setChecklistAssignee(id: string, assigneeId: string | null): void {
+  getDb().prepare("UPDATE checklist SET assignee_id = ? WHERE id = ?").run(assigneeId, id);
+}
+
+export function deleteChecklistEntry(id: string): void {
+  getDb().prepare("DELETE FROM checklist WHERE id = ?").run(id);
 }

@@ -13,6 +13,13 @@ export interface ExtractionInput {
   today?: Date;
 }
 
+export interface DetectedLinkSummary {
+  platform: string;
+  url: string;
+  /** False where the platform would not serve metadata without a token. */
+  metadataFetched: boolean;
+}
+
 export interface ExtractionResult {
   draft: ItemDraft;
   confidence: number;
@@ -21,6 +28,8 @@ export interface ExtractionResult {
   foundFields: string[];
   /** Set when a cheap pass was escalated, explaining why. */
   escalationReason?: string;
+  /** Set when the pasted text carried a social link. */
+  link?: DetectedLinkSummary;
 }
 
 /** Below this, the deterministic pass has not found enough to be trusted. */

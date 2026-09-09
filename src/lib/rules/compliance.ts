@@ -5,6 +5,7 @@ import {
   VISA_OUTCOME_LABELS,
   type EntryRequirementsProvider,
 } from "../reference/entry-requirements";
+import { healthAdvisory } from "../reference/health";
 import { daysBetween, destinationCountries, formatDay, type RuleContext } from "./shared";
 
 const VERIFY_NOTE = "the destination's embassy or official immigration site";
@@ -113,6 +114,45 @@ function passportValidity(
     itemIds: [],
     verifyWith: VERIFY_NOTE,
   };
+}
+
+export function healthAdvisories(ctx: RuleContext): Flag[] {
+  const { trip, items } = ctx;
+
+  return destinationCountries(trip, items).flatMap((code): Flag[] => {
+    const advisory = healthAdvisory(code);
+    const countryName = getCountry(code)?.name ?? code;
+    if (!advisory) return [];
+
+    const flags: Flag[] = [
+      {
+        id: `health:${code}`,
+        severity: advisory.notes.length > 0 ? "warning" : "info",
+        category: "compliance",
+        title: `Health prep for ${countryName}`,
+        detail: `${advisory.recommended.join(", ")}.${
+          advisory.notes.length > 0 ? ` ${advisory.notes.join(" ")}` : ""
+        } Reference data last checked ${advisory.lastVerified}.`,
+        itemIds: [],
+        verifyWith: "a travel clinic, at least six weeks before you fly",
+      },
+    ];
+
+    if (advisory.yellowFeverIfArrivingFrom) {
+      flags.push({
+        id: `yellow-fever:${code}`,
+        severity: "info",
+        category: "compliance",
+        title: `${countryName} asks for yellow fever proof from some countries`,
+        detail:
+          "Only if you are arriving from, or have recently transited, a country where yellow fever is present. Worth checking against your route.",
+        itemIds: [],
+        verifyWith: VERIFY_NOTE,
+      });
+    }
+
+    return flags;
+  });
 }
 
 export function insuranceCoverage({ trip }: RuleContext): Flag[] {

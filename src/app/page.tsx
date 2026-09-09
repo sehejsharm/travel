@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { BudgetPanel } from "@/components/budget-panel";
+import { Checklist } from "@/components/checklist";
 import { FlagCounts, FlagList } from "@/components/flags";
 import { Timeline } from "@/components/timeline";
-import { getTrip, listItems } from "@/lib/db";
+import { generatePacking, generateTasks } from "@/lib/checklists";
+import { getTrip, listChecklist, listItems, syncChecklist } from "@/lib/db";
 import {
   daysBetween,
   destinationBriefs,
@@ -24,6 +26,12 @@ export default function PlanningDesk() {
   const daysToGo = Math.ceil(daysBetween(now, trip.startDate));
   const unscheduled = items.filter((item) => !item.startsAt).length;
 
+  // Generated entries are added if missing; ticks and assignments are kept.
+  syncChecklist(trip.id, "packing", generatePacking(trip, items));
+  syncChecklist(trip.id, "task", generateTasks(flags));
+  const packing = listChecklist(trip.id, "packing");
+  const tasks = listChecklist(trip.id, "task");
+
   return (
     <div className="flex flex-col gap-8">
       <section>
@@ -36,8 +44,26 @@ export default function PlanningDesk() {
           {daysToGo > 0 && ` · ${daysToGo} days to go`} ·{" "}
           {trip.travelers.map((traveler) => traveler.name).join(", ")}
         </p>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <FlagCounts flags={flags} />
+          <a
+            href="/api/calendar"
+            className="rounded-md border border-line px-3 py-1 font-mono text-[11px] text-ink-soft transition-colors hover:border-accent hover:text-accent-strong"
+          >
+            Push to calendar (.ics)
+          </a>
+          <Link
+            href={`/share/${trip.id}`}
+            className="rounded-md border border-line px-3 py-1 font-mono text-[11px] text-ink-soft transition-colors hover:border-accent hover:text-accent-strong"
+          >
+            Share trip page
+          </Link>
+          <Link
+            href="/recap"
+            className="rounded-md border border-line px-3 py-1 font-mono text-[11px] text-ink-soft transition-colors hover:border-accent hover:text-accent-strong"
+          >
+            Recap
+          </Link>
         </div>
       </section>
 
@@ -81,6 +107,25 @@ export default function PlanningDesk() {
             </section>
           )}
         </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Checklist
+          title="Pre-trip tasks"
+          kind="task"
+          entries={tasks}
+          travelers={trip.travelers}
+          compact
+          note="Raised by the checks below. Tick them off as you go."
+          emptyLabel="Nothing outstanding — every check that needs action is clear."
+        />
+        <Checklist
+          title="Packing list"
+          kind="packing"
+          entries={packing}
+          travelers={trip.travelers}
+          emptyLabel="Add a destination and dates and this builds itself."
+        />
       </div>
 
       <section className="flex flex-col gap-3">

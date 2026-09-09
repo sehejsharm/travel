@@ -58,6 +58,11 @@ export default function FilingCabinet() {
                     <ItemCard
                       key={item.id}
                       item={item}
+                      addedByName={
+                        trip.travelers.length > 1
+                          ? trip.travelers.find((traveler) => traveler.id === item.addedBy)?.name
+                          : undefined
+                      }
                       action={<DeleteItemButton id={item.id} />}
                     />
                   ))}

@@ -1,4 +1,5 @@
 import type { Flag } from "../domain/types";
+import { weatherFor } from "../reference/climate";
 import { getCountry, type CountryInfo } from "../reference/countries";
 import { destinationCountries, type RuleContext } from "./shared";
 
@@ -71,6 +72,28 @@ export function jetLag(ctx: RuleContext): Flag[] {
         itemIds: [],
       };
     });
+}
+
+export function weatherOutlook(ctx: RuleContext): Flag[] {
+  const { trip } = ctx;
+
+  return destinationBriefs(ctx).flatMap(({ country }): Flag[] => {
+    const weather = weatherFor(country.code, trip.startDate, trip.endDate);
+    if (!weather) return [];
+
+    return [
+      {
+        id: `weather:${country.code}`,
+        severity: "info",
+        category: "prep",
+        title: `Expect ${weather.lowC}–${weather.highC}°C in ${country.name}`,
+        detail: `Seasonal normals for ${weather.referenceCity} across your dates${
+          weather.wet ? ", and you are travelling in the wet season — pack a rain layer" : ""
+        }. Your packing list is built from this.`,
+        itemIds: [],
+      },
+    ];
+  });
 }
 
 export function cashReadiness(ctx: RuleContext): Flag[] {
