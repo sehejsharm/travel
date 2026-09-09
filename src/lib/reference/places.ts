@@ -1,0 +1,183 @@
+import type { PlaceRef } from "../domain/types";
+
+interface GazetteerEntry extends PlaceRef {
+  aliases: string[];
+}
+
+/**
+ * A small local gazetteer stands in for a places API. It exists so the
+ * "ground" half of extract-and-ground is real: an extracted name becomes
+ * coordinates, which is what the feasibility checks run on.
+ */
+const GAZETTEER: GazetteerEntry[] = [
+  {
+    name: "Shibuya Sky",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.658, lng: 139.7016 },
+    aliases: ["shibuya sky", "shibuya scramble square", "shibuya observation"],
+  },
+  {
+    name: "teamLab Borderless",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.6605, lng: 139.7396 },
+    aliases: ["teamlab borderless", "teamlab", "team lab", "azabudai hills teamlab"],
+  },
+  {
+    name: "Senso-ji",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.7148, lng: 139.7967 },
+    aliases: ["senso-ji", "sensoji", "asakusa temple", "asakusa"],
+  },
+  {
+    name: "Tsukiji Outer Market",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.6654, lng: 139.7707 },
+    aliases: ["tsukiji", "tsukiji outer market", "tsukiji market"],
+  },
+  {
+    name: "Shinjuku Gyoen",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.6852, lng: 139.71 },
+    aliases: ["shinjuku gyoen", "shinjuku garden"],
+  },
+  {
+    name: "Meiji Jingu",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.6764, lng: 139.6993 },
+    aliases: ["meiji jingu", "meiji shrine"],
+  },
+  {
+    name: "Tokyo Skytree",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.7101, lng: 139.8107 },
+    aliases: ["skytree", "tokyo skytree"],
+  },
+  {
+    name: "Omoide Yokocho",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.6938, lng: 139.7 },
+    aliases: ["omoide yokocho", "memory lane", "piss alley", "golden gai"],
+  },
+  {
+    name: "Akihabara",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.6984, lng: 139.7731 },
+    aliases: ["akihabara", "akiba", "electric town"],
+  },
+  {
+    name: "Ghibli Museum",
+    city: "Mitaka",
+    countryCode: "JP",
+    point: { lat: 35.6962, lng: 139.5704 },
+    aliases: ["ghibli museum", "ghibli", "mitaka ghibli"],
+  },
+  {
+    name: "Shibuya Crossing",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.6595, lng: 139.7005 },
+    aliases: ["shibuya crossing", "scramble crossing", "hachiko"],
+  },
+  {
+    name: "Takeshita Street",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.6716, lng: 139.7031 },
+    aliases: ["takeshita street", "harajuku", "takeshita dori"],
+  },
+  {
+    name: "Tokyo Station",
+    city: "Tokyo",
+    countryCode: "JP",
+    point: { lat: 35.6812, lng: 139.7671 },
+    aliases: ["tokyo station"],
+  },
+  {
+    name: "Lake Kawaguchi",
+    city: "Fujikawaguchiko",
+    countryCode: "JP",
+    point: { lat: 35.5171, lng: 138.752 },
+    aliases: ["lake kawaguchi", "kawaguchiko", "mount fuji view", "mt fuji"],
+  },
+  {
+    name: "Fushimi Inari Taisha",
+    city: "Kyoto",
+    countryCode: "JP",
+    point: { lat: 34.9671, lng: 135.7727 },
+    aliases: ["fushimi inari", "inari shrine", "torii gates"],
+  },
+  {
+    name: "Arashiyama Bamboo Grove",
+    city: "Kyoto",
+    countryCode: "JP",
+    point: { lat: 35.017, lng: 135.6714 },
+    aliases: ["arashiyama", "bamboo grove", "bamboo forest"],
+  },
+  {
+    name: "Kiyomizu-dera",
+    city: "Kyoto",
+    countryCode: "JP",
+    point: { lat: 34.9949, lng: 135.7851 },
+    aliases: ["kiyomizu-dera", "kiyomizu", "kiyomizudera"],
+  },
+  {
+    name: "Dotonbori",
+    city: "Osaka",
+    countryCode: "JP",
+    point: { lat: 34.6687, lng: 135.5013 },
+    aliases: ["dotonbori", "dotombori", "glico sign"],
+  },
+  {
+    name: "Nara Park",
+    city: "Nara",
+    countryCode: "JP",
+    point: { lat: 34.6851, lng: 135.843 },
+    aliases: ["nara park", "nara deer", "nara"],
+  },
+];
+
+function normalize(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Resolves free text to a known place. Returns undefined rather than guessing
+ * when nothing matches — an ungrounded item is still filed, it just does not
+ * take part in distance checks.
+ */
+export function groundPlace(text: string): PlaceRef | undefined {
+  const needle = normalize(text);
+  if (!needle) return undefined;
+
+  let best: { entry: GazetteerEntry; score: number } | undefined;
+
+  for (const entry of GAZETTEER) {
+    for (const alias of entry.aliases) {
+      if (!needle.includes(alias)) continue;
+      const score = alias.length;
+      if (!best || score > best.score) best = { entry, score };
+    }
+  }
+
+  if (!best) return undefined;
+
+  return {
+    name: best.entry.name,
+    city: best.entry.city,
+    countryCode: best.entry.countryCode,
+    point: best.entry.point,
+  };
+}
