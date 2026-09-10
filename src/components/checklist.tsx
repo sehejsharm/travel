@@ -12,6 +12,7 @@ import {
 import { Card } from "./ui";
 
 export function Checklist({
+  tripId,
   title,
   kind,
   entries,
@@ -20,6 +21,7 @@ export function Checklist({
   note,
   compact = false,
 }: {
+  tripId: string;
   title: string;
   kind: ChecklistKind;
   entries: ChecklistEntry[];
@@ -120,7 +122,7 @@ export function Checklist({
         className="mt-4 flex gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          addChecklistEntry(kind, draft);
+          addChecklistEntry(tripId, kind, draft);
           setDraft("");
         }}
       >

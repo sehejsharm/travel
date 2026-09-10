@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Card, ScreenHeader, ScreenSkeleton, SectionTitle, Stat } from "@/components/ui";
+import { Card, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle, Stat } from "@/components/ui";
 import { SOURCE_LABELS } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/reference/fx";
 import { buildRecap } from "@/lib/recap";
@@ -17,6 +17,7 @@ const STATUS_COPY = {
 export default function RecapScreen() {
   const { trip, items, hydrated } = useTripView();
   if (!hydrated) return <ScreenSkeleton />;
+  if (!trip) return <EmptyState title="No trip yet" body="Create a trip and the recap fills in." />;
 
   const recap = buildRecap(trip, items, new Date());
   const mostUsed = recap.bySource[0];

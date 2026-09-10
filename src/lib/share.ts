@@ -1,4 +1,4 @@
-import type { AppState } from "./store/state";
+import type { Trip, TripItem } from "./domain/types";
 
 /**
  * A shared trip travels inside the URL fragment, which browsers never send to
@@ -38,12 +38,16 @@ async function collect(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> 
   return merged;
 }
 
+export interface SharedTrip {
+  trip: Trip;
+  items: TripItem[];
+}
+
 /** Only the plan travels — prices and confirmation numbers are left behind. */
-function stripPrivate(state: AppState): AppState {
+function stripPrivate(trip: Trip, items: TripItem[]): SharedTrip {
   return {
-    trip: state.trip,
-    checklist: [],
-    items: state.items.map((item) => ({
+    trip,
+    items: items.map((item) => ({
       ...item,
       cost: undefined,
       costStatus: undefined,
@@ -54,23 +58,23 @@ function stripPrivate(state: AppState): AppState {
   };
 }
 
-export async function encodeTrip(state: AppState): Promise<string> {
-  const json = JSON.stringify(stripPrivate(state));
+export async function encodeTrip(trip: Trip, items: TripItem[]): Promise<string> {
+  const json = JSON.stringify(stripPrivate(trip, items));
   const compressed = new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"));
   return toBase64Url(await collect(compressed));
 }
 
-export async function decodeTrip(token: string): Promise<AppState | undefined> {
+export async function decodeTrip(token: string): Promise<SharedTrip | undefined> {
   try {
     const bytes = fromBase64Url(token);
     const stream = new Blob([bytes as BlobPart])
       .stream()
       .pipeThrough(new DecompressionStream("gzip"));
     const json = new TextDecoder().decode(await collect(stream));
-    const parsed = JSON.parse(json) as Partial<AppState>;
+    const parsed = JSON.parse(json) as Partial<SharedTrip>;
 
     if (!parsed.trip || !Array.isArray(parsed.items)) return undefined;
-    return { trip: parsed.trip, items: parsed.items, checklist: [] };
+    return { trip: parsed.trip, items: parsed.items };
   } catch {
     return undefined;
   }

@@ -83,6 +83,11 @@ export function destinationCountries(trip: Trip, items: TripItem[]): string[] {
   const transit = transitCountries(items);
   const found = new Set<string>();
 
+  for (const declared of trip.destinationCountries ?? []) {
+    const code = declared.toUpperCase();
+    if (code && code !== home) found.add(code);
+  }
+
   for (const item of items) {
     for (const place of [item.place, item.arrivalPlace]) {
       const code = place?.countryCode?.toUpperCase();

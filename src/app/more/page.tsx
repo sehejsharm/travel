@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Card, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
+import { Card, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import { toCalendar } from "@/lib/calendar";
 import { encodeTrip } from "@/lib/share";
-import { resetToSample } from "@/lib/store/state";
+import { loadSampleTrip } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
 import { destinationBriefs } from "@/lib/rules";
 
@@ -24,16 +24,19 @@ export default function MoreScreen() {
   const [confirmReset, setConfirmReset] = useState(false);
 
   if (!hydrated) return <ScreenSkeleton />;
+  if (!trip) {
+    return <EmptyState title="No trip yet" body="Create a trip first and this fills in." />;
+  }
 
   const briefs = destinationBriefs({ trip, items, now: new Date() });
 
   async function share() {
     try {
-      const token = await encodeTrip({ trip, items, checklist: [] });
+      const token = await encodeTrip(trip!, items);
       const url = `${window.location.origin}/share#${token}`;
 
       if (navigator.share) {
-        await navigator.share({ title: trip.name, url });
+        await navigator.share({ title: trip!.name, url });
         setShareState("idle");
         return;
       }
@@ -142,7 +145,7 @@ export default function MoreScreen() {
                 setConfirmReset(true);
                 return;
               }
-              resetToSample();
+              loadSampleTrip();
               setConfirmReset(false);
             }}
             className={`press mt-3 rounded-xl border px-3.5 py-2 text-xs font-medium ${
@@ -151,7 +154,7 @@ export default function MoreScreen() {
                 : "border-line text-ink-soft"
             }`}
           >
-            {confirmReset ? "Tap again to replace your trip with the sample" : "Reset to sample trip"}
+            {confirmReset ? "Tap again to load the sample trip" : "Load the sample trip"}
           </button>
         </Card>
       </section>

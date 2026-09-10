@@ -19,6 +19,14 @@ export default function ChecksScreen() {
   const [filter, setFilter] = useState<FlagSeverity | "all">("all");
 
   if (!hydrated) return <ScreenSkeleton />;
+  if (!trip) {
+    return (
+      <EmptyState
+        title="No trip yet"
+        body="Create a trip and the checks start running against it."
+      />
+    );
+  }
 
   const visible = filter === "all" ? flags : flags.filter((flag) => flag.severity === filter);
   const tasks = checklist.filter((entry) => entry.kind === "task");
@@ -34,6 +42,7 @@ export default function ChecksScreen() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Checklist
+          tripId={trip.id}
           title="Pre-trip tasks"
           kind="task"
           entries={tasks}
@@ -43,6 +52,7 @@ export default function ChecksScreen() {
           emptyLabel="Nothing outstanding."
         />
         <Checklist
+          tripId={trip.id}
           title="Packing list"
           kind="packing"
           entries={packing}

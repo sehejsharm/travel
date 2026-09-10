@@ -77,6 +77,11 @@ export interface Trip {
   id: string;
   name: string;
   homeCountry: string;
+  /**
+   * Where you have said you are going. Items add more as they are filed, but
+   * the checks must not wait for an item to know the destination.
+   */
+  destinationCountries?: string[];
   startDate: string;
   endDate: string;
   budgetTarget?: Money;

@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
+import { Card, Chip, EmptyState, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { SOURCE_LABELS, type SourceKind } from "@/lib/domain/types";
 import type { ExtractionResult } from "@/lib/extract/types";
 import { formatMoney } from "@/lib/reference/fx";
@@ -57,6 +58,7 @@ export default function AddScreen() {
   const [busy, setBusy] = useState(false);
 
   if (!hydrated) return <ScreenSkeleton />;
+  if (!trip) return <NoTrip />;
 
   async function extract() {
     setBusy(true);
@@ -82,10 +84,10 @@ export default function AddScreen() {
 
   function file() {
     if (!result) return;
-    addItem(result.draft, {
+    addItem(trip!.id, result.draft, {
       confidence: result.confidence,
       extractionMethod: result.method,
-      addedBy: addedBy || trip.travelers[0]?.id,
+      addedBy: addedBy || trip!.travelers[0]?.id,
     });
     setFiled(result.draft.title);
     setResult(null);
@@ -145,7 +147,7 @@ export default function AddScreen() {
             </select>
           </label>
 
-          {trip.travelers.length > 1 && (
+          {trip!.travelers.length > 1 && (
             <label className="flex items-center gap-2 font-mono text-[11px] text-ink-soft">
               As
               <select
@@ -153,7 +155,7 @@ export default function AddScreen() {
                 onChange={(event) => setAddedBy(event.target.value)}
                 className="rounded-lg border border-line bg-surface px-2 py-1.5 text-ink outline-none focus:border-accent"
               >
-                {trip.travelers.map((traveler) => (
+                {trip!.travelers.map((traveler) => (
                   <option key={traveler.id} value={traveler.id}>
                     {traveler.name}
                   </option>
@@ -187,6 +189,23 @@ export default function AddScreen() {
         {result && <Preview result={result} onFile={file} />}
       </div>
     </div>
+  );
+}
+
+function NoTrip() {
+  return (
+    <EmptyState
+      title="No trip yet"
+      body="Create a trip first — everything you file has to belong to one."
+      action={
+        <Link
+          href="/"
+          className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
+        >
+          Start a trip
+        </Link>
+      }
+    />
   );
 }
 

@@ -1,3 +1,5 @@
+"use client";
+
 import type { Flag, TripItem } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/reference/fx";
 import { formatDay, formatTime, localDateKey } from "@/lib/rules";
@@ -20,12 +22,20 @@ function groupByDay(items: TripItem[]): [string, TripItem[]][] {
     ]);
 }
 
-const KIND_TONE = {
+const KIND_TONE: Record<string, string> = {
   flight: "text-accent-strong",
   lodging: "text-teal",
-} as const;
+};
 
-export function Timeline({ items, flags }: { items: TripItem[]; flags: Flag[] }) {
+export function Timeline({
+  items,
+  flags,
+  onSelect,
+}: {
+  items: TripItem[];
+  flags: Flag[];
+  onSelect: (item: TripItem) => void;
+}) {
   const days = groupByDay(items);
   const flagged = new Set(
     flags.filter((flag) => flag.severity !== "info").flatMap((flag) => flag.itemIds),
@@ -33,57 +43,58 @@ export function Timeline({ items, flags }: { items: TripItem[]; flags: Flag[] })
 
   return (
     <ol className="flex flex-col gap-5">
-      {days.map(([day, dayItems], dayIndex) => (
-        <li key={day} className="animate-rise" style={{ animationDelay: `${dayIndex * 30}ms` }}>
+      {days.map(([day, dayItems]) => (
+        <li key={day}>
           <div className="mb-2 flex items-baseline gap-2 px-0.5">
             <h3 className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint">
               {formatDay(dayItems[0].startsAt!)}
             </h3>
             <span className="h-px flex-1 bg-line" />
-            <span className="font-mono text-[10px] text-ink-faint tabular">
-              {dayItems.length}
-            </span>
+            <span className="font-mono text-[10px] text-ink-faint tabular">{dayItems.length}</span>
           </div>
 
           <Card as="div" className="overflow-hidden">
             <ul className="divide-y divide-line">
-              {dayItems.map((item) => {
-                const kindTone =
-                  item.bookingKind && item.bookingKind in KIND_TONE
-                    ? KIND_TONE[item.bookingKind as keyof typeof KIND_TONE]
-                    : "text-ink-faint";
+              {dayItems.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(item)}
+                    className="press flex w-full gap-3 px-4 py-3 text-left hover:bg-surface-2"
+                  >
+                    <span className="w-11 shrink-0 pt-0.5 text-right font-mono text-xs text-ink-soft tabular">
+                      {formatTime(item.startsAt!) || "—"}
+                    </span>
 
-                return (
-                  <li key={item.id} className="flex gap-3 px-4 py-3">
-                    <div className="flex w-11 shrink-0 flex-col items-end pt-0.5">
-                      <span className="font-mono text-xs text-ink-soft tabular">
-                        {formatTime(item.startsAt!) || "—"}
+                    <span className="flex flex-col items-center pt-1.5">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full bg-current ${
+                          KIND_TONE[item.bookingKind ?? ""] ?? "text-ink-faint"
+                        }`}
+                      />
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-[15px] leading-snug font-medium">{item.title}</span>
+                        {flagged.has(item.id) && <Chip tone="critical">check</Chip>}
                       </span>
-                    </div>
-
-                    <div className="relative flex flex-col items-center pt-1.5">
-                      <span className={`h-1.5 w-1.5 rounded-full bg-current ${kindTone}`} />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <p className="text-[15px] leading-snug font-medium">{item.title}</p>
-                        {flagged.has(item.id) && (
-                          <Chip tone="critical">check</Chip>
-                        )}
-                      </div>
-                      <p className="mt-0.5 font-mono text-[11px] text-ink-faint">
+                      <span className="mt-0.5 block font-mono text-[11px] text-ink-faint">
                         {[
                           item.place?.city ?? item.place?.name,
                           item.cost && formatMoney(item.cost.amount, item.cost.currency),
                         ]
                           .filter(Boolean)
                           .join(" · ")}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
+                      </span>
+                    </span>
+
+                    <span aria-hidden="true" className="self-center text-ink-faint">
+                      ›
+                    </span>
+                  </button>
+                </li>
+              ))}
             </ul>
           </Card>
         </li>

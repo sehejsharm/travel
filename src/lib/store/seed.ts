@@ -10,6 +10,7 @@ export const SEED_TRIP: Trip = {
   id: "trip-japan-autumn",
   name: "Japan, autumn",
   homeCountry: "IN",
+  destinationCountries: ["JP"],
   startDate: "2026-10-14",
   endDate: "2026-10-22",
   budgetTarget: { amount: 150000, currency: "INR" },

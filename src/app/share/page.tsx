@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Card, ScreenSkeleton } from "@/components/ui";
 import { CATEGORY_LABELS, type ItemCategory, type TripItem } from "@/lib/domain/types";
-import { decodeTrip } from "@/lib/share";
-import type { AppState } from "@/lib/store/state";
+import { decodeTrip, type SharedTrip } from "@/lib/share";
+
 import { destinationBriefs, formatDay, formatTime, localDateKey } from "@/lib/rules";
 
 function groupByDay(items: TripItem[]): [string, TripItem[]][] {
@@ -27,8 +27,8 @@ function groupByDay(items: TripItem[]): [string, TripItem[]][] {
 
 const IDEA_CATEGORIES: ItemCategory[] = ["place", "activity"];
 
-export default function SharedTrip() {
-  const [state, setState] = useState<AppState | null | undefined>(undefined);
+export default function SharedTripPage() {
+  const [state, setState] = useState<SharedTrip | null | undefined>(undefined);
 
   useEffect(() => {
     const token = window.location.hash.replace(/^#/, "");
