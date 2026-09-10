@@ -36,7 +36,7 @@ interface SeedItem
   confidence?: number;
 }
 
-const SEED_ITEMS: SeedItem[] = [
+const SEED_ENTRIES: SeedItem[] = [
   {
     id: "item-flight-out",
     title: "AI142 DEL → HND",
@@ -347,14 +347,10 @@ const SEED_ITEMS: SeedItem[] = [
   },
 ];
 
-export function seedItems(tripId: string): TripItem[] {
-  const createdAt = new Date("2026-09-01T09:00:00Z").toISOString();
-
-  return SEED_ITEMS.map((item) => ({
-    ...item,
-    tripId,
-    createdAt,
-    confidence: item.confidence ?? 0.9,
-    extractionMethod: "deterministic" as const,
-  }));
-}
+export const SEED_ITEMS: TripItem[] = SEED_ENTRIES.map((item) => ({
+  ...item,
+  tripId: SEED_TRIP.id,
+  createdAt: "2026-09-01T09:00:00.000Z",
+  confidence: item.confidence ?? 0.9,
+  extractionMethod: "deterministic" as const,
+}));

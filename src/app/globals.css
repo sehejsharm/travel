@@ -1,64 +1,231 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------- tokens */
 :root {
-  --paper: #eef1ee;
+  --bg: #f4f6f3;
+  --bg-elevated: #ffffff;
   --surface: #ffffff;
-  --surface-2: #e6ebe5;
-  --ink: #16212a;
-  --ink-soft: #54636b;
-  --ink-faint: #8b979c;
-  --line: #d7ded6;
+  --surface-2: #eaeee8;
+  --surface-3: #dfe5dc;
+
+  --ink: #131c22;
+  --ink-soft: #4f6069;
+  --ink-faint: #84969c;
+
+  --line: #dbe2d8;
+  --line-strong: #c5cfc1;
+
   --accent: #c1793d;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(193, 121, 61, 0.12);
   --accent-strong: #9c5e2c;
-  --accent-2: #2f6f62;
-  --critical: #a6414a;
+
+  --teal: #2f6f62;
+  --teal-soft: rgba(47, 111, 98, 0.12);
+
+  --critical: #b23b46;
+  --critical-soft: rgba(178, 59, 70, 0.11);
   --warning: #9c5e2c;
-  --info: #2f6f62;
+  --warning-soft: rgba(156, 94, 44, 0.11);
+  --ok: #2f6f62;
+  --ok-soft: rgba(47, 111, 98, 0.11);
+
+  --shadow-sm: 0 1px 2px rgba(19, 28, 34, 0.05);
+  --shadow-md: 0 1px 2px rgba(19, 28, 34, 0.05), 0 6px 16px -6px rgba(19, 28, 34, 0.1);
+  --shadow-lg: 0 2px 4px rgba(19, 28, 34, 0.05), 0 16px 40px -12px rgba(19, 28, 34, 0.18);
+
+  --nav-blur: rgba(244, 246, 243, 0.82);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #0f161c;
-    --surface: #161f27;
-    --surface-2: #1d262e;
-    --ink: #ecefec;
-    --ink-soft: #a2afb4;
-    --ink-faint: #6e7b80;
-    --line: #293238;
+  :root:not([data-theme="light"]) {
+    --bg: #0b1116;
+    --bg-elevated: #121a20;
+    --surface: #141d24;
+    --surface-2: #1b252c;
+    --surface-3: #243038;
+
+    --ink: #eef2ef;
+    --ink-soft: #9fb0b7;
+    --ink-faint: #6b7d85;
+
+    --line: #222e36;
+    --line-strong: #31404a;
+
     --accent: #e39a5c;
+    --accent-ink: #1a1108;
+    --accent-soft: rgba(227, 154, 92, 0.14);
     --accent-strong: #f0b87d;
-    --accent-2: #5aa595;
-    --critical: #dd8087;
-    --warning: #e39a5c;
-    --info: #5aa595;
+
+    --teal: #59a595;
+    --teal-soft: rgba(89, 165, 149, 0.14);
+
+    --critical: #e5808a;
+    --critical-soft: rgba(229, 128, 138, 0.13);
+    --warning: #e3a85c;
+    --warning-soft: rgba(227, 168, 92, 0.13);
+    --ok: #59a595;
+    --ok-soft: rgba(89, 165, 149, 0.13);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px -8px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.35), 0 20px 48px -16px rgba(0, 0, 0, 0.65);
+
+    --nav-blur: rgba(11, 17, 22, 0.78);
   }
 }
 
 @theme inline {
-  --color-paper: var(--paper);
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-ink-faint: var(--ink-faint);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
   --color-accent-strong: var(--accent-strong);
-  --color-accent-2: var(--accent-2);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
   --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
   --color-warning: var(--warning);
-  --color-info: var(--info);
+  --color-warning-soft: var(--warning-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
 
   --font-display: var(--font-fraunces);
   --font-sans: var(--font-plex-sans);
   --font-mono: var(--font-plex-mono);
+
+  --shadow-card: var(--shadow-md);
+  --shadow-float: var(--shadow-lg);
+}
+
+/* ------------------------------------------------------------------ base */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  background: var(--bg);
+  /* Keeps the bottom bar put when mobile browsers show and hide their chrome. */
+  height: 100%;
 }
 
 body {
-  background: var(--paper);
+  background: var(--bg);
   color: var(--ink);
+  overscroll-behavior-y: none;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Content must clear the bottom bar and the home indicator. */
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.75rem);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.nav-surface {
+  background: var(--nav-blur);
+  backdrop-filter: saturate(1.6) blur(16px);
+  -webkit-backdrop-filter: saturate(1.6) blur(16px);
+}
+
+/* Horizontal chip rows scroll without a visible bar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- motion */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-pop {
+  animation: pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface-3) 37%,
+    var(--surface-2) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.press {
+  transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+.press:active {
+  transform: scale(0.975);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

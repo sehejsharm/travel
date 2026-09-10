@@ -1,141 +1,135 @@
+"use client";
+
 import Link from "next/link";
-import { BudgetPanel } from "@/components/budget-panel";
-import { Checklist } from "@/components/checklist";
-import { FlagCounts, FlagList } from "@/components/flags";
+import { BudgetCard } from "@/components/budget-card";
+import { SeveritySummary } from "@/components/flag-card";
 import { Timeline } from "@/components/timeline";
-import { generatePacking, generateTasks } from "@/lib/checklists";
-import { getTrip, listChecklist, listItems, syncChecklist } from "@/lib/db";
-import {
-  daysBetween,
-  destinationBriefs,
-  formatDay,
-  rollUpBudget,
-  runChecks,
-} from "@/lib/rules";
+import { Card, Chip, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle, Stat } from "@/components/ui";
+import { useTripView } from "@/lib/store/use-store";
+import { formatMoney } from "@/lib/reference/fx";
+import { daysBetween, formatDay, formatTime, rollUpBudget } from "@/lib/rules";
 
-export const dynamic = "force-dynamic";
+export default function TripScreen() {
+  const { trip, items, flags, hydrated } = useTripView();
+  if (!hydrated) return <ScreenSkeleton />;
 
-export default function PlanningDesk() {
-  const trip = getTrip();
-  const items = listItems(trip.id);
   const now = new Date();
-
-  const flags = runChecks(trip, items, now);
   const rollup = rollUpBudget(trip, items);
-  const briefs = destinationBriefs({ trip, items, now });
   const daysToGo = Math.ceil(daysBetween(now, trip.startDate));
-  const unscheduled = items.filter((item) => !item.startsAt).length;
-
-  // Generated entries are added if missing; ticks and assignments are kept.
-  syncChecklist(trip.id, "packing", generatePacking(trip, items));
-  syncChecklist(trip.id, "task", generateTasks(flags));
-  const packing = listChecklist(trip.id, "packing");
-  const tasks = listChecklist(trip.id, "task");
+  const critical = flags.filter((flag) => flag.severity === "critical").length;
+  const scheduled = items
+    .filter((item) => item.startsAt)
+    .sort((a, b) => Date.parse(a.startsAt!) - Date.parse(b.startsAt!));
+  const nextUp = scheduled.find((item) => Date.parse(item.startsAt!) >= now.getTime()) ?? scheduled[0];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-7">
+      <ScreenHeader
+        eyebrow={daysToGo > 0 ? `${daysToGo} days to go` : "In progress"}
+        title={trip.name}
+        meta={
+          <>
+            {formatDay(trip.startDate)} – {formatDay(trip.endDate)} ·{" "}
+            {trip.travelers.map((traveler) => traveler.name).join(" & ")}
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-3 gap-3">
+        <Stat label="Days to go" value={daysToGo > 0 ? String(daysToGo) : "0"} />
+        <Stat label="Filed" value={String(items.length)} />
+        <Stat
+          label="To fix"
+          value={String(critical)}
+          tone={critical > 0 ? "critical" : "ok"}
+        />
+      </div>
+
+      {flags.length > 0 && (
+        <Link href="/checks" className="press block">
+          <Card className="flex items-center justify-between gap-3 p-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                {critical > 0
+                  ? `${critical} thing${critical === 1 ? "" : "s"} to fix before you fly`
+                  : "Everything critical is clear"}
+              </p>
+              <div className="mt-2">
+                <SeveritySummary flags={flags} />
+              </div>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0 text-ink-faint">
+              <path
+                d="m9 6 6 6-6 6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Card>
+        </Link>
+      )}
+
+      {nextUp && (
+        <section>
+          <SectionTitle>Next up</SectionTitle>
+          <Card className="p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Chip tone="accent">{formatDay(nextUp.startsAt!)}</Chip>
+              {formatTime(nextUp.startsAt!) && (
+                <Chip>{formatTime(nextUp.startsAt!)}</Chip>
+              )}
+            </div>
+            <h3 className="mt-3 font-display text-xl font-semibold tracking-tight">
+              {nextUp.title}
+            </h3>
+            <p className="mt-1 text-sm text-ink-soft">
+              {[
+                nextUp.place?.name,
+                nextUp.cost && formatMoney(nextUp.cost.amount, nextUp.cost.currency),
+                nextUp.confirmationCode && `Ref ${nextUp.confirmationCode}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </Card>
+        </section>
+      )}
+
       <section>
-        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-accent-strong">
-          Planning desk
-        </p>
-        <h1 className="mt-1.5 font-display text-3xl font-semibold">{trip.name}</h1>
-        <p className="mt-1 font-mono text-xs text-ink-soft tabular">
-          {formatDay(trip.startDate)} – {formatDay(trip.endDate)}
-          {daysToGo > 0 && ` · ${daysToGo} days to go`} ·{" "}
-          {trip.travelers.map((traveler) => traveler.name).join(", ")}
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <FlagCounts flags={flags} />
-          <a
-            href="/api/calendar"
-            className="rounded-md border border-line px-3 py-1 font-mono text-[11px] text-ink-soft transition-colors hover:border-accent hover:text-accent-strong"
-          >
-            Push to calendar (.ics)
-          </a>
-          <Link
-            href={`/share/${trip.id}`}
-            className="rounded-md border border-line px-3 py-1 font-mono text-[11px] text-ink-soft transition-colors hover:border-accent hover:text-accent-strong"
-          >
-            Share trip page
-          </Link>
-          <Link
-            href="/recap"
-            className="rounded-md border border-line px-3 py-1 font-mono text-[11px] text-ink-soft transition-colors hover:border-accent hover:text-accent-strong"
-          >
-            Recap
-          </Link>
-        </div>
+        <SectionTitle>Budget</SectionTitle>
+        <BudgetCard rollup={rollup} />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        <section className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-lg font-semibold">Trip timeline</h2>
-            {unscheduled > 0 && (
-              <Link href="/cabinet" className="font-mono text-[11px] text-accent-strong underline">
-                {unscheduled} filed but unscheduled
+      <section>
+        <SectionTitle
+          trailing={
+            <Link href="/cabinet" className="underline">
+              {items.filter((item) => !item.startsAt).length} unscheduled
+            </Link>
+          }
+        >
+          Timeline
+        </SectionTitle>
+
+        {scheduled.length === 0 ? (
+          <EmptyState
+            title="Nothing scheduled yet"
+            body="Anything you file with a date and time lands here, day by day."
+            action={
+              <Link
+                href="/add"
+                className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
+              >
+                Add something
               </Link>
-            )}
-          </div>
+            }
+          />
+        ) : (
           <Timeline items={items} flags={flags} />
-        </section>
-
-        <div className="flex flex-col gap-6">
-          <BudgetPanel rollup={rollup} />
-
-          {briefs.length > 0 && (
-            <section className="rounded-md border border-line bg-surface p-5 shadow-sm">
-              <h2 className="font-display text-lg font-semibold">On the ground</h2>
-              <dl className="mt-3 flex flex-col gap-3">
-                {briefs.map(({ country, hoursFromHome }) => (
-                  <div key={country.code} className="flex flex-col gap-1">
-                    <dt className="font-mono text-[11px] uppercase tracking-wide text-accent-2">
-                      {country.name}
-                    </dt>
-                    <dd className="text-sm text-ink-soft">
-                      Emergency {country.emergency} · {country.currency} ·{" "}
-                      <span className="tabular">
-                        {hoursFromHome > 0 ? "+" : ""}
-                        {hoursFromHome}h
-                      </span>{" "}
-                      from home
-                    </dd>
-                    <dd className="text-sm text-ink-soft">{country.tipping}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Checklist
-          title="Pre-trip tasks"
-          kind="task"
-          entries={tasks}
-          travelers={trip.travelers}
-          compact
-          note="Raised by the checks below. Tick them off as you go."
-          emptyLabel="Nothing outstanding — every check that needs action is clear."
-        />
-        <Checklist
-          title="Packing list"
-          kind="packing"
-          entries={packing}
-          travelers={trip.travelers}
-          emptyLabel="Add a destination and dates and this builds itself."
-        />
-      </div>
-
-      <section className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="font-display text-lg font-semibold">What needs attention</h2>
-          <p className="font-mono text-[11px] text-ink-faint tabular">
-            {flags.length} checks flagged
-          </p>
-        </div>
-        <FlagList flags={flags} />
+        )}
       </section>
     </div>
   );

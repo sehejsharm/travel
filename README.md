@@ -14,28 +14,40 @@ cannot physically reach in time.
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-npm test           # rules engine and extractor
+npm test           # rules engine, extractor, checklists, calendar, share
 npm run typecheck
 ```
-
-A SQLite database is created at `.data/manifest.db` on first run and seeded with
-a sample trip, so every screen opens with something in it. Delete the directory
-to start over.
 
 Set `ANTHROPIC_API_KEY` to enable model-backed extraction. Without it the app
 still works — the pattern pass handles structured content on its own, and
 low-confidence content is filed with the reason shown rather than guessed at.
 
+## Architecture
+
+The trip lives on the device, in `localStorage`, behind a small store
+(`src/lib/store/`). Nothing is uploaded, there is no account, and the app keeps
+working with no signal — which matters on a plane and in a foreign country.
+
+That leaves exactly one server route: `POST /api/extract`, which is stateless
+and exists only to keep the API key off the client. Every page is prerendered
+static. There is no database, no filesystem write, and nothing to provision, so
+it deploys to any static-capable host.
+
+It installs as a PWA — standalone display, generated icons, and a service
+worker that caches the shell and content-hashed build assets while never
+caching `/api`.
+
 ## The pipeline
 
 | Screen | Route | What it does |
 | --- | --- | --- |
-| Mailroom | `/mailroom` | Paste content or a Reel/TikTok/YouTube link, watch it get extracted and grounded, file it |
-| Filing cabinet | `/cabinet` | Everything filed, sorted into places, activities, purchases, bookings |
-| Planning desk | `/` | Timeline, budget, destination brief, packing list, pre-trip tasks, and everything the checks caught |
-| Shared page | `/share/[tripId]` | Read-only trip page with prices and confirmation numbers stripped out |
+| Trip | `/` | Countdown, what needs fixing, next up, budget, and the day-by-day timeline |
+| Cabinet | `/cabinet` | Everything filed, filterable by places, activities, purchases, bookings |
+| Add | `/add` | Paste content or a Reel/TikTok/YouTube link, watch it get extracted and grounded, file it |
+| Checks | `/checks` | Every finding, plus the packing list and pre-trip tasks |
+| More | `/more` | Calendar export, share link, recap, destination brief |
 | Recap | `/recap` | Spend, places, and which platform each item actually came from |
-| Calendar | `/api/calendar` | The itinerary as an `.ics` file for any calendar app |
+| Shared | `/share#…` | Read-only trip, carried in the URL fragment so it never reaches a server |
 
 ### Extract and ground
 
@@ -127,7 +139,9 @@ authoritative.
   extraction. YouTube works without a key.
 - Ingestion is paste-only. Real capture would come through the device share
   sheet — not by scraping the platforms, which would breach their terms.
+- The trip is per-device. There is no account and no sync, so a second device
+  starts fresh, and clearing browser data clears the trip.
 - Collaboration is modelled but not authenticated: travellers can be assigned
-  work and items record who filed them, but anyone with the URL is everyone.
-  The shared trip page is unguessable-by-design only in that it needs the trip
-  id — it is not a real access control.
+  work and items record who filed them, but everyone on a device is everyone.
+- A share link carries the trip inside it, so it is as private as the link. It
+  strips prices, confirmation numbers and traveller names before encoding.

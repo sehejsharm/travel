@@ -1,71 +1,62 @@
+"use client";
+
+import { useTransition } from "react";
 import { SOURCE_LABELS, type TripItem } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/reference/fx";
 import { formatDay, formatTime } from "@/lib/rules";
-
-export function SourceChip({ item }: { item: TripItem }) {
-  return (
-    <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-      {SOURCE_LABELS[item.source]}
-    </span>
-  );
-}
+import { removeItem } from "@/lib/store/state";
+import { Card, Chip } from "./ui";
 
 export function ItemCard({
   item,
-  action,
   addedByName,
 }: {
   item: TripItem;
-  action?: React.ReactNode;
   addedByName?: string;
 }) {
+  const [pending, startTransition] = useTransition();
+
   const when = item.startsAt
     ? `${formatDay(item.startsAt)}${formatTime(item.startsAt) ? ` · ${formatTime(item.startsAt)}` : ""}`
     : "Not scheduled";
 
+  const details = [
+    item.place?.name && `${item.place.name}${item.arrivalPlace ? ` → ${item.arrivalPlace.name}` : ""}`,
+    item.confirmationCode && `Ref ${item.confirmationCode}`,
+    addedByName && `Added by ${addedByName}`,
+  ].filter(Boolean);
+
   return (
-    <li className="rounded-md border border-line bg-surface p-3.5 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-medium leading-snug">{item.title}</h3>
-        <SourceChip item={item} />
+    <Card as="li" className="animate-rise p-4">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-[15px] leading-snug font-medium">{item.title}</h3>
+        <Chip>{SOURCE_LABELS[item.source]}</Chip>
       </div>
 
-      <dl className="mt-2 flex flex-col gap-1 font-mono text-[11px] text-ink-faint">
-        <div className="flex justify-between gap-3">
-          <dt className="sr-only">When</dt>
-          <dd className="tabular">{when}</dd>
-          {item.cost && (
-            <dd className="tabular text-ink-soft">
-              {formatMoney(item.cost.amount, item.cost.currency)}
-              {item.costStatus === "estimated" && " est."}
-            </dd>
-          )}
-        </div>
-        {item.place && (
-          <div>
-            <dt className="sr-only">Where</dt>
-            <dd>
-              {item.place.name}
-              {item.arrivalPlace ? ` → ${item.arrivalPlace.name}` : ""}
-              {item.place.point ? "" : " · not grounded"}
-            </dd>
-          </div>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <span className="font-mono text-[11px] text-ink-faint tabular">{when}</span>
+        {item.cost && (
+          <span className="font-mono text-[11px] text-ink-soft tabular">
+            {formatMoney(item.cost.amount, item.cost.currency)}
+            {item.costStatus === "estimated" && " est."}
+          </span>
         )}
-        {item.confirmationCode && (
-          <div>
-            <dt className="sr-only">Confirmation</dt>
-            <dd>Ref {item.confirmationCode}</dd>
-          </div>
-        )}
-        {addedByName && (
-          <div>
-            <dt className="sr-only">Added by</dt>
-            <dd>Added by {addedByName}</dd>
-          </div>
-        )}
-      </dl>
+      </div>
 
-      {action && <div className="mt-2.5">{action}</div>}
-    </li>
+      {details.length > 0 && (
+        <p className="mt-1 font-mono text-[11px] leading-relaxed text-ink-faint">
+          {details.join(" · ")}
+        </p>
+      )}
+
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => startTransition(() => removeItem(item.id))}
+        className="press mt-2.5 font-mono text-[10px] uppercase tracking-wide text-ink-faint underline underline-offset-2 hover:text-critical disabled:opacity-40"
+      >
+        {pending ? "Removing" : "Remove"}
+      </button>
+    </Card>
   );
 }

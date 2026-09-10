@@ -1,77 +1,94 @@
+"use client";
+
 import Link from "next/link";
-import { DeleteItemButton } from "@/components/delete-item-button";
+import { useState } from "react";
 import { ItemCard } from "@/components/item-card";
-import { getTrip, listItems } from "@/lib/db";
+import { Card, EmptyState, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { CATEGORY_LABELS, type ItemCategory } from "@/lib/domain/types";
+import { useTripView } from "@/lib/store/use-store";
 
-export const dynamic = "force-dynamic";
-
-const COLUMNS: { category: ItemCategory; blurb: string }[] = [
-  { category: "place", blurb: "Cafés, trails, views" },
-  { category: "activity", blurb: "Tours, activities" },
-  { category: "purchase", blurb: "Packing, souvenirs" },
-  { category: "booking", blurb: "Flights, hotels" },
+const FILTERS: { value: ItemCategory | "all"; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "place", label: CATEGORY_LABELS.place },
+  { value: "activity", label: CATEGORY_LABELS.activity },
+  { value: "booking", label: CATEGORY_LABELS.booking },
+  { value: "purchase", label: CATEGORY_LABELS.purchase },
 ];
 
-export default function FilingCabinet() {
-  const trip = getTrip();
-  const items = listItems(trip.id);
+export default function CabinetScreen() {
+  const { trip, items, hydrated } = useTripView();
+  const [filter, setFilter] = useState<ItemCategory | "all">("all");
+
+  if (!hydrated) return <ScreenSkeleton />;
+
+  const visible = filter === "all" ? items : items.filter((item) => item.category === filter);
+  const nameFor = (id?: string) =>
+    trip.travelers.length > 1
+      ? trip.travelers.find((traveler) => traveler.id === id)?.name
+      : undefined;
 
   return (
-    <div className="flex flex-col gap-6">
-      <section>
-        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-accent-strong">
-          Filing cabinet
-        </p>
-        <h1 className="mt-1.5 font-display text-3xl font-semibold">Everything filed for {trip.name}</h1>
-        <p className="mt-1 text-sm text-ink-soft">
-          {items.length} items, sorted as they came in.{" "}
-          <Link href="/mailroom" className="text-accent-strong underline">
-            Add more from the mailroom
-          </Link>
-          .
-        </p>
-      </section>
+    <div className="flex flex-col gap-5">
+      <ScreenHeader
+        eyebrow="Filing cabinet"
+        title="Everything filed"
+        meta={`${items.length} items, sorted as they came in`}
+      />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {COLUMNS.map(({ category, blurb }) => {
-          const columnItems = items.filter((item) => item.category === category);
+      <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+        {FILTERS.map((option) => {
+          const count =
+            option.value === "all"
+              ? items.length
+              : items.filter((item) => item.category === option.value).length;
+          const active = filter === option.value;
 
           return (
-            <section key={category} className="flex flex-col gap-2.5">
-              <header className="border-b border-line pb-2">
-                <h2 className="font-display text-base font-semibold">
-                  {CATEGORY_LABELS[category]}
-                </h2>
-                <p className="font-mono text-[11px] text-ink-faint">
-                  {blurb} · <span className="tabular">{columnItems.length}</span>
-                </p>
-              </header>
-
-              {columnItems.length === 0 ? (
-                <p className="rounded-md border border-dashed border-line p-3 text-xs text-ink-faint">
-                  Nothing filed here yet.
-                </p>
-              ) : (
-                <ul className="flex flex-col gap-2.5">
-                  {columnItems.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      addedByName={
-                        trip.travelers.length > 1
-                          ? trip.travelers.find((traveler) => traveler.id === item.addedBy)?.name
-                          : undefined
-                      }
-                      action={<DeleteItemButton id={item.id} />}
-                    />
-                  ))}
-                </ul>
-              )}
-            </section>
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setFilter(option.value)}
+              aria-pressed={active}
+              className={`press shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium ${
+                active
+                  ? "border-accent bg-accent-soft text-accent-strong"
+                  : "border-line bg-surface text-ink-soft"
+              }`}
+            >
+              {option.label}
+              <span className="ml-1.5 font-mono text-[10px] tabular opacity-70">{count}</span>
+            </button>
           );
         })}
       </div>
+
+      {visible.length === 0 ? (
+        <EmptyState
+          title="Nothing filed here yet"
+          body="Forward a booking email, a screenshot, or a Reel and it lands in the cabinet."
+          action={
+            <Link
+              href="/add"
+              className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
+            >
+              Add something
+            </Link>
+          }
+        />
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {visible.map((item) => (
+            <ItemCard key={item.id} item={item} addedByName={nameFor(item.addedBy)} />
+          ))}
+        </ul>
+      )}
+
+      <Card className="p-4">
+        <p className="text-xs leading-relaxed text-ink-soft">
+          Everything here lives on this device. Nothing is uploaded, and the app keeps working
+          with no signal.
+        </p>
+      </Card>
     </div>
   );
 }
