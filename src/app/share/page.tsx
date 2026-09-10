@@ -28,14 +28,12 @@ function groupByDay(items: TripItem[]): [string, TripItem[]][] {
 const IDEA_CATEGORIES: ItemCategory[] = ["place", "activity"];
 
 export default function SharedTripPage() {
+  // The initial state must match the prerendered HTML, so the fragment is only
+  // read after mount. An empty or unreadable token decodes to null on its own.
   const [state, setState] = useState<SharedTrip | null | undefined>(undefined);
 
   useEffect(() => {
     const token = window.location.hash.replace(/^#/, "");
-    if (!token) {
-      setState(null);
-      return;
-    }
     decodeTrip(token).then((decoded) => setState(decoded ?? null));
   }, []);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import type { ChecklistEntry } from "../checklists";
 import type { Flag, Trip, TripItem } from "../domain/types";
 import { runChecks } from "../rules";
@@ -13,14 +13,19 @@ import {
   type AppState,
 } from "./state";
 
+const noop = () => () => {};
+
 /**
  * The store lives in localStorage, so the server and the first client render
- * cannot agree. Everything waits for `hydrated` rather than risking a mismatch.
+ * cannot agree. useSyncExternalStore gives us "am I on the client yet" without
+ * setting state from an effect.
  */
 export function useHydrated(): boolean {
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
-  return hydrated;
+  return useSyncExternalStore(
+    noop,
+    () => true,
+    () => false,
+  );
 }
 
 export function useAppState(): AppState {

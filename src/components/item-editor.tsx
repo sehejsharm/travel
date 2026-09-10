@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { addHours, fromLocalInput, offsetOf, toLocalInput } from "@/lib/datetime";
 import type { BookingKind, ItemCategory, Trip, TripItem } from "@/lib/domain/types";
 import { getCountry } from "@/lib/reference/countries";
@@ -63,15 +63,22 @@ export function ItemEditor({
   trip: Trip;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft | null>(null);
+  if (!item) return null;
+  // Remounting per item is what resets the form — no state sync in an effect.
+  return <ItemEditorForm key={item.id} item={item} trip={trip} onClose={onClose} />;
+}
+
+function ItemEditorForm({
+  item,
+  trip,
+  onClose,
+}: {
+  item: TripItem;
+  trip: Trip;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<Draft>(() => toDraft(item));
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  useEffect(() => {
-    setDraft(item ? toDraft(item) : null);
-    setConfirmDelete(false);
-  }, [item]);
-
-  if (!item || !draft) return null;
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => (current ? { ...current, [key]: value } : current));
@@ -85,8 +92,8 @@ export function ItemEditor({
     const known = offsetOf(existing);
     if (known) return known;
 
-    const grounded = groundPlace(draft!.placeName);
-    const country = getCountry(grounded?.countryCode ?? item!.place?.countryCode);
+    const grounded = groundPlace(draft.placeName);
+    const country = getCountry(grounded?.countryCode ?? item.place?.countryCode);
     if (!country) return "";
 
     const sign = country.utcOffset < 0 ? "-" : "+";
@@ -97,8 +104,6 @@ export function ItemEditor({
   }
 
   function save() {
-    if (!draft || !item) return;
-
     const startOffset = offsetFor(item.startsAt);
     const startsAt = fromLocalInput(draft.startsAt, startOffset);
     // An end before the start is a typo, not an intention.

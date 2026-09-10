@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Traveler } from "@/lib/domain/types";
 import { COUNTRIES } from "@/lib/reference/countries";
 import { addTraveler, removeTraveler, updateTraveler } from "@/lib/store/state";
@@ -31,14 +31,31 @@ export function TravelerEditor({
   open: boolean;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(BLANK);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  if (!open) return null;
+  // Keyed on who is being edited, so opening the sheet always starts clean.
+  return (
+    <TravelerEditorForm
+      key={traveler?.id ?? "new"}
+      tripId={tripId}
+      traveler={traveler}
+      onClose={onClose}
+    />
+  );
+}
 
-  useEffect(() => {
-    if (!open) return;
-    setDraft(traveler ? { ...BLANK, ...traveler } : BLANK);
-    setConfirmDelete(false);
-  }, [open, traveler]);
+function TravelerEditorForm({
+  tripId,
+  traveler,
+  onClose,
+}: {
+  tripId: string;
+  traveler: Traveler | null;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<Draft>(() =>
+    traveler ? { ...BLANK, ...traveler } : BLANK,
+  );
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -62,7 +79,7 @@ export function TravelerEditor({
 
   return (
     <Sheet
-      open={open}
+      open
       onClose={onClose}
       title={traveler ? "Edit traveller" : "Add traveller"}
       footer={
