@@ -1,5 +1,6 @@
 import { extractDeterministic } from "./deterministic";
 import { extractWithLlm, hasCredentials } from "./llm";
+import { fetchPageMetadata } from "./og";
 import { detectLink, fetchLinkMetadata } from "./url";
 import {
   ESCALATION_THRESHOLD,
@@ -9,7 +10,7 @@ import {
 } from "./types";
 
 export { extractDeterministic } from "./deterministic";
-export { hasCredentials } from "./llm";
+export { extractFromImage, hasCredentials } from "./llm";
 export { detectLink } from "./url";
 export * from "./types";
 
@@ -51,19 +52,28 @@ async function resolveLink(
   const detected = detectLink(input.text);
   if (!detected) return { input };
 
-  const metadata = await fetchLinkMetadata(detected);
+  // oEmbed is cleanest where it is open; Open Graph tags are what Instagram and
+  // TikTok actually expose, and they carry the caption the extractor needs.
+  const [oembed, page] = await Promise.all([
+    fetchLinkMetadata(detected),
+    fetchPageMetadata(detected),
+  ]);
+
+  const fetched = [page?.text, oembed?.title].filter(Boolean).join("\n");
 
   return {
     input: {
       ...input,
       source: detected.source,
       sourceRef: detected.url,
-      text: metadata ? `${metadata.title}\n${input.text}` : input.text,
+      // The user's own caption stays last so it wins ties on specifics.
+      text: fetched ? `${fetched}\n${input.text}` : input.text,
     },
     link: {
       platform: detected.platform,
       url: detected.url,
-      metadataFetched: Boolean(metadata),
+      metadataFetched: Boolean(fetched),
+      caption: page?.description,
     },
   };
 }

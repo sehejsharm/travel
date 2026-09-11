@@ -1,4 +1,6 @@
 import type { PlaceRef } from "../domain/types";
+import { AIRPORT_LIST } from "./airports";
+import { CITIES } from "./cities";
 
 interface GazetteerEntry extends PlaceRef {
   aliases: string[];
@@ -173,9 +175,9 @@ function normalize(value: string): string {
 }
 
 /**
- * Resolves free text to a known place. Returns undefined rather than guessing
- * when nothing matches — an ungrounded item is still filed, it just does not
- * take part in distance checks.
+ * Resolves free text to a known place: a specific landmark where one matches,
+ * otherwise the city it names. Returns undefined rather than guessing — an
+ * ungrounded item is still filed, it just sits out the distance checks.
  */
 export function groundPlace(text: string): PlaceRef | undefined {
   const needle = normalize(text);
@@ -191,13 +193,44 @@ export function groundPlace(text: string): PlaceRef | undefined {
     }
   }
 
-  if (!best) return undefined;
+  if (best) {
+    return {
+      name: best.entry.name,
+      city: best.entry.city,
+      countryCode: best.entry.countryCode,
+      point: best.entry.point,
+    };
+  }
+
+  // An airport next: a flight names one, and "DEL" is not a city.
+  for (const airport of AIRPORT_LIST) {
+    const code = airport.iata.toLowerCase();
+    const byCode = new RegExp(`(^|\\s)${code}(\\s|$)`).test(needle);
+    if (byCode || needle.includes(normalize(airport.name))) {
+      return {
+        name: `${airport.name} (${airport.iata})`,
+        city: airport.city,
+        countryCode: airport.countryCode,
+        point: airport.point,
+      };
+    }
+  }
+
+  // Longest city name wins, so "New York" beats a stray match on "York".
+  let city: { name: string; countryCode: string; point: { lat: number; lng: number } } | undefined;
+  for (const candidate of CITIES) {
+    const alias = normalize(candidate.name);
+    if (!needle.includes(alias)) continue;
+    if (!city || alias.length > normalize(city.name).length) city = candidate;
+  }
+
+  if (!city) return undefined;
 
   return {
-    name: best.entry.name,
-    city: best.entry.city,
-    countryCode: best.entry.countryCode,
-    point: best.entry.point,
+    name: city.name,
+    city: city.name,
+    countryCode: city.countryCode,
+    point: city.point,
   };
 }
 
@@ -206,4 +239,51 @@ export function placeFacts(name: string): PlaceFacts | undefined {
   const entry = GAZETTEER.find((candidate) => candidate.name === name);
   if (!entry?.closedDays && !entry?.advanceBooking) return undefined;
   return { closedDays: entry.closedDays, advanceBooking: entry.advanceBooking };
+}
+
+export interface PlaceSuggestion {
+  name: string;
+  detail: string;
+}
+
+/**
+ * Type-ahead over the gazetteer and the city list, so a place gets
+ * coordinates while you type instead of only when the name happens to match.
+ */
+export function suggestPlaces(text: string, limit = 8): PlaceSuggestion[] {
+  const needle = normalize(text);
+
+  const landmarks = GAZETTEER.map((entry) => ({
+    name: entry.name,
+    detail: [entry.city, entry.countryCode].filter(Boolean).join(", "),
+    rank: rankOf(needle, entry.name, entry.aliases),
+  }));
+
+  const airports = AIRPORT_LIST.map((airport) => ({
+    name: `${airport.name} (${airport.iata})`,
+    detail: `${airport.city}, ${airport.countryCode}`,
+    rank: rankOf(needle, airport.name, [airport.iata.toLowerCase()]) - 0.25,
+  }));
+
+  const cities = CITIES.map((city) => ({
+    name: city.name,
+    detail: city.countryCode,
+    // A landmark is the more useful answer when both match equally well.
+    rank: rankOf(needle, city.name) - 0.5,
+  }));
+
+  return [...landmarks, ...airports, ...cities]
+    .filter((candidate) => candidate.rank > 0)
+    .sort((a, b) => b.rank - a.rank || a.name.length - b.name.length)
+    .slice(0, limit)
+    .map(({ name, detail }) => ({ name, detail }));
+}
+
+function rankOf(needle: string, name: string, aliases: string[] = []): number {
+  if (!needle) return 1;
+  for (const candidate of [normalize(name), ...aliases]) {
+    if (candidate.startsWith(needle)) return 3;
+    if (candidate.includes(needle)) return 2;
+  }
+  return 0;
 }

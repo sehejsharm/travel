@@ -7,18 +7,19 @@ import { SeveritySummary } from "@/components/flag-card";
 import { ItemEditor } from "@/components/item-editor";
 import { Timeline } from "@/components/timeline";
 import { TripForm } from "@/components/trip-form";
+import { TripHero } from "@/components/trip-hero";
+import { heroGradient } from "@/lib/theme";
 import {
   Card,
   Chip,
   EmptyState,
-  ScreenHeader,
   ScreenSkeleton,
   SectionTitle,
   Stat,
 } from "@/components/ui";
 import type { TripItem } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/reference/fx";
-import { daysBetween, formatDay, formatTime, rollUpBudget } from "@/lib/rules";
+import { formatDay, formatTime, rollUpBudget } from "@/lib/rules";
 import { loadSampleTrip } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
 
@@ -31,7 +32,6 @@ export default function TripScreen() {
 
   const now = new Date();
   const rollup = rollUpBudget(trip, items);
-  const daysToGo = Math.ceil(daysBetween(now, trip.startDate));
   const critical = flags.filter((flag) => flag.severity === "critical").length;
   const scheduled = items
     .filter((item) => item.startsAt)
@@ -42,24 +42,11 @@ export default function TripScreen() {
 
   return (
     <div className="flex flex-col gap-7">
-      <ScreenHeader
-        eyebrow={daysToGo > 0 ? `${daysToGo} days to go` : "In progress"}
-        title={trip.name}
-        meta={
-          <>
-            {formatDay(trip.startDate)} – {formatDay(trip.endDate)}
-            {trip.travelers.length > 0 &&
-              ` · ${trip.travelers.map((traveler) => traveler.name).join(" & ")}`}
-          </>
-        }
-        action={
-          <Link
-            href="/trip"
-            className="press rounded-xl border border-line px-3 py-1.5 font-mono text-[11px] text-ink-soft"
-          >
-            Edit trip
-          </Link>
-        }
+      <TripHero
+        trip={trip}
+        items={items}
+        critical={critical}
+        ready={flags.length - critical}
       />
 
       {trip.travelers.length === 0 && (
@@ -75,26 +62,17 @@ export default function TripScreen() {
       )}
 
       <div className="grid grid-cols-3 gap-3">
-        <Stat label="Days to go" value={daysToGo > 0 ? String(daysToGo) : "0"} />
-        <Stat label="Filed" value={String(items.length)} />
+        <Stat label="Scheduled" value={String(scheduled.length)} />
+        <Stat label="Ideas" value={String(unscheduled.length)} />
         <Stat label="To fix" value={String(critical)} tone={critical > 0 ? "critical" : "ok"} />
       </div>
 
       {flags.length > 0 && (
         <Link href="/checks" className="press block">
           <Card className="flex items-center justify-between gap-3 p-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">
-                {critical > 0
-                  ? `${critical} thing${critical === 1 ? "" : "s"} to fix before you fly`
-                  : "Everything critical is clear"}
-              </p>
-              <div className="mt-2">
-                <SeveritySummary flags={flags} />
-              </div>
-            </div>
-            <span aria-hidden="true" className="shrink-0 text-ink-faint">
-              ›
+            <SeveritySummary flags={flags} />
+            <span className="flex shrink-0 items-center gap-1 font-mono text-[11px] text-ink-faint">
+              open checks <span aria-hidden="true">›</span>
             </span>
           </Card>
         </Link>
@@ -194,17 +172,58 @@ export default function TripScreen() {
 
 function FirstRun() {
   return (
-    <div className="flex flex-col gap-6 py-6">
-      <div className="text-center">
-        <h1 className="font-display text-3xl font-semibold tracking-tight">
-          Everything about your trip, in one file.
-        </h1>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ink-soft">
-          Forward a booking email, a screenshot, or a Reel. Manifest pulls out the details, files
-          them, and catches the admin that ruins trips — visas, layovers that are too short, a
-          museum booked on the day it is shut.
-        </p>
-      </div>
+    <div className="flex flex-col gap-6 py-2">
+      <section
+        className="animate-rise relative isolate overflow-hidden rounded-3xl p-6 text-white shadow-float sm:p-8"
+        style={{ backgroundImage: heroGradient("manifest") }}
+      >
+        <svg
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.16]"
+          preserveAspectRatio="none"
+          viewBox="0 0 400 220"
+        >
+          {[0, 1, 2, 3, 4, 5, 6].map((ring) => (
+            <ellipse
+              key={ring}
+              cx="340"
+              cy="30"
+              rx={36 + ring * 44}
+              ry={26 + ring * 32}
+              fill="none"
+              stroke="white"
+              strokeWidth="1.2"
+            />
+          ))}
+        </svg>
+
+        <div className="relative">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/70">Manifest</p>
+          <h1 className="mt-2 font-display text-[30px] leading-tight font-semibold tracking-tight sm:text-4xl">
+            Everything about your trip, in one file.
+          </h1>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80">
+            Send a booking email, a screenshot, or a Reel. Manifest pulls out the details, files
+            them, and catches the admin that ruins trips.
+          </p>
+
+          <ul className="mt-5 flex flex-col gap-2">
+            {[
+              ["Catch", "Layovers too short, a museum booked on the day it is shut"],
+              ["Comply", "Visa rules, passport validity and insurance, per traveller"],
+              ["Count", "Every price in one currency, planned against booked"],
+            ].map(([title, body]) => (
+              <li key={title} className="flex gap-3 text-sm">
+                <span className="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full bg-white/70" />
+                <span>
+                  <span className="font-medium">{title}. </span>
+                  <span className="text-white/75">{body}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
       <Card className="p-5">
         <TripForm onDone={() => undefined} submitLabel="Create my trip" />

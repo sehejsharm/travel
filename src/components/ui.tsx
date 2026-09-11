@@ -13,7 +13,8 @@ export function ScreenHeader({
 }) {
   return (
     <header className="animate-rise mb-6">
-      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent-strong">
+      <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-accent-strong">
+        <span aria-hidden="true" className="h-px w-5 bg-accent" />
         {eyebrow}
       </p>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
@@ -53,8 +54,9 @@ export function SectionTitle({
   trailing?: ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-baseline justify-between gap-3">
+    <div className="mb-3 flex items-baseline gap-3">
       <h2 className="font-display text-lg font-semibold tracking-tight">{children}</h2>
+      <span aria-hidden="true" className="h-px flex-1 bg-line" />
       {trailing && <div className="font-mono text-[11px] text-ink-faint">{trailing}</div>}
     </div>
   );

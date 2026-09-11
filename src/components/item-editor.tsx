@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { addHours, fromLocalInput, offsetOf, toLocalInput } from "@/lib/datetime";
 import type { BookingKind, ItemCategory, Trip, TripItem } from "@/lib/domain/types";
 import { getCountry } from "@/lib/reference/countries";
 import { CURRENCY_SYMBOLS } from "@/lib/reference/fx";
-import { groundPlace } from "@/lib/reference/places";
+import { groundPlace, suggestPlaces } from "@/lib/reference/places";
+import { mapEmbedUrl, openInMapsUrl } from "@/lib/maps";
 import { removeItem, unscheduleItem, updateItem } from "@/lib/store/state";
 import { Field, GhostButton, PrimaryButton, Segmented, Select, TextArea, TextInput } from "./form";
 import { Sheet } from "./sheet";
@@ -148,6 +149,11 @@ function ItemEditorForm({
   }
 
   const grounded = draft.placeName ? groundPlace(draft.placeName) : undefined;
+  // Only worth suggesting while the typed name has not already landed on a pin.
+  const suggestions = useMemo(
+    () => (grounded?.point ? [] : suggestPlaces(draft.placeName)),
+    [draft.placeName, grounded?.point],
+  );
 
   return (
     <Sheet
@@ -239,22 +245,67 @@ function ItemEditorForm({
           )}
         </div>
 
-        <Field
-          label="Place"
-          hint={
-            draft.placeName
-              ? grounded
-                ? `Matched ${grounded.name}${grounded.city ? `, ${grounded.city}` : ""} — distance checks will use it`
-                : "No coordinates for this name, so it sits out the distance checks"
-              : undefined
-          }
-        >
-          <TextInput
-            value={draft.placeName}
-            placeholder="Senso-ji, Shibuya Sky…"
-            onChange={(event) => set("placeName", event.target.value)}
-          />
-        </Field>
+        <div className="rounded-2xl border border-line bg-surface p-3.5">
+          <Field
+            label="Place"
+            hint={
+              draft.placeName && !grounded
+                ? "No coordinates for this name, so it sits out the distance checks"
+                : undefined
+            }
+          >
+            <TextInput
+              value={draft.placeName}
+              placeholder="Senso-ji, Shibuya Sky, Kyoto…"
+              autoComplete="off"
+              onChange={(event) => set("placeName", event.target.value)}
+            />
+          </Field>
+
+          {suggestions.length > 0 && (
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {suggestions.map((suggestion) => (
+                <li key={`${suggestion.name}-${suggestion.detail}`}>
+                  <button
+                    type="button"
+                    onClick={() => set("placeName", suggestion.name)}
+                    className="press rounded-full border border-line px-2.5 py-1 font-mono text-[10px] text-ink-soft hover:border-accent hover:text-accent-strong"
+                  >
+                    {suggestion.name}
+                    <span className="text-ink-faint"> · {suggestion.detail}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {grounded && (
+            <div className="mt-3 overflow-hidden rounded-xl border border-line">
+              <iframe
+                key={grounded.name}
+                src={mapEmbedUrl(grounded)}
+                title={`Map of ${grounded.name}`}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="h-40 w-full border-0"
+              />
+              <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2">
+                <span className="min-w-0 truncate font-mono text-[10px] text-ink-faint">
+                  Pinned to {grounded.name}
+                  {grounded.city && grounded.city !== grounded.name ? `, ${grounded.city}` : ""}
+                </span>
+                <a
+                  href={openInMapsUrl(grounded)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="press shrink-0 font-mono text-[10px] text-accent-strong underline"
+                >
+                  Open in Maps ↗
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-[1fr_auto] gap-3">
           <Field label="Cost">

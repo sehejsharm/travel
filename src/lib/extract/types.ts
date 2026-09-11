@@ -18,6 +18,8 @@ export interface DetectedLinkSummary {
   url: string;
   /** False where the platform would not serve metadata without a token. */
   metadataFetched: boolean;
+  /** The caption the platform exposed, when it exposed one. */
+  caption?: string;
 }
 
 export interface ExtractionResult {

@@ -1,3 +1,5 @@
+import { COUNTRY_LATITUDE } from "./cities";
+
 /**
  * Monthly climate normals for one reference city per country. Not a forecast —
  * far enough out a forecast does not exist, and packing decisions only need the
@@ -5,6 +7,8 @@
  */
 export interface ClimateNormals {
   referenceCity: string;
+  /** True when the figures come from the latitude model, not measurements. */
+  estimated?: boolean;
   /** Average daily high in °C, January first. */
   highC: number[];
   /** Average daily low in °C, January first. */
@@ -100,11 +104,37 @@ export const CLIMATE: Record<string, ClimateNormals> = {
   },
 };
 
+/**
+ * Countries without measured normals still need a sensible answer. Temperature
+ * tracks latitude and season closely enough to say "pack a warm layer" — it is
+ * explicitly an estimate, and the UI says so.
+ */
+function estimateNormals(latitude: number): ClimateNormals {
+  const tropical = Math.max(0, 1 - Math.abs(latitude) / 23.5);
+  const baseHigh = 31 - Math.abs(latitude) * 0.42;
+  // Seasonal swing grows with distance from the equator and flips below it.
+  const swing = Math.min(16, Math.abs(latitude) * 0.34) * (latitude < 0 ? -1 : 1);
+
+  const highC: number[] = [];
+  const lowC: number[] = [];
+
+  for (let month = 0; month < 12; month++) {
+    // Peaks in July in the north, January in the south.
+    const season = -Math.cos(((month - 6) / 12) * 2 * Math.PI);
+    const high = Math.round(baseHigh + season * swing);
+    highC.push(high);
+    lowC.push(Math.round(high - (8 + tropical * -2 + Math.abs(latitude) * 0.06)));
+  }
+
+  return { referenceCity: "this region", highC, lowC, wetMonths: [], estimated: true };
+}
+
 export interface TripWeather {
   referenceCity: string;
   highC: number;
   lowC: number;
   wet: boolean;
+  estimated: boolean;
 }
 
 /** Averages the normals across the months the trip actually spans. */
@@ -113,7 +143,9 @@ export function weatherFor(
   startDate: string,
   endDate: string,
 ): TripWeather | undefined {
-  const normals = CLIMATE[countryCode.toUpperCase()];
+  const code = countryCode.toUpperCase();
+  const latitude = COUNTRY_LATITUDE[code];
+  const normals = CLIMATE[code] ?? (latitude === undefined ? undefined : estimateNormals(latitude));
   if (!normals) return undefined;
 
   const startMonth = Number(startDate.slice(5, 7));
@@ -133,5 +165,6 @@ export function weatherFor(
     highC: mean(months.map((month) => normals.highC[month - 1])),
     lowC: mean(months.map((month) => normals.lowC[month - 1])),
     wet: months.some((month) => normals.wetMonths.includes(month)),
+    estimated: normals.estimated ?? false,
   };
 }

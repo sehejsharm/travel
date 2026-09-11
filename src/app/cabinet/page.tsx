@@ -13,6 +13,14 @@ import { useTripView } from "@/lib/store/use-store";
 
 type Filter = ItemCategory | "all" | "unscheduled";
 
+/** The stripe down a card's edge, so a category is legible without reading. */
+const CATEGORY_TONE: Record<string, string> = {
+  booking: "bg-accent",
+  activity: "bg-teal",
+  place: "bg-line-strong",
+  purchase: "bg-warning",
+};
+
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "unscheduled", label: "Not scheduled" },
@@ -160,14 +168,25 @@ export default function CabinetScreen() {
         />
       ) : (
         <ul className="flex flex-col gap-2.5">
-          {visible.map((item) => (
-            <li key={item.id}>
+          {visible.map((item, index) => (
+            <li
+              key={item.id}
+              className="animate-rise"
+              // A short stagger reads as the list settling, not as lag.
+              style={{ animationDelay: `${Math.min(index, 8) * 28}ms` }}
+            >
               <button
                 type="button"
                 onClick={() => setEditing(item)}
                 className="press block w-full text-left"
               >
-                <Card as="div" className="p-4">
+                <Card as="div" className="relative overflow-hidden p-4 pl-5">
+                  <span
+                    aria-hidden="true"
+                    className={`absolute inset-y-0 left-0 w-1 ${
+                      CATEGORY_TONE[item.category] ?? "bg-ink-faint"
+                    }`}
+                  />
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="text-[15px] leading-snug font-medium">{item.title}</h3>
                     <Chip>{SOURCE_LABELS[item.source]}</Chip>

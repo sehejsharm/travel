@@ -32,6 +32,56 @@ Rules:
 - category: "booking" for anything reserved or paid for, "activity" for things to do, "purchase" for things to buy, "place" for somewhere to go.
 - title is short and human — what the traveller would call it, not a sentence.`;
 
+/** Screenshots are the most common thing people have, and the hardest to parse. */
+export async function extractFromImage(
+  imageBase64: string,
+  mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif",
+  input: ExtractionInput,
+): Promise<ExtractionResult | null> {
+  if (!hasCredentials()) return null;
+
+  const today = (input.today ?? new Date()).toISOString().slice(0, 10);
+  const client = new Anthropic();
+
+  try {
+    const response = await client.messages.parse({
+      model: MODEL,
+      max_tokens: 16000,
+      system: SYSTEM,
+      output_config: {
+        effort: "low",
+        format: zodOutputFormat(ExtractedItem),
+      },
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: mediaType, data: imageBase64 } },
+            {
+              type: "text",
+              text: `Today is ${today}. This is a screenshot the traveller saved — a booking confirmation, a map pin, a listing, or a social post. Read everything visible and extract the travel item it shows.`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const parsed = response.parsed_output;
+    if (!parsed) return null;
+
+    return {
+      draft: toDraft(parsed, input),
+      confidence: 0.85,
+      method: "llm",
+      foundFields: filledFields(parsed),
+      escalationReason: "Read straight from the image.",
+    };
+  } catch (error) {
+    logFailure(error);
+    return null;
+  }
+}
+
 export function hasCredentials(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 }
@@ -78,16 +128,20 @@ export async function extractWithLlm(
       escalationReason: reason,
     };
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) {
-      console.warn("Extraction escalation skipped: credentials rejected.");
-    } else if (error instanceof Anthropic.RateLimitError) {
-      console.warn("Extraction escalation skipped: rate limited.");
-    } else if (error instanceof Anthropic.APIError) {
-      console.warn(`Extraction escalation failed (${error.status}): ${error.message}`);
-    } else {
-      console.warn("Extraction escalation failed:", error);
-    }
+    logFailure(error);
     return null;
+  }
+}
+
+function logFailure(error: unknown): void {
+  if (error instanceof Anthropic.AuthenticationError) {
+    console.warn("Extraction skipped: credentials rejected.");
+  } else if (error instanceof Anthropic.RateLimitError) {
+    console.warn("Extraction skipped: rate limited.");
+  } else if (error instanceof Anthropic.APIError) {
+    console.warn(`Extraction failed (${error.status}): ${error.message}`);
+  } else {
+    console.warn("Extraction failed:", error);
   }
 }
 

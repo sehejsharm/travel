@@ -164,15 +164,24 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     href={tab.href}
                     aria-current={active ? "page" : undefined}
-                    className={`press flex flex-col items-center gap-1 px-1 pt-2.5 pb-2 text-[10px] font-medium ${
+                    className={`press relative flex flex-col items-center gap-1 px-1 pt-3 pb-2 text-[10px] font-medium ${
                       active ? "text-accent-strong" : "text-ink-faint"
                     }`}
                   >
+                    {/* The bar above the active tab is the only thing that moves. */}
+                    <span
+                      aria-hidden="true"
+                      className={`absolute top-0 h-[3px] w-8 rounded-b-full bg-accent transition-opacity ${
+                        active && !isAdd ? "opacity-100" : "opacity-0"
+                      }`}
+                    />
                     <span
                       className={
                         isAdd
-                          ? "flex h-9 w-9 items-center justify-center rounded-full bg-accent text-accent-ink shadow-card"
-                          : "flex h-9 w-9 items-center justify-center"
+                          ? "flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-ink shadow-float"
+                          : `flex h-9 w-9 items-center justify-center rounded-xl ${
+                              active ? "bg-accent-soft" : ""
+                            }`
                       }
                     >
                       {tab.icon}

@@ -11,6 +11,12 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#0b1116",
     orientation: "portrait",
     categories: ["travel", "productivity"],
+    // Lets the OS share sheet send a Reel or a screenshot caption straight here.
+    share_target: {
+      action: "/add",
+      method: "GET",
+      params: { title: "title", text: "text", url: "url" },
+    },
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
       // Next serves the generated PNG at /apple-icon, without the extension.
