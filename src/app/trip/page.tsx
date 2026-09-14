@@ -6,9 +6,10 @@ import { GhostButton } from "@/components/form";
 import { Sheet } from "@/components/sheet";
 import { TravelerEditor } from "@/components/traveler-editor";
 import { TripForm } from "@/components/trip-form";
+import { InterestPicker } from "@/components/interest-picker";
 import { Card, Chip, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import type { Traveler } from "@/lib/domain/types";
-import { deleteTrip, selectTrip, tripItems } from "@/lib/store/state";
+import { deleteTrip, selectTrip, tripItems, updateTrip } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
 import { formatDay } from "@/lib/rules";
 
@@ -64,6 +65,16 @@ export default function TripSettings() {
         <SectionTitle>Details</SectionTitle>
         <Card className="p-5">
           <TripForm trip={trip} onDone={() => router.push("/")} submitLabel="Save changes" />
+        </Card>
+      </section>
+
+      <section>
+        <SectionTitle trailing="shapes what Discover suggests">What you are into</SectionTitle>
+        <Card className="p-5">
+          <InterestPicker
+            selected={trip.interests ?? []}
+            onChange={(interests) => updateTrip(trip.id, { interests })}
+          />
         </Card>
       </section>
 

@@ -1,9 +1,17 @@
 import type { ChecklistEntry, ChecklistKind, GeneratedEntry } from "../checklists";
 import { generatePacking, generateTasks } from "../checklists";
 import type { Trip, TripItem, Traveler } from "../domain/types";
+import type { AdviceResult } from "../advisor/types";
 import type { ItemDraft } from "../extract/types";
 import { runChecks } from "../rules";
 import { SEED_ITEMS, SEED_TRIP } from "./seed";
+
+export interface CachedAdvice {
+  tripId: string;
+  /** Destination and interests, so a changed question misses the cache. */
+  key: string;
+  result: AdviceResult;
+}
 
 export interface AppState {
   trips: Trip[];
@@ -11,6 +19,8 @@ export interface AppState {
   /** Items for every trip; screens filter by the active one. */
   items: TripItem[];
   checklist: ChecklistEntry[];
+  /** Suggestions already paid for, kept so they are not paid for twice. */
+  advice?: CachedAdvice[];
 }
 
 const STORAGE_KEY = "manifest.state.v2";
@@ -21,7 +31,7 @@ function id(prefix: string): string {
 }
 
 export function emptyState(): AppState {
-  return { trips: [], activeTripId: "", items: [], checklist: [] };
+  return { trips: [], activeTripId: "", items: [], checklist: [], advice: [] };
 }
 
 export function sampleState(): AppState {
@@ -112,6 +122,7 @@ function read(): AppState {
           activeTripId: parsed.activeTripId ?? parsed.trips[0]?.id ?? "",
           items: parsed.items ?? [],
           checklist: parsed.checklist ?? [],
+          advice: parsed.advice ?? [],
         });
       }
     }
@@ -217,6 +228,7 @@ export function deleteTrip(tripId: string): void {
       activeTripId: current.activeTripId === tripId ? (trips[0]?.id ?? "") : current.activeTripId,
       items: current.items.filter((item) => item.tripId !== tripId),
       checklist: current.checklist.filter((entry) => entry.tripId !== tripId),
+      advice: (current.advice ?? []).filter((entry) => entry.tripId !== tripId),
     };
   });
 }
@@ -317,6 +329,36 @@ export function unscheduleItem(itemId: string): void {
 }
 
 /* -------------------------------------------------------------- checklist */
+
+/* ---------------------------------------------------------------- advice */
+
+/**
+ * Advice is cached per trip, destination and interest set: the same question
+ * costs the same money every time it is asked, and the answer does not move
+ * hour to hour. Clearing it is a deliberate refresh.
+ */
+export function cacheAdvice(tripId: string, key: string, result: AdviceResult): void {
+  mutate((current) => ({
+    ...current,
+    advice: [
+      ...(current.advice ?? []).filter(
+        (entry) => !(entry.tripId === tripId && entry.key === key),
+      ),
+      { tripId, key, result },
+    ],
+  }));
+}
+
+export function cachedAdvice(state: AppState, tripId: string, key: string): AdviceResult | undefined {
+  return (state.advice ?? []).find((entry) => entry.tripId === tripId && entry.key === key)?.result;
+}
+
+export function clearAdvice(tripId: string): void {
+  mutate((current) => ({
+    ...current,
+    advice: (current.advice ?? []).filter((entry) => entry.tripId !== tripId),
+  }));
+}
 
 export function setChecklistDone(entryId: string, done: boolean): void {
   mutate((current) => ({

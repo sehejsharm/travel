@@ -86,6 +86,11 @@ export interface Trip {
   endDate: string;
   budgetTarget?: Money;
   travelers: Traveler[];
+  /**
+   * What this traveller is into, by interest id. The advisor divides its
+   * answers into these sections, so picking them shapes every suggestion.
+   */
+  interests?: string[];
 }
 
 export type FlagSeverity = "critical" | "warning" | "info";

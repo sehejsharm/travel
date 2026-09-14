@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Checklist } from "@/components/checklist";
+import { Offers } from "@/components/offers";
 import { FlagCard, SeveritySummary } from "@/components/flag-card";
 import { Card, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import type { FlagSeverity } from "@/lib/domain/types";
+import { offersFor } from "@/lib/partners";
 import { useTripView } from "@/lib/store/use-store";
 
 const FILTERS: { value: FlagSeverity | "all"; label: string }[] = [
@@ -15,7 +17,7 @@ const FILTERS: { value: FlagSeverity | "all"; label: string }[] = [
 ];
 
 export default function ChecksScreen() {
-  const { trip, checklist, flags, hydrated } = useTripView();
+  const { trip, items, checklist, flags, hydrated } = useTripView();
   const [filter, setFilter] = useState<FlagSeverity | "all">("all");
 
   if (!hydrated) return <ScreenSkeleton />;
@@ -29,6 +31,7 @@ export default function ChecksScreen() {
   }
 
   const visible = filter === "all" ? flags : flags.filter((flag) => flag.severity === filter);
+  const offers = offersFor(trip, items);
   const tasks = checklist.filter((entry) => entry.kind === "task");
   const packing = checklist.filter((entry) => entry.kind === "packing");
 
@@ -105,6 +108,8 @@ export default function ChecksScreen() {
           </ul>
         )}
       </section>
+
+      <Offers offers={offers} />
 
       <Card className="p-4">
         <p className="text-xs leading-relaxed text-ink-soft">

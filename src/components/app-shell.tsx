@@ -41,21 +41,22 @@ const TABS: Tab[] = [
     ),
   },
   {
+    href: "/discover",
+    label: "Discover",
+    icon: (
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.5" {...stroke} />
+        <path {...stroke} d="m16 16 4 4" />
+        <path {...stroke} d="M11 8.2v5.6M8.2 11h5.6" />
+      </svg>
+    ),
+  },
+  {
     href: "/add",
     label: "Add",
     icon: (
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
         <path {...stroke} d="M12 5v14M5 12h14" />
-      </svg>
-    ),
-  },
-  {
-    href: "/checks",
-    label: "Checks",
-    icon: (
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-        <path {...stroke} d="M12 3.5 20 7v5.5c0 4.2-3.2 7-8 8.5-4.8-1.5-8-4.3-8-8.5V7z" />
-        <path {...stroke} d="m9 12 2.2 2.2L15.5 10" />
       </svg>
     ),
   },
@@ -67,6 +68,24 @@ const TABS: Tab[] = [
         <circle cx="5.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
         <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
         <circle cx="18.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+  },
+];
+
+/**
+ * The bottom bar holds five; Checks has its own big entry on the trip screen,
+ * so on a wide screen it joins the sidebar rather than taking a tab.
+ */
+const SIDEBAR_TABS: Tab[] = [
+  ...TABS,
+  {
+    href: "/checks",
+    label: "Checks",
+    icon: (
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path {...stroke} d="M12 3.5 20 7v5.5c0 4.2-3.2 7-8 8.5-4.8-1.5-8-4.3-8-8.5V7z" />
+        <path {...stroke} d="m9 12 2.2 2.2L15.5 10" />
       </svg>
     ),
   },
@@ -115,7 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
 
         <nav className="mt-8 flex flex-col gap-1">
-          {TABS.map((tab) => {
+          {SIDEBAR_TABS.map((tab) => {
             const active = isActive(pathname, tab.href);
             return (
               <Link
