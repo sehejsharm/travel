@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { BackupPanel } from "@/components/backup-panel";
+import { LEGAL_PAGES } from "@/components/legal";
 import { InstallPrompt } from "@/components/install-prompt";
 import { Card, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import { toCalendar } from "@/lib/calendar";
@@ -134,6 +135,44 @@ export default function MoreScreen() {
         <SectionTitle>This device</SectionTitle>
         <InstallPrompt />
         <BackupPanel />
+      </section>
+
+      <section>
+        <SectionTitle>Help and legal</SectionTitle>
+        <Card className="divide-y divide-line">
+          <a
+            href="mailto:support@manifest.trip?subject=Manifest%20feedback"
+            className="press flex items-center justify-between gap-3 px-4 py-3.5"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">Help &amp; feedback</span>
+              <span className="mt-0.5 block font-mono text-[10px] text-ink-faint">
+                Something wrong, or something missing? Tell us.
+              </span>
+            </span>
+            <span aria-hidden="true" className="shrink-0 text-ink-faint">
+              ↗
+            </span>
+          </a>
+
+          {LEGAL_PAGES.map((page) => (
+            <Link
+              key={page.href}
+              href={page.href}
+              className="press flex items-center justify-between gap-3 px-4 py-3.5"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{page.title}</span>
+                <span className="mt-0.5 block font-mono text-[10px] text-ink-faint">
+                  {page.blurb}
+                </span>
+              </span>
+              <span aria-hidden="true" className="shrink-0 text-ink-faint">
+                ›
+              </span>
+            </Link>
+          ))}
+        </Card>
       </section>
 
     </div>
