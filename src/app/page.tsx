@@ -8,6 +8,8 @@ import { ItemEditor } from "@/components/item-editor";
 import { Timeline } from "@/components/timeline";
 import { DeferredPrompts } from "@/components/deferred-prompts";
 import { FirstRun } from "@/components/first-run";
+import { Onboarding } from "@/components/onboarding";
+import { ReviewPrompt } from "@/components/review-prompt";
 import { TripHero } from "@/components/trip-hero";
 import {
   Card,
@@ -20,7 +22,7 @@ import {
 import type { TripItem } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/reference/fx";
 import { readiness, settledFlagIds } from "@/lib/readiness";
-import { formatDay, formatTime, rollUpBudget } from "@/lib/rules";
+import { daysBetween, formatDay, formatTime, rollUpBudget } from "@/lib/rules";
 import { useTripView } from "@/lib/store/use-store";
 
 export default function TripScreen() {
@@ -28,7 +30,14 @@ export default function TripScreen() {
   const [editing, setEditing] = useState<TripItem | null>(null);
 
   if (!hydrated) return <ScreenSkeleton />;
-  if (empty || !trip) return <FirstRun />;
+  if (empty || !trip) {
+    return (
+      <>
+        <Onboarding />
+        <FirstRun />
+      </>
+    );
+  }
 
   const now = new Date();
   const rollup = rollUpBudget(trip, items);
@@ -44,6 +53,13 @@ export default function TripScreen() {
   return (
     <div className="flex flex-col gap-7">
       <TripHero trip={trip} items={items} readiness={progress} />
+
+      <ReviewPrompt
+        criticalOpen={progress.criticalOpen}
+        criticalSettled={progress.criticalSettled}
+        itemCount={items.length}
+        tripEnded={!trip.datesTbd && daysBetween(new Date(), trip.endDate) < 0}
+      />
 
       <DeferredPrompts trip={trip} items={items} />
 

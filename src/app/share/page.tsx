@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Mark } from "@/components/mark";
 import { useEffect, useState } from "react";
 import { Card, ScreenSkeleton } from "@/components/ui";
 import { CATEGORY_LABELS, type ItemCategory, type TripItem } from "@/lib/domain/types";
@@ -33,8 +34,24 @@ export default function SharedTripPage() {
   const [state, setState] = useState<SharedTrip | null | undefined>(undefined);
 
   useEffect(() => {
-    const token = window.location.hash.replace(/^#/, "");
-    decodeTrip(token).then((decoded) => setState(decoded ?? null));
+    let current = true;
+
+    function read() {
+      const token = window.location.hash.replace(/^#/, "");
+      decodeTrip(token).then((decoded) => {
+        if (current) setState(decoded ?? null);
+      });
+    }
+
+    read();
+
+    // Following one share link from another only changes the fragment, so the
+    // page never remounts. Without this it would keep showing the first trip.
+    window.addEventListener("hashchange", read);
+    return () => {
+      current = false;
+      window.removeEventListener("hashchange", read);
+    };
   }, []);
 
   if (state === undefined) return <ScreenSkeleton />;
@@ -139,16 +156,32 @@ export default function SharedTripPage() {
         </Card>
       )}
 
-      <footer className="border-t border-line pt-5">
+      {/*
+        The one place a non-user meets Manifest, so it explains itself rather
+        than just crediting itself. Kept to a footer — a shared plan is
+        somebody's itinerary, not an advertising slot.
+      */}
+      <footer className="mt-2 border-t border-line pt-5">
         <p className="font-mono text-[11px] text-ink-faint">
-          {items.length} items · shared from Manifest
+          {items.length} items · read-only · prices and booking references were left behind
         </p>
-        <Link
-          href="/"
-          className="press mt-3 inline-block rounded-xl border border-line px-4 py-2 text-sm"
-        >
-          Plan your own trip
-        </Link>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-4">
+          <Mark size={28} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Made with Manifest</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
+              Send it a booking email or a screenshot and it files itself — then it checks the plan
+              for the things that ruin trips. Free, no account, works offline.
+            </p>
+          </div>
+          <Link
+            href="/trip/new"
+            className="press shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
+          >
+            Start your own
+          </Link>
+        </div>
       </footer>
     </article>
   );

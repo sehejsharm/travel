@@ -64,6 +64,68 @@ export async function encodeTrip(trip: Trip, items: TripItem[]): Promise<string>
   return toBase64Url(await collect(compressed));
 }
 
+/**
+ * Where a URL stops being reliably shareable. Browsers themselves cope with
+ * far more, but a link is only useful if the thing you paste it into keeps it
+ * whole, and plenty of chat clients, link previewers, proxies and QR encoders
+ * give up well before the browser would.
+ */
+export const SAFE_URL_LENGTH = 2000;
+/** Past here it will not survive being pasted anywhere worth pasting it. */
+export const MAX_URL_LENGTH = 8000;
+
+export type ShareSize = "safe" | "risky" | "too-big";
+
+export interface ShareLink {
+  url: string;
+  size: ShareSize;
+  length: number;
+  /** Set when the link only carries part of the trip. */
+  trimmedTo?: number;
+}
+
+/** Only the scheduled items, for a trip too big to send whole. */
+function trim(items: TripItem[]): TripItem[] {
+  return items.filter((item) => item.startsAt);
+}
+
+/**
+ * Builds the shareable URL, shrinking the payload rather than handing back a
+ * link that silently breaks. A trip big enough to fail is exactly the trip
+ * somebody most wants to send.
+ */
+export async function buildShareLink(
+  trip: Trip,
+  items: TripItem[],
+  origin: string,
+): Promise<ShareLink> {
+  const base = `${origin}/share#`;
+
+  const full = `${base}${await encodeTrip(trip, items)}`;
+  if (full.length <= SAFE_URL_LENGTH) {
+    return { url: full, size: "safe", length: full.length };
+  }
+
+  const scheduled = trim(items);
+  if (scheduled.length < items.length) {
+    const trimmed = `${base}${await encodeTrip(trip, scheduled)}`;
+    if (trimmed.length <= SAFE_URL_LENGTH) {
+      return {
+        url: trimmed,
+        size: "safe",
+        length: trimmed.length,
+        trimmedTo: scheduled.length,
+      };
+    }
+  }
+
+  return {
+    url: full,
+    size: full.length > MAX_URL_LENGTH ? "too-big" : "risky",
+    length: full.length,
+  };
+}
+
 export async function decodeTrip(token: string): Promise<SharedTrip | undefined> {
   try {
     const bytes = fromBase64Url(token);
