@@ -201,13 +201,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                       }`}
                     />
                     <span
-                      className={
+                      // Same box for every tab, so the labels sit on one line.
+                      className={`flex h-10 w-10 items-center justify-center ${
                         isAdd
-                          ? "flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-ink shadow-float"
-                          : `flex h-9 w-9 items-center justify-center rounded-xl ${
-                              active ? "bg-accent-soft" : ""
-                            }`
-                      }
+                          ? "rounded-full bg-accent text-accent-ink shadow-float"
+                          : `rounded-xl ${active ? "bg-accent-soft" : ""}`
+                      }`}
                     >
                       {tab.icon}
                     </span>
