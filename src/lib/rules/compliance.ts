@@ -6,7 +6,13 @@ import {
   type EntryRequirementsProvider,
 } from "../reference/entry-requirements";
 import { healthAdvisory } from "../reference/health";
-import { daysBetween, destinationCountries, formatDay, type RuleContext } from "./shared";
+import {
+  daysBetween,
+  destinationCountries,
+  formatDay,
+  hasDate,
+  type RuleContext,
+} from "./shared";
 
 const VERIFY_NOTE = "the destination's embassy or official immigration site";
 
@@ -16,12 +22,33 @@ export function entryRequirements(
 ): Flag[] {
   const { trip, items } = ctx;
   const flags: Flag[] = [];
+  const destinations = destinationCountries(trip, items);
 
-  for (const destination of destinationCountries(trip, items)) {
+  /**
+   * A passport has one expiry, so it gets one finding — against the strictest
+   * demand across every destination, rather than one per country visited.
+   */
+  const strictest = new Map<string, { months: number; countryName: string }>();
+
+  for (const destination of destinations) {
     const country = getCountry(destination);
     const countryName = country?.name ?? destination;
 
     for (const traveler of trip.travelers) {
+      // Entry rules are a function of the passport, so without one there is
+      // no question to answer. Asking is not a finding, so it stays info.
+      if (!traveler.passportCountry?.trim()) {
+        flags.push({
+          id: `passport-country-missing:${traveler.id}:${destination}`,
+          severity: "info",
+          category: "compliance",
+          title: `Add ${traveler.name}'s passport country to check ${countryName} entry rules`,
+          detail: `Visa requirements and how much passport validity ${countryName} wants both depend on which passport is being used.`,
+          itemIds: [],
+        });
+        continue;
+      }
+
       const requirement = provider.lookup(traveler.passportCountry, destination);
 
       if (requirement.outcome === "visa-required" || requirement.outcome === "e-visa") {
@@ -74,14 +101,31 @@ export function entryRequirements(
         });
       }
 
-      const passportFlag = passportValidity(
-        traveler,
-        countryName,
-        requirement.passportValidityMonths,
-        trip.endDate,
-      );
-      if (passportFlag) flags.push(passportFlag);
+      const current = strictest.get(traveler.id);
+      if (!current || requirement.passportValidityMonths > current.months) {
+        strictest.set(traveler.id, {
+          months: requirement.passportValidityMonths,
+          countryName,
+        });
+      }
     }
+  }
+
+  // With nowhere to go there is nothing to check a passport against.
+  if (destinations.length === 0) return flags;
+
+  // The expiry itself is asked for whether or not we know the nationality:
+  // whichever passport it is, it has to outlast the trip.
+  for (const traveler of trip.travelers) {
+    const demand = strictest.get(traveler.id);
+
+    const passportFlag = passportValidity(
+      traveler,
+      demand?.countryName ?? "your destination",
+      demand?.months ?? 0,
+      trip.endDate,
+    );
+    if (passportFlag) flags.push(passportFlag);
   }
 
   return flags;
@@ -93,6 +137,22 @@ function passportValidity(
   requiredMonths: number,
   tripEnd: string,
 ): Flag | undefined {
+  // No expiry on file is a gap in what we know, not a passport about to
+  // lapse. Reading it as one produced a critical flag reading "Invalid Date".
+  if (!hasDate(traveler.passportExpiry)) {
+    return {
+      id: `passport-expiry-missing:${traveler.id}`,
+      severity: "info",
+      category: "compliance",
+      title: `Add ${traveler.name}'s passport expiry to check it against this trip`,
+      detail:
+        requiredMonths > 0
+          ? `${countryName} wants ${requiredMonths} months of validity beyond your stay, and this cannot be checked without the date.`
+          : "The passport has to outlast the trip, and this cannot be checked without the date.",
+      itemIds: [],
+    };
+  }
+
   const requiredUntil = new Date(tripEnd);
   requiredUntil.setMonth(requiredUntil.getMonth() + requiredMonths);
 
@@ -157,14 +217,16 @@ export function healthAdvisories(ctx: RuleContext): Flag[] {
 
 export function insuranceCoverage({ trip }: RuleContext): Flag[] {
   return trip.travelers.flatMap((traveler): Flag[] => {
-    if (!traveler.insuranceFrom || !traveler.insuranceTo) {
+    // Presence is not enough — a date restored from a backup or typed by hand
+    // can be unparseable, and that must ask again rather than quietly pass.
+    if (!hasDate(traveler.insuranceFrom) || !hasDate(traveler.insuranceTo)) {
       return [
         {
           id: `insurance:${traveler.id}:missing`,
           severity: "info" as const,
           category: "compliance" as const,
-          title: `No travel insurance recorded for ${traveler.name}`,
-          detail: "Add the policy dates and this will check them against the trip.",
+          title: `Add insurance dates to check ${traveler.name}'s cover against this trip`,
+          detail: "With the policy start and end dates, this checks the trip falls inside them.",
           itemIds: [],
         },
       ];

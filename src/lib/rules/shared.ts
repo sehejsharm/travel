@@ -17,6 +17,16 @@ export function minutesBetween(fromIso: string, toIso: string): number {
   return (Date.parse(toIso) - Date.parse(fromIso)) / 60000;
 }
 
+/**
+ * Whether a stored date is something we can actually reason about. Empty
+ * strings arrive from travellers added by name alone during trip creation,
+ * and a malformed one can arrive from a restored backup or a hand-edited
+ * field — both must read as "not told yet", never as a date in the past.
+ */
+export function hasDate(value: string | undefined | null): value is string {
+  return typeof value === "string" && value.trim() !== "" && !Number.isNaN(Date.parse(value));
+}
+
 export function daysBetween(from: Date | string, to: Date | string): number {
   const a = typeof from === "string" ? Date.parse(from) : from.getTime();
   const b = typeof to === "string" ? Date.parse(to) : to.getTime();
