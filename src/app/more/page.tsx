@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { BackupPanel } from "@/components/backup-panel";
+import { InstallPrompt } from "@/components/install-prompt";
 import { Card, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import { toCalendar } from "@/lib/calendar";
 import { encodeTrip } from "@/lib/share";
-import { loadSampleTrip } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
 import { destinationBriefs } from "@/lib/rules";
 
@@ -21,7 +22,6 @@ function download(filename: string, contents: string, type: string) {
 export default function MoreScreen() {
   const { trip, items, hydrated } = useTripView();
   const [shareState, setShareState] = useState<"idle" | "copied" | "failed">("idle");
-  const [confirmReset, setConfirmReset] = useState(false);
 
   if (!hydrated) return <ScreenSkeleton />;
   if (!trip) {
@@ -130,34 +130,12 @@ export default function MoreScreen() {
         </section>
       )}
 
-      <section>
+      <section className="flex flex-col gap-3">
         <SectionTitle>This device</SectionTitle>
-        <Card className="p-4">
-          <p className="text-xs leading-relaxed text-ink-soft">
-            Manifest keeps your trip on this device. Nothing is uploaded, there is no account, and
-            it works with no signal. Clearing your browser data clears the trip.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (!confirmReset) {
-                setConfirmReset(true);
-                return;
-              }
-              loadSampleTrip();
-              setConfirmReset(false);
-            }}
-            className={`press mt-3 rounded-xl border px-3.5 py-2 text-xs font-medium ${
-              confirmReset
-                ? "border-critical text-critical"
-                : "border-line text-ink-soft"
-            }`}
-          >
-            {confirmReset ? "Tap again to load the sample trip" : "Load the sample trip"}
-          </button>
-        </Card>
+        <InstallPrompt />
+        <BackupPanel />
       </section>
+
     </div>
   );
 }

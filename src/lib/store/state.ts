@@ -163,6 +163,39 @@ function mutate(update: (current: AppState) => AppState): void {
   set(withGeneratedChecklists(update(getSnapshot())));
 }
 
+/**
+ * Swaps the whole store at once — used by a restore, and by wiping the app.
+ * Everything else mutates through `mutate`, which is why this is the only
+ * other writer and says so.
+ */
+export function replaceState(next: AppState): void {
+  set(withGeneratedChecklists(next));
+}
+
+/** Deletes every trace of this device's trips. */
+export function wipeEverything(): void {
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(LEGACY_KEY);
+    } catch {
+      // A blocked store is already empty for our purposes.
+    }
+  }
+  set(emptyState());
+}
+
+/** Roughly what this trip data costs on disk, for the storage indicator. */
+export function storageFootprint(): { bytes: number; items: number } {
+  const state = getSnapshot();
+  const bytes =
+    typeof window === "undefined"
+      ? 0
+      : new Blob([window.localStorage.getItem(STORAGE_KEY) ?? ""]).size;
+
+  return { bytes, items: state.items.length };
+}
+
 export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);

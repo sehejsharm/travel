@@ -95,7 +95,15 @@ export function Sheet({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div
+          className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
+          // With no footer, the last row would otherwise sit under the home indicator.
+          style={
+            footer ? undefined : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }
+          }
+        >
+          {children}
+        </div>
 
         {footer && (
           <div
