@@ -61,7 +61,7 @@ export default function DiscoverScreen() {
   const advice = fresh ?? cachedAdvice(state, trip.id, key);
 
   // Nothing picked yet: the whole screen is the question.
-  if (interests.length === 0) {
+  if (interests.length === 0 && !loading && !advice) {
     const picked = draftInterests ?? DEFAULT_INTERESTS;
 
     return (
@@ -76,7 +76,10 @@ export default function DiscoverScreen() {
           <InterestPicker selected={picked} onChange={setDraftInterests} />
           <div className="mt-4">
             <PrimaryButton
-              onClick={() => updateTrip(trip.id, { interests: picked })}
+              onClick={() => {
+                updateTrip(trip.id, { interests: picked });
+                void find(picked);
+              }}
               disabled={picked.length === 0}
             >
               Save and find things to do
@@ -87,7 +90,12 @@ export default function DiscoverScreen() {
     );
   }
 
-  async function find() {
+  /**
+   * Picking interests runs the search straight away rather than leaving the
+   * traveller on a screen with a button and no idea where their answers went.
+   * The picks are passed in because the store has not propagated them yet.
+   */
+  async function find(picked: string[] = interests) {
     if (!trip) return;
 
     setLoading(true);
@@ -100,7 +108,7 @@ export default function DiscoverScreen() {
         body: JSON.stringify({
           destination: where,
           countryCode: trip.destinationCountries?.[0],
-          interests,
+          interests: picked,
           alreadyFiled: items.flatMap((item) =>
             [item.title, item.place?.name].filter((value): value is string => Boolean(value)),
           ),
@@ -118,7 +126,7 @@ export default function DiscoverScreen() {
       if (!response.ok) throw new Error(payload?.error ?? "That did not work.");
 
       setFresh(payload as AdviceResult);
-      cacheAdvice(trip.id, key, payload as AdviceResult);
+      cacheAdvice(trip.id, `${where.toLowerCase()}|${[...picked].sort().join(",")}`, payload as AdviceResult);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "That did not work.");
     } finally {
@@ -155,7 +163,7 @@ export default function DiscoverScreen() {
             />
           </label>
           <div className="shrink-0 sm:w-48">
-            <PrimaryButton onClick={find} disabled={loading}>
+            <PrimaryButton onClick={() => void find()} disabled={loading}>
               {loading ? "Looking…" : advice ? "Look again" : "Find things to do"}
             </PrimaryButton>
           </div>

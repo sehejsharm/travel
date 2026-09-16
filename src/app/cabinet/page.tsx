@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ItemEditor } from "@/components/item-editor";
 import { TripMap } from "@/components/trip-map";
 import { TextInput } from "@/components/form";
@@ -11,7 +12,7 @@ import { formatMoney } from "@/lib/reference/fx";
 import { formatDay, formatTime } from "@/lib/rules";
 import { useTripView } from "@/lib/store/use-store";
 
-type Filter = ItemCategory | "all" | "unscheduled";
+type Filter = ItemCategory | "all" | "unscheduled" | "unpriced";
 
 /** The stripe down a card's edge, so a category is legible without reading. */
 const CATEGORY_TONE: Record<string, string> = {
@@ -24,6 +25,7 @@ const CATEGORY_TONE: Record<string, string> = {
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "unscheduled", label: "Not scheduled" },
+  { value: "unpriced", label: "No price yet" },
   { value: "place", label: CATEGORY_LABELS.place },
   { value: "activity", label: CATEGORY_LABELS.activity },
   { value: "booking", label: CATEGORY_LABELS.booking },
@@ -46,9 +48,24 @@ function matches(item: TripItem, query: string): boolean {
   return haystack.includes(query.toLowerCase());
 }
 
+function isFilter(value: string | null): value is Filter {
+  return FILTERS.some((option) => option.value === value);
+}
+
 export default function CabinetScreen() {
+  return (
+    <Suspense fallback={<ScreenSkeleton variant="list" />}>
+      <CabinetScreenInner />
+    </Suspense>
+  );
+}
+
+function CabinetScreenInner() {
   const { trip, items, hydrated } = useTripView();
-  const [filter, setFilter] = useState<Filter>("all");
+  const params = useSearchParams();
+  // Arriving from the budget card or Discover, the filter is already chosen.
+  const requested = params.get("filter");
+  const [filter, setFilter] = useState<Filter>(isFilter(requested) ? requested : "all");
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"list" | "map">("list");
   const [editing, setEditing] = useState<TripItem | null>(null);
@@ -76,7 +93,9 @@ export default function CabinetScreen() {
       ? items.length
       : value === "unscheduled"
         ? items.filter((item) => !item.startsAt).length
-        : items.filter((item) => item.category === value).length;
+        : value === "unpriced"
+          ? items.filter((item) => !item.cost).length
+          : items.filter((item) => item.category === value).length;
 
   const visible = items
     .filter((item) =>
@@ -84,7 +103,9 @@ export default function CabinetScreen() {
         ? true
         : filter === "unscheduled"
           ? !item.startsAt
-          : item.category === filter,
+          : filter === "unpriced"
+            ? !item.cost
+            : item.category === filter,
     )
     .filter((item) => matches(item, query));
 

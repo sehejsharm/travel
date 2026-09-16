@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Checklist } from "@/components/checklist";
 import { Offers } from "@/components/offers";
+import { ReferenceFreshness } from "@/components/reference-freshness";
 import { FlagCard, SeveritySummary } from "@/components/flag-card";
-import { Card, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
+import { EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import type { FlagSeverity } from "@/lib/domain/types";
 import { offersFor } from "@/lib/partners";
 import { readiness, settledFlagIds } from "@/lib/readiness";
@@ -132,12 +133,7 @@ export default function ChecksScreen() {
 
       <Offers offers={offers} />
 
-      <Card className="p-4">
-        <p className="text-xs leading-relaxed text-ink-soft">
-          Entry rules, health advice and allowances come from bundled reference data with a
-          verified date. Treat them as a prompt to check, never as the final word.
-        </p>
-      </Card>
+      <ReferenceFreshness />
     </div>
   );
 }

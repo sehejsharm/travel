@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CATEGORY_LABELS } from "@/lib/domain/types";
 import { formatMoney, RATES_AS_OF } from "@/lib/reference/fx";
 import type { BudgetRollup } from "@/lib/rules";
@@ -64,7 +65,17 @@ export function BudgetCard({ rollup }: { rollup: BudgetRollup }) {
         <span className="text-teal">booked</span> {formatMoney(rollup.actual, rollup.currency)} ·{" "}
         <span className="text-accent-strong">estimated</span>{" "}
         {formatMoney(rollup.planned, rollup.currency)}
-        {rollup.unpricedCount > 0 && ` · ${rollup.unpricedCount} with no price yet`}
+        {rollup.unpricedCount > 0 && (
+          <>
+            {" · "}
+            <Link
+              href="/cabinet?filter=unpriced"
+              className="press text-accent-strong underline underline-offset-2"
+            >
+              {rollup.unpricedCount} with no price yet
+            </Link>
+          </>
+        )}
         <br />
         rates as of {RATES_AS_OF}
       </p>

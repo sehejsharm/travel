@@ -5,10 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { prepareImage, requestExtraction, sourceForText, type CaptureImage } from "@/lib/capture";
-import { SOURCE_LABELS } from "@/lib/domain/types";
-import type { ExtractionResult } from "@/lib/extract/types";
+import { SOURCE_LABELS, type TripItem } from "@/lib/domain/types";
+import type { ExtractionResult, ItemDraft } from "@/lib/extract/types";
 import { formatMoney } from "@/lib/reference/fx";
-import { addItem, startTripFromDraft } from "@/lib/store/state";
+import { addItem, startTripFromDraft, updateItem } from "@/lib/store/state";
+import { findDuplicates, mergeInto, type DuplicateMatch } from "@/lib/dedupe";
 import { useTripView } from "@/lib/store/use-store";
 
 const EXAMPLES: { label: string; text: string }[] = [
@@ -50,7 +51,7 @@ export default function AddScreen() {
 }
 
 function AddScreenInner() {
-  const { trip, hydrated } = useTripView();
+  const { trip, items, hydrated } = useTripView();
   const shared = useSearchParams();
   // Arriving from the OS share sheet, the content is already in the URL.
   const [text, setText] = useState(() =>
@@ -61,6 +62,7 @@ function AddScreenInner() {
   const [filed, setFiled] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
@@ -128,8 +130,17 @@ function AddScreenInner() {
     }
   }
 
-  function file() {
+  function file(force = false) {
     if (!result) return;
+
+    // The same booking often arrives twice — email, then a screenshot of it.
+    if (!force && trip) {
+      const found = findDuplicates(result.draft, items);
+      if (found.length > 0) {
+        setDuplicates(found);
+        return;
+      }
+    }
 
     // With no trip yet, the thing you just filed becomes the start of one.
     const target = trip ?? { id: startTripFromDraft(result.draft), travelers: [] };
@@ -139,7 +150,18 @@ function AddScreenInner() {
       extractionMethod: result.method,
       addedBy: target.travelers[0]?.id,
     });
-    setFiled(result.draft.title);
+    clear(result.draft.title);
+  }
+
+  function merge(into: TripItem) {
+    if (!result) return;
+    updateItem(into.id, mergeInto(into, result.draft));
+    clear(`${into.title} (merged)`);
+  }
+
+  function clear(label: string) {
+    setFiled(label);
+    setDuplicates([]);
     setResult(null);
     setText("");
     setImage(null);
@@ -308,7 +330,19 @@ function AddScreenInner() {
           </Card>
         )}
 
-        {result && <Preview result={result} onFile={file} startsTrip={!trip} />}
+        {result && duplicates.length === 0 && (
+          <Preview result={result} onFile={() => file()} startsTrip={!trip} />
+        )}
+
+        {result && duplicates.length > 0 && (
+          <DuplicateChoice
+            draft={result.draft}
+            matches={duplicates}
+            onMerge={merge}
+            onKeepBoth={() => file(true)}
+            onCancel={() => setDuplicates([])}
+          />
+        )}
       </div>
     </div>
   );
@@ -446,6 +480,75 @@ function Preview({
           fill in the dates after.
         </p>
       )}
+    </Card>
+  );
+}
+
+/**
+ * Shown instead of the file button when something very like this is already
+ * in the cabinet. Neither answer is presumed: merging fills the gaps in what
+ * is filed, keeping both leaves the cabinet exactly as the traveller expects.
+ */
+function DuplicateChoice({
+  draft,
+  matches,
+  onMerge,
+  onKeepBoth,
+  onCancel,
+}: {
+  draft: ItemDraft;
+  matches: DuplicateMatch[];
+  onMerge: (item: TripItem) => void;
+  onKeepBoth: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Card className="animate-rise border-accent p-4">
+      <p className="text-sm font-medium">
+        You may already have {matches.length === 1 ? "this" : "one of these"}
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        “{draft.title}” looks like something already filed. Merging keeps what you have and fills
+        in anything it was missing.
+      </p>
+
+      <ul className="mt-3 flex flex-col gap-2">
+        {matches.map((match) => (
+          <li
+            key={match.item.id}
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface-2 p-3"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{match.item.title}</span>
+              <span className="block font-mono text-[10px] text-ink-faint">{match.reason}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => onMerge(match.item)}
+              className="press shrink-0 rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-accent-ink"
+            >
+              Merge into this
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onKeepBoth}
+          className="press rounded-lg border border-line px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-ink-soft"
+        >
+          Keep both
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="press font-mono text-[10px] text-ink-faint underline"
+        >
+          back
+        </button>
+      </div>
     </Card>
   );
 }
