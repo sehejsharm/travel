@@ -170,7 +170,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="pb-safe mx-auto w-full max-w-3xl flex-1 px-5 pt-5 lg:max-w-4xl lg:px-10 lg:pt-10 lg:pb-16">
+        {/* Keyed on the route so each navigation replays the entrance. */}
+        <main
+          key={pathname}
+          className="animate-page pb-safe mx-auto w-full max-w-3xl flex-1 px-5 pt-5 lg:max-w-4xl lg:px-10 lg:pt-10 lg:pb-16"
+        >
           {children}
         </main>
 
@@ -193,18 +197,22 @@ export function AppShell({ children }: { children: ReactNode }) {
                       active ? "text-accent-strong" : "text-ink-faint"
                     }`}
                   >
-                    {/* The bar above the active tab is the only thing that moves. */}
+                    {/*
+                      The indicator scales in from the centre rather than
+                      appearing, so moving between tabs reads as one mark
+                      travelling instead of two marks blinking.
+                    */}
                     <span
                       aria-hidden="true"
-                      className={`absolute top-0 h-[3px] w-8 rounded-b-full bg-accent transition-opacity ${
-                        active && !isAdd ? "opacity-100" : "opacity-0"
+                      className={`absolute top-0 h-[3px] w-8 origin-center rounded-b-full bg-accent transition-all duration-[var(--dur-move)] ease-[var(--ease-out)] ${
+                        active && !isAdd ? "scale-x-100 opacity-100" : "scale-x-0 opacity-0"
                       }`}
                     />
                     <span
                       // Same box for every tab, so the labels sit on one line.
                       className={`flex h-10 w-10 items-center justify-center ${
                         isAdd
-                          ? "rounded-full bg-accent text-accent-ink shadow-float"
+                          ? "rounded-full bg-accent text-accent-ink shadow-float ring-1 ring-white/10"
                           : `rounded-xl ${active ? "bg-accent-soft" : ""}`
                       }`}
                     >

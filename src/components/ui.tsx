@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 export function ScreenHeader({
   eyebrow,
@@ -32,13 +32,17 @@ export function Card({
   children,
   className = "",
   as: Tag = "section",
+  style,
 }: {
   children: ReactNode;
   className?: string;
   as?: "section" | "div" | "li" | "article";
+  /** Mostly the stagger index; kept narrow rather than spreading all props. */
+  style?: CSSProperties;
 }) {
   return (
     <Tag
+      style={style}
       className={`rounded-2xl border border-line bg-surface shadow-card ${className}`}
     >
       {children}
@@ -120,8 +124,14 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <Card className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true" className="opacity-60">
+    <Card className="raised flex flex-col items-center gap-2 px-6 py-10 text-center">
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 40 40"
+        aria-hidden="true"
+        className="animate-float opacity-60"
+      >
         <rect
           x="6"
           y="10"

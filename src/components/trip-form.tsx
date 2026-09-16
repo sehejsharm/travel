@@ -9,6 +9,7 @@ import { CURRENCY_SYMBOLS } from "@/lib/reference/fx";
 import { PURPOSES, getPurpose } from "@/lib/trip-purpose";
 import { createTrip, updateTrip, type TravelerInput, type TripInput } from "@/lib/store/state";
 import { flagEmoji } from "@/lib/theme";
+import { Celebrate } from "./celebrate";
 import { CoverPicker } from "./cover-picker";
 import { DestinationPicker } from "./destination-picker";
 import { Disclosure } from "./disclosure";
@@ -79,6 +80,7 @@ export function TripForm({
   submitLabel?: string;
 }) {
   const [draft, setDraft] = useState<Draft>(() => initial(trip));
+  const [burst, setBurst] = useState<{ x: number; y: number }>();
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -118,8 +120,15 @@ export function TripForm({
     .filter(Boolean)
     .join(" · ");
 
-  function submit() {
+  function submit(event?: React.MouseEvent<HTMLButtonElement>) {
     if (!valid) return;
+
+    // Fired from where the button actually is, so the burst comes out of the
+    // thing that was tapped rather than from the middle of the screen.
+    if (event && !trip) {
+      const box = event.currentTarget.getBoundingClientRect();
+      setBurst({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
+    }
 
     const payload = {
       name: resolvedName,
@@ -172,6 +181,7 @@ export function TripForm({
       </Field>
 
       {countries.length > 0 && <OnTheGround codes={codes} homeCode={draft.homeCountry} />}
+
 
       <Field
         label="Call it"
@@ -367,6 +377,8 @@ export function TripForm({
         {submitLabel}
       </PrimaryButton>
 
+      <Celebrate at={burst} onDone={() => setBurst(undefined)} />
+
       {!trip && !wentDeep && (
         <p className="text-center font-mono text-[10px] text-ink-faint">
           Everything above the button is optional — a destination is enough to start.
@@ -428,8 +440,8 @@ function OnTheGround({ codes, homeCode }: { codes: string[]; homeCode: string })
   const home = getCountry(homeCode);
 
   return (
-    <ul className="flex flex-col gap-2">
-      {codes.map((code) => {
+    <ul key={codes.join()} className="stagger flex flex-col gap-2">
+      {codes.map((code, index) => {
         const country = getCountry(code);
         if (!country) return null;
 
@@ -444,7 +456,9 @@ function OnTheGround({ codes, homeCode }: { codes: string[]; homeCode: string })
         return (
           <li
             key={code}
-            className="animate-rise rounded-xl border border-line bg-surface-2 px-3 py-2.5"
+            // The "it just knew that" beat: each country's facts slide in.
+            className="rounded-xl border border-line bg-surface-2 px-3 py-2.5"
+            style={{ "--i": index } as React.CSSProperties}
           >
             <p className="flex items-center gap-1.5 text-sm font-medium">
               <span aria-hidden="true">{flagEmoji(code)}</span>

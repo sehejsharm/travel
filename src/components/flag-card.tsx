@@ -11,18 +11,46 @@ const SEVERITY: Record<
 };
 
 /** `settled` means its pre-trip task has been ticked, so it reads as handled. */
-export function FlagCard({ flag, settled = false }: { flag: Flag; settled?: boolean }) {
+export function FlagCard({
+  flag,
+  settled = false,
+  index = 0,
+}: {
+  flag: Flag;
+  settled?: boolean;
+  /** Position in the list, for the shared stagger. */
+  index?: number;
+}) {
   const severity = SEVERITY[flag.severity];
+  // An unresolved conflict is the one severity that is about to cost you
+  // something, so it gets a second signal beyond colour and label.
+  const urgent = !settled && flag.severity === "critical";
 
   return (
-    <Card as="li" className={`animate-rise flex overflow-hidden ${settled ? "opacity-60" : ""}`}>
+    <Card
+      as="li"
+      className={`liftable raised flex overflow-hidden transition-opacity duration-[var(--dur-move)] ${
+        settled ? "opacity-60" : ""
+      }`}
+      style={{ "--i": index } as React.CSSProperties}
+    >
       <span
-        className={`w-1 shrink-0 ${settled ? "bg-ok" : severity.rail}`}
+        className={`w-1 shrink-0 transition-colors duration-[var(--dur-move)] ${
+          settled ? "bg-ok" : severity.rail
+        }`}
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1 px-4 py-3.5">
         <div className="flex flex-wrap items-center gap-2">
-          <Chip tone={settled ? "ok" : severity.tone}>{settled ? "done" : flag.category}</Chip>
+          <Chip tone={settled ? "ok" : severity.tone}>
+            {urgent && (
+              <span
+                aria-hidden="true"
+                className={`animate-pulse-dot mr-0.5 h-1.5 w-1.5 rounded-full ${severity.rail}`}
+              />
+            )}
+            {settled ? "done" : flag.category}
+          </Chip>
           <h3
             className={`text-[15px] leading-snug font-medium ${
               settled ? "text-ink-faint line-through" : ""

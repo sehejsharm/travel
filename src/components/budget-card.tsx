@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useCountUp } from "@/lib/use-motion";
 import { CATEGORY_LABELS } from "@/lib/domain/types";
 import { formatMoney, RATES_AS_OF } from "@/lib/reference/fx";
 import type { BudgetRollup } from "@/lib/rules";
@@ -8,6 +12,16 @@ export function BudgetCard({ rollup }: { rollup: BudgetRollup }) {
   const ceiling = Math.max(rollup.total, rollup.target ?? 0) || 1;
   const over = rollup.target !== undefined && rollup.total > rollup.target;
   const share = (value: number) => `${Math.max(0, (value / ceiling) * 100)}%`;
+
+  // 0 on the first client frame, 1 after — which is what the bar animates
+  // between. An effect rather than a class so it also replays on remount.
+  const [grown, setGrown] = useState(0);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setGrown(1));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const total = useCountUp(rollup.total, 800);
 
   return (
     <Card className="p-5">
@@ -21,7 +35,7 @@ export function BudgetCard({ rollup }: { rollup: BudgetRollup }) {
               over ? "text-critical" : ""
             }`}
           >
-            {formatMoney(rollup.total, rollup.currency)}
+            {formatMoney(Math.round(total), rollup.currency)}
           </p>
           {rollup.target !== undefined && (
             <p className="mt-0.5 font-mono text-[11px] text-ink-soft tabular">
@@ -32,7 +46,7 @@ export function BudgetCard({ rollup }: { rollup: BudgetRollup }) {
 
         {rollup.target !== undefined && (
           <span
-            className={`rounded-full px-2.5 py-1 font-mono text-[10px] uppercase ${
+            className={`rounded-full px-2.5 py-1 font-mono text-[10px] uppercase transition-colors duration-[var(--dur-hero)] ${
               over
                 ? "bg-[var(--critical-soft)] text-critical"
                 : "bg-[var(--ok-soft)] text-ok"
@@ -45,9 +59,19 @@ export function BudgetCard({ rollup }: { rollup: BudgetRollup }) {
         )}
       </div>
 
+      {/*
+        Both segments scale from the left on load rather than being painted at
+        their final width, so the bar reads as filling up.
+      */}
       <div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-surface-2">
-        <div className="bg-teal" style={{ width: share(rollup.actual) }} />
-        <div className="bg-accent/60" style={{ width: share(rollup.planned) }} />
+        <div
+          className="origin-left bg-teal transition-transform duration-[var(--dur-hero)] ease-[var(--ease-out)] motion-reduce:transition-none"
+          style={{ width: share(rollup.actual), transform: `scaleX(${grown})` }}
+        />
+        <div
+          className="origin-left bg-accent/60 transition-transform delay-100 duration-[var(--dur-hero)] ease-[var(--ease-out)] motion-reduce:transition-none motion-reduce:delay-0"
+          style={{ width: share(rollup.planned), transform: `scaleX(${grown})` }}
+        />
       </div>
 
       <dl className="mt-4 flex flex-col gap-2">

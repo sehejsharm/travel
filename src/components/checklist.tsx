@@ -86,9 +86,13 @@ export function Checklist({
       )}
 
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2">
+        {/*
+          Scaled rather than resized: width animations relayout the bar on
+          every frame, and this one moves on every tick of a checkbox.
+        */}
         <div
-          className="h-full rounded-full bg-teal transition-[width] duration-300"
-          style={{ width: `${progress}%` }}
+          className="h-full origin-left rounded-full bg-teal transition-transform duration-[var(--dur-move)] ease-[var(--ease-out)]"
+          style={{ transform: `scaleX(${progress / 100})`, width: "100%" }}
         />
       </div>
 
@@ -99,19 +103,20 @@ export function Checklist({
       ) : (
         <ul className="mt-4 flex flex-col gap-1">
           {entries.map((entry) => (
-            <li key={entry.id} className="flex items-start gap-3 rounded-lg py-1.5">
-              <input
-                type="checkbox"
+            <li
+              key={entry.id}
+              className="flex items-start gap-3 rounded-lg px-1 py-1.5 transition-colors duration-200"
+            >
+              <Checkbox
                 checked={entry.done}
-                aria-label={entry.label}
-                onChange={(event) => setChecklistDone(entry.id, event.target.checked)}
-                className="mt-1 h-4 w-4 shrink-0 rounded accent-[var(--teal)]"
+                label={entry.label}
+                onChange={(next) => setChecklistDone(entry.id, next)}
               />
 
               <div className="min-w-0 flex-1">
                 <p
-                  className={`text-sm leading-snug ${
-                    entry.done ? "text-ink-faint line-through" : ""
+                  className={`text-sm leading-snug transition-[color,opacity] duration-[var(--dur-move)] ease-[var(--ease-soft)] ${
+                    entry.done ? "text-ink-faint line-through opacity-70" : ""
                   }`}
                 >
                   {entry.label}
@@ -183,5 +188,52 @@ export function Checklist({
         </button>
       </form>
     </Card>
+  );
+}
+
+/**
+ * The most-tapped control in the app, so it gets the most care: the box fills
+ * with a slight overshoot and the tick draws itself. A real input sits
+ * underneath, so keyboard, screen readers and form semantics are untouched.
+ */
+function Checkbox({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <span className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+      <input
+        type="checkbox"
+        checked={checked}
+        aria-label={label}
+        onChange={(event) => onChange(event.target.checked)}
+        className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
+      />
+
+      <span
+        aria-hidden="true"
+        className={`flex h-[18px] w-[18px] items-center justify-center rounded-[6px] border transition-all duration-[var(--dur-micro)] ease-[var(--ease-spring)] peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-1 ${
+          checked
+            ? "scale-100 border-teal bg-teal"
+            : "border-line-strong bg-surface peer-hover:border-teal"
+        }`}
+      >
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M2 6.2 4.6 8.8 10 3.4"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={checked ? "animate-check" : "opacity-0"}
+          />
+        </svg>
+      </span>
+    </span>
   );
 }

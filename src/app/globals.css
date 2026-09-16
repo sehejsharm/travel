@@ -35,6 +35,32 @@
   --shadow-lg: 0 2px 4px rgba(19, 28, 34, 0.05), 0 16px 40px -12px rgba(19, 28, 34, 0.18);
 
   --nav-blur: rgba(244, 246, 243, 0.82);
+
+  /* --------------------------------------------------------- motion scale */
+  /*
+   * Three curves and three durations, reused everywhere, so that everything
+   * in the app accelerates the same way. Ad-hoc per-component timing is what
+   * makes an interface feel assembled rather than designed.
+   */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --dur-micro: 120ms;
+  --dur-move: 220ms;
+  --dur-hero: 460ms;
+  /* Ambient loops: long enough to read as life, not as animation. */
+  --dur-ambient: 11s;
+
+  /* ------------------------------------------------------------ elevation */
+  /*
+   * Dark cards on a dark ground need an edge to sit on. A hairline top
+   * highlight plus the existing shadow is what separates a raised surface
+   * from a painted rectangle.
+   */
+  --edge-highlight: rgba(255, 255, 255, 0.5);
+  --edge-shadow: rgba(19, 28, 34, 0.06);
+  --lift-shadow: 0 2px 6px rgba(19, 28, 34, 0.06), 0 12px 28px -10px rgba(19, 28, 34, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -72,6 +98,12 @@
     --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.35), 0 20px 48px -16px rgba(0, 0, 0, 0.65);
 
     --nav-blur: rgba(11, 17, 22, 0.78);
+
+    /* The highlight has to do more work in the dark, where there is no
+       ambient light to separate one panel from the next. */
+    --edge-highlight: rgba(255, 255, 255, 0.07);
+    --edge-shadow: rgba(0, 0, 0, 0.5);
+    --lift-shadow: 0 2px 8px rgba(0, 0, 0, 0.36), 0 16px 34px -12px rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -188,7 +220,7 @@ body {
 @keyframes sheet-in {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(14px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -197,7 +229,7 @@ body {
 }
 
 .animate-sheet {
-  animation: sheet-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: sheet-in var(--dur-move) var(--ease-spring) both;
 }
 
 @keyframes shimmer {
@@ -210,11 +242,139 @@ body {
 }
 
 .animate-rise {
-  animation: rise 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise var(--dur-move) var(--ease-out) both;
 }
 
 .animate-pop {
-  animation: pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: pop var(--dur-micro) var(--ease-out) both;
+}
+
+/*
+ * List entrance. The delay is set inline per row and capped by the caller, so
+ * a 200-item cabinet does not end up with a four-second cascade.
+ */
+.stagger > * {
+  animation: rise var(--dur-move) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+/* ----------------------------------------------------------- elevation */
+/*
+ * A raised surface: hairline highlight along the top edge, shadow beneath.
+ * Applied to cards that can be interacted with, so depth means "you can do
+ * something here" rather than being decoration.
+ */
+.raised {
+  box-shadow:
+    inset 0 1px 0 0 var(--edge-highlight),
+    var(--shadow-card);
+}
+
+.liftable {
+  transition:
+    transform var(--dur-micro) var(--ease-out),
+    box-shadow var(--dur-move) var(--ease-soft),
+    border-color var(--dur-micro) var(--ease-soft);
+}
+
+@media (hover: hover) {
+  .liftable:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 0 var(--edge-highlight),
+      var(--lift-shadow);
+  }
+}
+
+.liftable:active {
+  transform: scale(0.985);
+  transition-duration: var(--dur-micro);
+}
+
+/* ------------------------------------------------------------- ambient */
+/*
+ * The hero's decorative rings. Barely-perceptible by design — if you can see
+ * it move without looking for it, it is too much.
+ */
+@keyframes drift {
+  0%,
+  100% {
+    transform: scale(1) translate3d(0, 0, 0);
+    opacity: 0.18;
+  }
+  50% {
+    transform: scale(1.055) translate3d(-1.5%, 1%, 0);
+    opacity: 0.26;
+  }
+}
+
+.animate-drift {
+  animation: drift var(--dur-ambient) var(--ease-soft) infinite;
+  /* Promoted once, so the loop never costs a layout or paint. */
+  will-change: transform, opacity;
+}
+
+/*
+ * Gradients this large band visibly on cheap panels. A little noise breaks
+ * the bands up and reads as texture rather than as a defect.
+ */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* --------------------------------------------------------- celebration */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-check {
+  animation: bounce-in var(--dur-move) var(--ease-spring) both;
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+
+.animate-pulse-dot {
+  animation: glow-pulse 2.4s var(--ease-soft) infinite;
+}
+
+@keyframes float-idle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float {
+  animation: float-idle 4.5s var(--ease-soft) infinite;
 }
 
 .skeleton {
@@ -229,19 +389,50 @@ body {
 }
 
 .press {
-  transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    transform var(--dur-micro) var(--ease-out),
+    background-color var(--dur-micro) var(--ease-soft),
+    border-color var(--dur-micro) var(--ease-soft),
+    box-shadow var(--dur-micro) var(--ease-soft);
 }
 .press:active {
-  transform: scale(0.975);
+  transform: scale(0.94);
 }
 
+/*
+ * Reduced motion is a real accessibility setting, not a nicety. Everything
+ * above degrades to its end state instantly — the transforms are neutralised
+ * rather than merely shortened, since a fast scale-bounce is still a
+ * scale-bounce, and vestibular triggers do not care how quick it was.
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* The continuous ones stop outright rather than snapping to a keyframe. */
+  .animate-drift,
+  .animate-float,
+  .animate-pulse-dot,
+  .skeleton {
+    animation: none !important;
+  }
+
+  .animate-drift {
+    opacity: 0.2;
+  }
+
+  /* Movement is removed, not accelerated. Opacity still carries the change. */
+  .liftable:hover,
+  .liftable:active,
+  .press:active {
+    transform: none !important;
   }
 }
 
@@ -305,4 +496,92 @@ html[data-first-run="true"] .splash-intro {
 /* A first run holds a beat longer, so the line is readable rather than a blink. */
 html[data-first-run="true"] #splash {
   animation-delay: 2.8s;
+}
+
+/*
+ * The hero enters on mount and on every trip switch, which is what turns a
+ * hard cut between two differently-coloured trips into a cross-fade.
+ */
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-hero-in {
+  animation: hero-in var(--dur-hero) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-in {
+    animation-name: fade-only;
+  }
+}
+
+@keyframes fade-only {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+
+/*
+ * Route changes. Next swaps the tree instantly; this gives the incoming page
+ * a short rise so navigation registers without feeling slower. Applied to the
+ * main region and keyed on the pathname.
+ */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-page {
+  animation: page-in var(--dur-move) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page,
+  .animate-sheet {
+    animation-name: fade-only;
+  }
+}
+
+/*
+ * Trip created. A short burst from the button, rather than a full confetti
+ * library — it is a moment, not a feature, and it must not cost a dependency.
+ */
+@keyframes spark {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.3);
+  }
+}
+
+.animate-spark {
+  animation: spark 700ms var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spark {
+    animation: none !important;
+    opacity: 0;
+  }
 }

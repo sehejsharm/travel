@@ -123,9 +123,14 @@ export default function ChecksScreen() {
             body="Every check passed against what is filed so far."
           />
         ) : (
-          <ul className="flex flex-col gap-3">
-            {visible.map((flag) => (
-              <FlagCard key={flag.id} flag={flag} settled={isSettled(flag.id, flag.title)} />
+          <ul key={filter} className="stagger flex flex-col gap-3">
+            {visible.map((flag, index) => (
+              <FlagCard
+                key={flag.id}
+                flag={flag}
+                settled={isSettled(flag.id, flag.title)}
+                index={Math.min(index, 10)}
+              />
             ))}
           </ul>
         )}

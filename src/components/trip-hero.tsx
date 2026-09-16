@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Trip, TripItem } from "@/lib/domain/types";
 import type { Readiness } from "@/lib/readiness";
+import { useCountUp } from "@/lib/use-motion";
 import { getCountry } from "@/lib/reference/countries";
 import { flagEmoji, heroGradient, hueGradient } from "@/lib/theme";
 import { daysBetween, formatDay } from "@/lib/rules";
@@ -31,7 +32,10 @@ export function TripHero({
 
   return (
     <section
-      className="animate-rise relative isolate overflow-hidden rounded-3xl text-white shadow-float"
+      // Remounting on the trip id is what makes switching trips cross-fade
+      // instead of hard-cutting to the next gradient.
+      key={trip.id}
+      className="animate-hero-in grain relative isolate overflow-hidden rounded-3xl text-white shadow-float"
       style={{
         backgroundImage:
           trip.accentHue === undefined ? heroGradient(seed) : hueGradient(trip.accentHue),
@@ -40,7 +44,7 @@ export function TripHero({
       {/* Contour lines, so the block reads as a place rather than a swatch. */}
       <svg
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.18]"
+        className="animate-drift pointer-events-none absolute inset-0 h-full w-full"
         preserveAspectRatio="none"
         viewBox="0 0 400 200"
       >
@@ -119,7 +123,12 @@ export function TripHero({
             </p>
             <p className="mt-0.5 font-mono text-[11px] text-white/70 tabular">
               {readiness.done}/{readiness.total} done · {items.length} filed
-              {!trip.datesTbd && !underway && daysToGo > 0 && ` · ${daysToGo} days to go`}
+              {!trip.datesTbd && !underway && daysToGo > 0 && (
+                <>
+                  {" · "}
+                  <Countdown days={daysToGo} /> days to go
+                </>
+              )}
             </p>
           </div>
 
@@ -142,11 +151,17 @@ export function TripHero({
  * this immediately.
  */
 function ReadyRing({ readiness }: { readiness: Readiness }) {
-  const share = readiness.share;
   const circumference = 2 * Math.PI * 20;
+  // The arc and the number are driven by the same tween, so they arrive
+  // together — a ring that finishes before its label reads as broken.
+  const share = useCountUp(readiness.share, 900);
 
   return (
-    <div className="relative h-14 w-14 shrink-0">
+    <div
+      className="relative h-14 w-14 shrink-0"
+      role="img"
+      aria-label={`${Math.round(readiness.share * 100)}% ready`}
+    >
       <svg viewBox="0 0 48 48" className="h-full w-full -rotate-90" aria-hidden="true">
         <circle cx="24" cy="24" r="20" fill="none" stroke="white" strokeOpacity="0.22" strokeWidth="4" />
         <circle
@@ -161,7 +176,10 @@ function ReadyRing({ readiness }: { readiness: Readiness }) {
           strokeDashoffset={circumference * (1 - share)}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-mono text-[11px] tabular">
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 flex items-center justify-center font-mono text-[11px] tabular"
+      >
         {Math.round(share * 100)}%
       </span>
     </div>
@@ -176,4 +194,10 @@ function destinationsOf(trip: Trip, items: TripItem[]): string[] {
   }
   codes.delete(trip.homeCountry);
   return [...codes].slice(0, 6);
+}
+
+/** The number counts in on mount, so the trip reads as approaching. */
+function Countdown({ days }: { days: number }) {
+  const shown = useCountUp(days, 800);
+  return <>{Math.round(shown)}</>;
 }

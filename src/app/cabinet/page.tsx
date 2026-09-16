@@ -188,20 +188,24 @@ function CabinetScreenInner() {
           }
         />
       ) : (
-        <ul className="flex flex-col gap-2.5">
+        <ul
+          // Keyed on the filter so changing it replays the stagger — the list
+          // settling is what tells you the filter did something.
+          key={filter}
+          className="stagger flex flex-col gap-2.5"
+        >
           {visible.map((item, index) => (
             <li
               key={item.id}
-              className="animate-rise"
-              // A short stagger reads as the list settling, not as lag.
-              style={{ animationDelay: `${Math.min(index, 8) * 28}ms` }}
+              // Capped: a long cabinet should settle, not cascade for seconds.
+              style={{ "--i": Math.min(index, 10) } as React.CSSProperties}
             >
               <button
                 type="button"
                 onClick={() => setEditing(item)}
                 className="press block w-full text-left"
               >
-                <Card as="div" className="relative overflow-hidden p-4 pl-5">
+                <Card as="div" className="liftable raised relative overflow-hidden p-4 pl-5">
                   <span
                     aria-hidden="true"
                     className={`absolute inset-y-0 left-0 w-1 ${
