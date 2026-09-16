@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { ServiceWorker } from "@/components/service-worker";
+import { Splash } from "@/components/splash";
 import "./globals.css";
 
 const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], display: "swap" });
@@ -21,6 +22,8 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  // Resolves the social image to an absolute URL at build time.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://manifest.trip"),
   title: "Manifest",
   description: "Everything about your trip, in one file.",
   applicationName: "Manifest",
@@ -46,7 +49,19 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${fraunces.variable} ${plexSans.variable} ${plexMono.variable} antialiased`}
     >
+      <head>
+        {/*
+          Runs before first paint so the splash knows which of its two states
+          to show without React reading storage during render.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(!localStorage.getItem("manifest.state.v2"))document.documentElement.dataset.firstRun="true"}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="font-sans min-h-dvh">
+        <Splash />
         <AppShell>{children}</AppShell>
         <ServiceWorker />
       </body>

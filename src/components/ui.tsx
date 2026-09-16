@@ -146,17 +146,65 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`skeleton rounded-xl ${className}`} />;
 }
 
-/** Shown while the local store hydrates — the app's launch state. */
-export function ScreenSkeleton() {
+/**
+ * Shown while the local store hydrates. Each variant mirrors the shape of the
+ * screen behind it, so the page settles into place rather than jumping — once
+ * a trip has months of screenshots and notes in it, this is on screen long
+ * enough for the difference to matter.
+ */
+export function ScreenSkeleton({
+  variant = "trip",
+}: {
+  variant?: "trip" | "list" | "checks";
+}) {
+  if (variant === "list") {
+    return (
+      <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-9 w-44" />
+        <Skeleton className="h-11" />
+        <div className="flex gap-2">
+          {[0, 1, 2, 3].map((index) => (
+            <Skeleton key={index} className="h-7 w-20 rounded-full" />
+          ))}
+        </div>
+        <div className="flex flex-col gap-2.5">
+          {[0, 1, 2, 3, 4].map((index) => (
+            <Skeleton key={index} className="h-24" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "checks") {
+    return (
+      <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-9 w-52" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+        <Skeleton className="h-5 w-28" />
+        <div className="flex flex-col gap-3">
+          {[0, 1, 2, 3].map((index) => (
+            <Skeleton key={index} className="h-24" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading">
-      <Skeleton className="h-4 w-24" />
-      <Skeleton className="h-9 w-56" />
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading">
+      <Skeleton className="h-52 rounded-3xl" />
       <div className="grid grid-cols-3 gap-3">
         <Skeleton className="h-20" />
         <Skeleton className="h-20" />
         <Skeleton className="h-20" />
       </div>
+      <Skeleton className="h-16" />
       <Skeleton className="h-36" />
       <Skeleton className="h-60" />
     </div>

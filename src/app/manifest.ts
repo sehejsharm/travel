@@ -19,6 +19,10 @@ export default function manifest(): MetadataRoute.Manifest {
     },
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/icons/192", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/512", sizes: "512x512", type: "image/png", purpose: "any" },
+      // Android crops to its own shape; this one keeps the mark inside the safe zone.
+      { src: "/icons/maskable", sizes: "512x512", type: "image/png", purpose: "maskable" },
       // Next serves the generated PNG at /apple-icon, without the extension.
       { src: "/apple-icon", sizes: "180x180", type: "image/png" },
     ],

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { Mark } from "./mark";
 import { TripSwitcher } from "./trip-switcher";
 
 interface Tab {
@@ -91,21 +92,7 @@ const SIDEBAR_TABS: Tab[] = [...TABS, MORE];
 function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2">
-      <svg width="22" height="22" viewBox="0 0 40 40" aria-hidden="true">
-        <rect
-          x="4"
-          y="8"
-          width="32"
-          height="24"
-          rx="3"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="2.8"
-        />
-        <line x1="4" y1="16" x2="36" y2="16" stroke="var(--accent)" strokeWidth="2.8" />
-        <circle cx="11" cy="24" r="2" fill="var(--accent)" />
-        <line x1="16" y1="24" x2="31" y2="24" stroke="var(--accent)" strokeWidth="2.2" />
-      </svg>
+      <Mark size={22} />
       {!compact && (
         <span className="font-display text-[17px] font-semibold tracking-tight">Manifest</span>
       )}

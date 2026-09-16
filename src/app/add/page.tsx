@@ -81,7 +81,7 @@ function AddScreenInner() {
     return () => window.removeEventListener("paste", onPaste);
   }, []);
 
-  if (!hydrated) return <ScreenSkeleton />;
+  if (!hydrated) return <ScreenSkeleton variant="list" />;
 
   async function loadImage(file: File) {
     setError(null);

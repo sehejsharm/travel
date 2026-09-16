@@ -1,11 +1,12 @@
 import { ImageResponse } from "next/og";
 import { BRAND, CHECK_PATH, STUB_PATH } from "@/lib/brand";
 
-export const size = { width: 180, height: 180 };
-export const contentType = "image/png";
+export const runtime = "nodejs";
+// Prerendered at build time: an icon never changes between requests.
+export const dynamic = "force-static";
 
-/** iOS ignores SVG icons, so the home-screen icon is rendered to PNG. */
-export default function AppleIcon() {
+/** The large PWA icon, used for splash screens on Android. */
+export function GET() {
   return new ImageResponse(
     (
       <div
@@ -18,7 +19,7 @@ export default function AppleIcon() {
           background: BRAND.ink,
         }}
       >
-        <svg width="118" height="118" viewBox="0 0 64 64">
+        <svg width={338} height={338} viewBox="0 0 64 64">
           <path d={STUB_PATH} fill={BRAND.accentLight} />
           <path
             d={CHECK_PATH}
@@ -31,6 +32,6 @@ export default function AppleIcon() {
         </svg>
       </div>
     ),
-    size,
+    { width: 512, height: 512 },
   );
 }

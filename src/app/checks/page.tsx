@@ -21,7 +21,7 @@ export default function ChecksScreen() {
   const { trip, items, checklist, flags, hydrated } = useTripView();
   const [filter, setFilter] = useState<FlagSeverity | "all">("all");
 
-  if (!hydrated) return <ScreenSkeleton />;
+  if (!hydrated) return <ScreenSkeleton variant="checks" />;
   if (!trip) {
     return (
       <EmptyState

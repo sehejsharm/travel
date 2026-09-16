@@ -1,11 +1,16 @@
 import { ImageResponse } from "next/og";
 import { BRAND, CHECK_PATH, STUB_PATH } from "@/lib/brand";
 
-export const size = { width: 180, height: 180 };
-export const contentType = "image/png";
+export const runtime = "nodejs";
+// Prerendered at build time: an icon never changes between requests.
+export const dynamic = "force-static";
 
-/** iOS ignores SVG icons, so the home-screen icon is rendered to PNG. */
-export default function AppleIcon() {
+/**
+ * The 48px source the favicon.ico is built from. Small enough that the check
+ * needs a heavier stroke to survive, which is why this is not just the 192
+ * route scaled down.
+ */
+export function GET() {
   return new ImageResponse(
     (
       <div
@@ -18,19 +23,19 @@ export default function AppleIcon() {
           background: BRAND.ink,
         }}
       >
-        <svg width="118" height="118" viewBox="0 0 64 64">
+        <svg width="40" height="40" viewBox="0 0 64 64">
           <path d={STUB_PATH} fill={BRAND.accentLight} />
           <path
             d={CHECK_PATH}
             fill="none"
             stroke={BRAND.ink}
-            strokeWidth="6"
+            strokeWidth="7.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
         </svg>
       </div>
     ),
-    size,
+    { width: 48, height: 48 },
   );
 }

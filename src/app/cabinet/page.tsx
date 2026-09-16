@@ -53,7 +53,7 @@ export default function CabinetScreen() {
   const [view, setView] = useState<"list" | "map">("list");
   const [editing, setEditing] = useState<TripItem | null>(null);
 
-  if (!hydrated) return <ScreenSkeleton />;
+  if (!hydrated) return <ScreenSkeleton variant="list" />;
   if (!trip) {
     return (
       <EmptyState

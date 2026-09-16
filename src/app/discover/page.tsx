@@ -37,7 +37,7 @@ export default function DiscoverScreen() {
   const [error, setError] = useState<string>();
   const [fresh, setFresh] = useState<AdviceResult>();
 
-  if (!hydrated) return <ScreenSkeleton />;
+  if (!hydrated) return <ScreenSkeleton variant="list" />;
   if (!trip) {
     return (
       <EmptyState

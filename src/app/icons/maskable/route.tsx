@@ -1,11 +1,12 @@
 import { ImageResponse } from "next/og";
 import { BRAND, CHECK_PATH, STUB_PATH } from "@/lib/brand";
 
-export const size = { width: 180, height: 180 };
-export const contentType = "image/png";
+export const runtime = "nodejs";
+// Prerendered at build time: an icon never changes between requests.
+export const dynamic = "force-static";
 
-/** iOS ignores SVG icons, so the home-screen icon is rendered to PNG. */
-export default function AppleIcon() {
+/** Maskable (stub in ink on an accent plate, so the check is cut by the plate): the mark sits inside the 40% safe zone so no crop clips it, on a full bleed plate. */
+export function GET() {
   return new ImageResponse(
     (
       <div
@@ -15,15 +16,15 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: BRAND.ink,
+          background: BRAND.accent,
         }}
       >
-        <svg width="118" height="118" viewBox="0 0 64 64">
-          <path d={STUB_PATH} fill={BRAND.accentLight} />
+        <svg width={230} height={230} viewBox="0 0 64 64">
+          <path d={STUB_PATH} fill={BRAND.ink} />
           <path
             d={CHECK_PATH}
             fill="none"
-            stroke={BRAND.ink}
+            stroke={BRAND.accent}
             strokeWidth="6"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -31,6 +32,6 @@ export default function AppleIcon() {
         </svg>
       </div>
     ),
-    size,
+    { width: 512, height: 512 },
   );
 }
