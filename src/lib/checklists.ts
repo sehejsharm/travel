@@ -2,6 +2,7 @@ import type { Flag, Trip, TripItem } from "./domain/types";
 import { weatherFor } from "./reference/climate";
 import { getCountry } from "./reference/countries";
 import { destinationCountries } from "./rules/shared";
+import { getPurpose } from "./trip-purpose";
 
 export type ChecklistKind = "packing" | "task";
 
@@ -123,6 +124,19 @@ export function generatePacking(trip: Trip, items: TripItem[]): GeneratedEntry[]
  * departure becomes something you can tick off, instead of a warning you read
  * once and forget.
  */
+/**
+ * Tasks a kind of trip always seems to need, regardless of what the checks
+ * found. Business travel is the clear case: nothing in the plan tells you to
+ * keep receipts, but every business traveller has to.
+ */
+export function purposeTasks(trip: Trip): GeneratedEntry[] {
+  return (getPurpose(trip.purpose)?.tasks ?? []).map((task) => ({
+    label: task.label,
+    detail: task.detail,
+    generatedFrom: `${getPurpose(trip.purpose)?.label.toLowerCase()} trip`,
+  }));
+}
+
 export function generateTasks(flags: Flag[]): GeneratedEntry[] {
   const actionable = flags.filter(
     (flag) =>

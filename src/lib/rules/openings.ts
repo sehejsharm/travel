@@ -1,7 +1,7 @@
 import type { Flag } from "../domain/types";
 import { holidaysBetween } from "../reference/holidays";
 import { placeFacts } from "../reference/places";
-import { destinationCountries, formatDay, localDateKey, scheduled, type RuleContext } from "./shared";
+import { destinationCountries, formatDay, localDateKey, scheduled, type RuleContext, windowForCountry } from "./shared";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -55,7 +55,8 @@ export function publicHolidays(ctx: RuleContext): Flag[] {
   const { trip, items } = ctx;
 
   return destinationCountries(trip, items).flatMap((country): Flag[] => {
-    const holidays = holidaysBetween(country, trip.startDate, trip.endDate);
+    const window = windowForCountry(trip, country);
+    const holidays = holidaysBetween(country, window.startDate, window.endDate);
     if (holidays.length === 0) return [];
 
     const scheduledDays = new Set(

@@ -14,6 +14,7 @@ import {
   Skeleton,
 } from "@/components/ui";
 import { getInterest } from "@/lib/advisor/interests";
+import { getPurpose } from "@/lib/trip-purpose";
 import { TIER_LABELS, type AdviceResult, type Suggestion } from "@/lib/advisor/types";
 import { DEFAULT_INTERESTS } from "@/lib/advisor/interests";
 import type { Trip, TripItem } from "@/lib/domain/types";
@@ -56,9 +57,44 @@ export default function DiscoverScreen() {
   }
 
   const interests = trip.interests ?? [];
+  // A business trip does not want restaurant suggestions unless asked. The
+  // picker is still right there, so this is a default, not a restriction.
+  const quiet = getPurpose(trip.purpose)?.suppressSuggestions && interests.length === 0;
   const where = destination.trim() || defaultDestination(trip, items);
   const key = `${where.toLowerCase()}|${[...interests].sort().join(",")}`;
   const advice = fresh ?? cachedAdvice(state, trip.id, key);
+
+  if (quiet && !loading && !advice) {
+    return (
+      <div className="flex flex-col gap-5">
+        <ScreenHeader
+          eyebrow="Discover"
+          title="Kept quiet for this trip"
+          meta="You marked this a business trip, so suggestions are off by default."
+        />
+        <Card className="p-4">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Pick a few interests and Discover starts suggesting things to do around your meetings.
+          </p>
+          <div className="mt-3">
+            <InterestPicker selected={draftInterests ?? []} onChange={setDraftInterests} />
+          </div>
+          <div className="mt-4">
+            <PrimaryButton
+              onClick={() => {
+                const picked = draftInterests ?? [];
+                updateTrip(trip.id, { interests: picked });
+                void find(picked);
+              }}
+              disabled={!draftInterests?.length}
+            >
+              Turn suggestions on
+            </PrimaryButton>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // Nothing picked yet: the whole screen is the question.
   if (interests.length === 0 && !loading && !advice) {
@@ -139,7 +175,7 @@ export default function DiscoverScreen() {
       <ScreenHeader
         eyebrow="Discover"
         title="Things to do"
-        meta={`${interests.length} interests · every suggestion names where it came from`}
+        meta={`${interests.length} interest${interests.length === 1 ? "" : "s"} · every suggestion names where it came from`}
         action={
           <Link
             href="/trip"

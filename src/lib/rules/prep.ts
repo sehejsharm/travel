@@ -1,7 +1,7 @@
 import type { Flag } from "../domain/types";
 import { weatherFor } from "../reference/climate";
 import { getCountry, type CountryInfo } from "../reference/countries";
-import { destinationCountries, type RuleContext } from "./shared";
+import { destinationCountries, type RuleContext, windowForCountry } from "./shared";
 
 export interface DestinationBrief {
   country: CountryInfo;
@@ -78,7 +78,11 @@ export function weatherOutlook(ctx: RuleContext): Flag[] {
   const { trip } = ctx;
 
   return destinationBriefs(ctx).flatMap(({ country }): Flag[] => {
-    const weather = weatherFor(country.code, trip.startDate, trip.endDate);
+    // With legs, the days spent in this country — not the whole trip. A
+    // November week in Lisbon and a November week in Bangkok want different
+    // clothes, and the blended window would describe neither.
+    const window = windowForCountry(trip, country.code);
+    const weather = weatherFor(country.code, window.startDate, window.endDate);
     if (!weather) return [];
 
     return [

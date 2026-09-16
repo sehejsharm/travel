@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Trip, TripItem } from "@/lib/domain/types";
 import type { Readiness } from "@/lib/readiness";
 import { getCountry } from "@/lib/reference/countries";
-import { flagEmoji, heroGradient } from "@/lib/theme";
+import { flagEmoji, heroGradient, hueGradient } from "@/lib/theme";
 import { daysBetween, formatDay } from "@/lib/rules";
 
 /**
@@ -32,7 +32,10 @@ export function TripHero({
   return (
     <section
       className="animate-rise relative isolate overflow-hidden rounded-3xl text-white shadow-float"
-      style={{ backgroundImage: heroGradient(seed) }}
+      style={{
+        backgroundImage:
+          trip.accentHue === undefined ? heroGradient(seed) : hueGradient(trip.accentHue),
+      }}
     >
       {/* Contour lines, so the block reads as a place rather than a swatch. */}
       <svg

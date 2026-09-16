@@ -73,9 +73,37 @@ export interface Traveler {
   insuranceTo?: string;
 }
 
+/**
+ * Why the trip is happening. Optional, and only ever used to pick better
+ * defaults — never to withhold anything.
+ */
+export type TripPurpose =
+  | "leisure"
+  | "business"
+  | "family"
+  | "romantic"
+  | "solo"
+  | "group"
+  | "backpacking";
+
+/**
+ * One country, with its own dates. A trip has legs only when the traveller
+ * asked for them; otherwise destinationCountries plus the trip's own dates
+ * say everything, and nothing here is populated.
+ */
+export interface TripLeg {
+  id: string;
+  countryCode: string;
+  /** The city picked, kept for the map and the advisor. */
+  city?: string;
+  startDate: string;
+  endDate: string;
+}
+
 export interface Trip {
   id: string;
   name: string;
+  /** Where the trip departs from — sets plugs, voltage, duty-free and jet lag. */
   homeCountry: string;
   /**
    * Where you have said you are going. Items add more as they are filed, but
@@ -99,6 +127,15 @@ export interface Trip {
   datesTbd?: boolean;
   /** Prompts the traveller has waved away, so they are asked once. */
   dismissedPrompts?: string[];
+  /** Why the trip is happening, which shapes defaults rather than features. */
+  purpose?: TripPurpose;
+  /**
+   * Per-country dates, when the traveller split the trip into legs. Empty or
+   * absent means one blended window, which is the common case.
+   */
+  legs?: TripLeg[];
+  /** A chosen hero hue. Absent means derived from the destination. */
+  accentHue?: number;
 }
 
 export type FlagSeverity = "critical" | "warning" | "info";

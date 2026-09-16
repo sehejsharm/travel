@@ -1,4 +1,4 @@
-import type { Flag, Trip, TripItem } from "../domain/types";
+import type { Flag, Trip, TripItem, TripLeg } from "../domain/types";
 
 export interface RuleContext {
   trip: Trip;
@@ -93,6 +93,13 @@ export function destinationCountries(trip: Trip, items: TripItem[]): string[] {
   const transit = transitCountries(items);
   const found = new Set<string>();
 
+  // Legs carry their own countries; they are the same destinations, just with
+  // dates attached, so they feed the same set.
+  for (const leg of trip.legs ?? []) {
+    const code = leg.countryCode.toUpperCase();
+    if (code && code !== home) found.add(code);
+  }
+
   for (const declared of trip.destinationCountries ?? []) {
     const code = declared.toUpperCase();
     if (code && code !== home) found.add(code);
@@ -110,4 +117,30 @@ export function destinationCountries(trip: Trip, items: TripItem[]): string[] {
   }
 
   return [...found];
+}
+
+/**
+ * The window a given country is actually visited in. With legs, that is the
+ * leg's own dates — so a visa lead time, a weather outlook or a packing
+ * decision for Thailand is judged against the Thailand days, not against the
+ * whole trip. Without legs, every country shares the trip's window.
+ */
+export function windowForCountry(
+  trip: Trip,
+  countryCode: string,
+): { startDate: string; endDate: string } {
+  const code = countryCode.toUpperCase();
+  const legs = (trip.legs ?? []).filter((leg) => leg.countryCode.toUpperCase() === code);
+  if (legs.length === 0) return { startDate: trip.startDate, endDate: trip.endDate };
+
+  return {
+    startDate: legs.reduce((first, leg) => (leg.startDate < first ? leg.startDate : first), legs[0].startDate),
+    endDate: legs.reduce((last, leg) => (leg.endDate > last ? leg.endDate : last), legs[0].endDate),
+  };
+}
+
+/** Which leg a moment in time falls inside, for grouping a timeline by country. */
+export function legForDate(trip: Trip, isoDate: string): TripLeg | undefined {
+  const day = isoDate.slice(0, 10);
+  return (trip.legs ?? []).find((leg) => day >= leg.startDate && day <= leg.endDate);
 }

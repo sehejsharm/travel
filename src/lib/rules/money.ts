@@ -88,6 +88,21 @@ export function budgetFlags({ trip, items }: RuleContext): Flag[] {
     });
   }
 
+  // A target set at creation with nothing filed against it yet: worth saying,
+  // because otherwise the first check run has nothing to show about money at
+  // all and the target looks like it went nowhere.
+  if (rollup.target !== undefined && rollup.total === 0 && items.length === 0) {
+    flags.push({
+      id: "budget:ready",
+      severity: "info",
+      category: "money",
+      title: `Budget set at ${formatMoney(rollup.target, rollup.currency)}`,
+      detail:
+        "Nothing is filed against it yet. Prices come in automatically with each booking you add, and this starts tracking from the first one.",
+      itemIds: [],
+    });
+  }
+
   if (rollup.unpricedCount > 0) {
     flags.push({
       id: "budget:unpriced",

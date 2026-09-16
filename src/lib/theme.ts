@@ -16,6 +16,11 @@ export function heroGradient(seed: string): string {
   return `linear-gradient(135deg, hsl(${from} 52% 42%), hsl(${to} 58% 30%))`;
 }
 
+/** The same gradient shape, from a hue the traveller picked rather than derived. */
+export function hueGradient(hue: number): string {
+  return `linear-gradient(135deg, hsl(${hue} 52% 42%), hsl(${(hue + 48) % 360} 58% 30%))`;
+}
+
 /** ISO 3166-1 alpha-2 to its flag emoji, by regional indicator offset. */
 export function flagEmoji(code?: string): string {
   if (!code || code.length !== 2) return "";

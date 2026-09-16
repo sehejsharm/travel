@@ -1,9 +1,10 @@
 import type { ChecklistEntry, ChecklistKind, GeneratedEntry } from "../checklists";
-import { generatePacking, generateTasks } from "../checklists";
-import type { Trip, TripItem, Traveler } from "../domain/types";
+import { generatePacking, generateTasks, purposeTasks } from "../checklists";
+import type { Trip, TripItem, TripLeg, TripPurpose, Traveler } from "../domain/types";
 import type { AdviceResult } from "../advisor/types";
 import type { ItemDraft } from "../extract/types";
 import { getCountry } from "../reference/countries";
+import { getPurpose } from "../trip-purpose";
 import { runChecks } from "../rules";
 import { SEED_ITEMS, SEED_TRIP } from "./seed";
 
@@ -64,7 +65,7 @@ function withGeneratedChecklists(state: AppState): AppState {
   const flags = runChecks(trip, items, new Date());
   const generated: [ChecklistKind, GeneratedEntry[]][] = [
     ["packing", generatePacking(trip, items)],
-    ["task", generateTasks(flags)],
+    ["task", [...purposeTasks(trip), ...generateTasks(flags)]],
   ];
 
   const existing = new Set(
@@ -213,6 +214,13 @@ export function getServerSnapshot(): AppState {
 
 /* ------------------------------------------------------------------ trips */
 
+/** A traveller as trip creation can now capture them: name, plus optional depth. */
+export interface TravelerInput {
+  name: string;
+  passportCountry?: string;
+  passportExpiry?: string;
+}
+
 export interface TripInput {
   name: string;
   startDate: string;
@@ -222,10 +230,14 @@ export interface TripInput {
   destinationCountries: string[];
   /** A trip can be created before its dates are known. */
   datesTbd?: boolean;
-  /** Names only — documents are asked for later, by the checks that need them. */
-  travelerNames?: string[];
+  /** Names, plus whatever documents the traveller chose to add up front. */
+  travelers?: TravelerInput[];
   budgetAmount?: number;
   budgetCurrency?: string;
+  purpose?: TripPurpose;
+  legs?: TripLeg[];
+  interests?: string[];
+  accentHue?: number;
 }
 
 export function createTrip(input: TripInput): string {
@@ -239,10 +251,21 @@ export function createTrip(input: TripInput): string {
     startDate: input.startDate,
     endDate: input.endDate,
     datesTbd: input.datesTbd,
-    travelers: (input.travelerNames ?? [])
-      .map((name) => name.trim())
-      .filter(Boolean)
-      .map((name) => ({ id: id("traveler"), name, passportCountry: "", passportExpiry: "" })),
+    purpose: input.purpose,
+    legs: input.legs?.length ? input.legs : undefined,
+    accentHue: input.accentHue,
+    // A purpose only supplies interests when none were picked by hand.
+    interests: input.interests?.length
+      ? input.interests
+      : getPurpose(input.purpose)?.interests,
+    travelers: (input.travelers ?? [])
+      .filter((traveler) => traveler.name.trim())
+      .map((traveler) => ({
+        id: id("traveler"),
+        name: traveler.name.trim(),
+        passportCountry: traveler.passportCountry?.toUpperCase() ?? "",
+        passportExpiry: traveler.passportExpiry ?? "",
+      })),
     budgetTarget:
       input.budgetAmount && input.budgetCurrency
         ? { amount: input.budgetAmount, currency: input.budgetCurrency.toUpperCase() }
