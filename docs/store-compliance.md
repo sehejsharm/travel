@@ -15,6 +15,9 @@ behaviour changes, this file and `/legal/privacy` both have to change with it.
 | Google Maps embeds loaded by the browser | `src/components/trip-map.tsx`, `src/components/item-editor.tsx` |
 | Local storage of all trip data | `src/lib/store/state.ts` |
 | Affiliate links | `src/lib/partners/index.ts` |
+| Trip purpose, legs and cover (local only) | `src/lib/trip-purpose.ts`, `src/lib/rules/shared.ts` |
+| Passport country and expiry, per traveller (local only) | `src/components/traveler-quick-add.tsx`, `src/lib/rules/compliance.ts` |
+| Home-country guess from locale/timezone (no network, no location) | `src/lib/reference/home-country.ts` |
 
 ---
 
@@ -29,8 +32,8 @@ retained*. Manifest retains nothing, so almost everything is "Not Collected".
 | Contact info (name, email, phone) | **No** | No account, no sign-in, no email capture. Traveller names are typed by the user and never leave the device. |
 | Health & fitness | **No** | Vaccination *requirements* are reference data about a country, not a record about the user. |
 | Financial info | **No** | Prices and budgets are stored on device only. No payment is ever taken. |
-| Location | **No** | Location permission is never requested. Maps centre on filed places, not on the device. |
-| Sensitive info | **No** | Passport country and expiry are stored on device only and never transmitted. |
+| Location | **No** | Location permission is never requested. Maps centre on filed places, not on the device. The "flying from" default is inferred from the browser's own locale and IANA timezone (`Intl.DateTimeFormat().resolvedOptions()`) — a setting already on the device, not a geolocation lookup, and it never leaves it. Worth stating in review notes, since "guesses your country" invites the question. |
+| Sensitive info | **No** | Passport country and expiry are captured during trip creation and stored on device only. They are read by the compliance rules, which run entirely locally against bundled reference data, and are never transmitted. |
 | Contacts | **No** | The address book is never read. |
 | User content (photos, other) | **No — but disclose in review notes** | A screenshot is *transmitted* for extraction and immediately discarded; it is not retained, so it is not "collected" under Apple's definition. Say so explicitly in the review notes to avoid a rejection for under-disclosure. |
 | Browsing history | **No** | Not collected. |
@@ -155,3 +158,5 @@ Manifest requires no `ACCESS_FINE_LOCATION`, no `READ_CONTACTS`, and no
 - [ ] Set `NEXT_PUBLIC_SITE_URL` so the OpenGraph image and metadata resolve absolutely.
 - [ ] Confirm the affiliate disclosure is visible before any paid link — required by the FTC, and by both stores' advertising policies.
 - [ ] Re-read `/legal/privacy` against the code after any change to extraction, Discover, or maps.
+- [ ] Icons: run `npm run icons:native` and confirm `ios-marketing-1024.png` reports `alpha: false` — the upload check rejects an alpha channel outright. See `docs/native-packaging.md`.
+- [ ] Decide the iOS hybrid-vs-offline question in `docs/native-packaging.md`; it changes which Play data types are declared, because a fully-offline build transmits nothing at all.

@@ -51,6 +51,14 @@ Alternates, if the primary name is taken:
 > • A visa you need and have not applied for yet
 > • Spend drifting past your budget, in one currency
 >
+> **Built for how trips actually are**
+> Two countries on one trip? Give each leg its own dates, and the weather,
+> holiday and packing advice follows you rather than blending both into one
+> answer that fits neither. Travelling as a group on different passports?
+> Everyone is checked against their own — different nationalities get
+> different visa answers for the same destination. Business trip? It adds a
+> receipts checklist and keeps the suggestions quiet until you ask.
+>
 > **Everything it needs, before you go**
 > A packing list built from the actual weather where you are going, the sockets
 > there, and what you have planned. Pre-trip tasks raised by the checks
@@ -98,6 +106,7 @@ differentiator, the payoff, the promise.
 | 2 | Add screen, mid-extraction with a screenshot | **Screenshot it. That is the whole workflow.** |
 | 3 | Cabinet, filled, with the map view | **Every booking, filed and pinned** — without typing any of it |
 | 4 | Trip screen hero, ring at ~80% | **One number for how ready you are** — and it moves as you tick things off |
+| 4b | New-trip screen, legs section open | **Multi-country trips, done properly** — each leg with its own dates |
 | 5 | More → This device, offline | **No account. Nothing uploaded. Works with no signal.** |
 
 **Sizes required**
@@ -107,6 +116,10 @@ differentiator, the payoff, the promise.
 - iPad 13" — 2064 × 2752 (required only if the iPad build ships)
 - Play phone — 1080 × 1920 minimum, 2:1 max ratio
 - Play feature graphic — 1024 × 500 (required, no transparency)
+
+Capture with `prefers-reduced-motion` off so the hero's ambient gradient and
+the readiness ring are in their settled state, and shoot in dark mode — the
+palette is the brand.
 
 Use the sample trip for every screenshot: it is populated, realistic, and
 contains genuine conflicts to point at. Do not use a screenshot of an empty

@@ -131,14 +131,19 @@ export function Checklist({
                       {entry.generatedFrom}
                     </span>
                   )}
-                  {travelers.length > 1 && (
+                  {/*
+                    Only worth asking while it is still someone's job. On a
+                    done row it is noise, and with a dozen ticked items it was
+                    a dropdown per line.
+                  */}
+                  {travelers.length > 1 && !entry.done && (
                     <select
                       value={entry.assigneeId ?? ""}
                       onChange={(event) =>
                         setChecklistAssignee(entry.id, event.target.value || undefined)
                       }
                       aria-label={`Whose job: ${entry.label}`}
-                      className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-soft outline-none focus:border-accent"
+                      className="press rounded-full border border-line bg-surface px-2 py-0.5 font-mono text-[10px] text-ink-faint outline-none hover:border-line-strong focus:border-accent"
                     >
                       <option value="">whose job?</option>
                       {travelers.map((traveler) => (
@@ -147,6 +152,11 @@ export function Checklist({
                         </option>
                       ))}
                     </select>
+                  )}
+                  {entry.done && entry.assigneeId && (
+                    <span className="font-mono text-[10px] text-ink-faint">
+                      {travelers.find((traveler) => traveler.id === entry.assigneeId)?.name}
+                    </span>
                   )}
                   {!entry.generatedFrom && (
                     <button
