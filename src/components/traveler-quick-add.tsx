@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { COUNTRY_LIST } from "@/lib/reference/countries";
+import { COUNTRY_LIST, getCountry } from "@/lib/reference/countries";
 import type { TravelerInput } from "@/lib/store/state";
 import { flagEmoji } from "@/lib/theme";
 import { Select, TextInput } from "./form";
@@ -16,9 +16,12 @@ import { Select, TextInput } from "./form";
  */
 export function TravelerQuickAdd({
   travelers,
+  homeCountry,
   onChange,
 }: {
   travelers: TravelerInput[];
+  /** The trip's own origin, and the default everyone inherits. */
+  homeCountry: string;
   onChange: (travelers: TravelerInput[]) => void;
 }) {
   const [draft, setDraft] = useState("");
@@ -67,6 +70,8 @@ export function TravelerQuickAdd({
           {travelers.map((traveler) => {
             const open = expanded === traveler.name;
             const hasDocs = Boolean(traveler.passportCountry && traveler.passportExpiry);
+            const origin = traveler.originCountry ?? homeCountry;
+            const flyingElsewhere = origin.toUpperCase() !== homeCountry.toUpperCase();
 
             return (
               <li key={traveler.name} className="rounded-xl border border-line bg-surface-2 p-2.5">
@@ -74,9 +79,15 @@ export function TravelerQuickAdd({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm">{traveler.name}</span>
                     <span className="block font-mono text-[10px] text-ink-faint">
-                      {hasDocs
-                        ? `${flagEmoji(traveler.passportCountry)} passport, expires ${traveler.passportExpiry}`
-                        : "Passport details optional — the visa checks use them"}
+                      {[
+                        hasDocs
+                          ? `${flagEmoji(traveler.passportCountry)} passport, expires ${traveler.passportExpiry}`
+                          : "Passport details optional — the visa checks use them",
+                        flyingElsewhere ? `flying from ${getCountry(origin)?.name ?? origin}` : "",
+                        traveler.needsVisaHelp ? "wants visa help" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
                   </span>
 
@@ -133,6 +144,54 @@ export function TravelerQuickAdd({
                           update(traveler.name, { passportExpiry: event.target.value })
                         }
                       />
+                    </label>
+
+                    {/* Nationality and origin are different questions. Asked
+                        only once there is a second person, because with one
+                        traveller the trip's own origin already is the answer. */}
+                    {travelers.length > 1 && (
+                      <label className="flex flex-col gap-1 sm:col-span-2">
+                        <span className="font-mono text-[9px] uppercase tracking-wide text-ink-faint">
+                          Flying from
+                        </span>
+                        <Select
+                          aria-label={`Flying from, for ${traveler.name}`}
+                          value={traveler.originCountry ?? ""}
+                          onChange={(event) =>
+                            update(traveler.name, { originCountry: event.target.value || undefined })
+                          }
+                        >
+                          <option value="">
+                            Same as the trip ({getCountry(homeCountry)?.name ?? homeCountry})
+                          </option>
+                          {COUNTRY_LIST.map((country) => (
+                            <option key={country.code} value={country.code}>
+                              {country.name}
+                            </option>
+                          ))}
+                        </Select>
+                        <span className="font-mono text-[9px] leading-relaxed text-ink-faint">
+                          Sets their plugs, voltage, jet lag and the customs allowance they come
+                          home to. The passport above still decides the visa.
+                        </span>
+                      </label>
+                    )}
+
+                    <label className="flex items-start gap-2 sm:col-span-2">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(traveler.needsVisaHelp)}
+                        onChange={(event) =>
+                          update(traveler.name, { needsVisaHelp: event.target.checked })
+                        }
+                        className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]"
+                      />
+                      <span className="font-mono text-[10px] leading-relaxed text-ink-soft">
+                        Needs a hand with the visa
+                        <span className="block text-ink-faint">
+                          Spells out the paperwork, in order, for every destination that needs it.
+                        </span>
+                      </span>
                     </label>
                   </div>
                 )}

@@ -2,7 +2,7 @@ import type { Flag } from "../domain/types";
 import { baggageForFlight, dutyFreeAllowance } from "../reference/allowances";
 import { getCountry } from "../reference/countries";
 import { convert, formatMoney } from "../reference/fx";
-import { destinationCountries, type RuleContext } from "./shared";
+import { destinationCountries, nameList, originGroups, type RuleContext } from "./shared";
 
 export function baggageAllowance({ items }: RuleContext): Flag[] {
   const allowances = new Map<string, ReturnType<typeof baggageForFlight>>();
@@ -36,34 +36,39 @@ export function baggageAllowance({ items }: RuleContext): Flag[] {
 }
 
 export function customsAllowance({ trip, items }: RuleContext): Flag[] {
-  const allowance = dutyFreeAllowance(trip.homeCountry);
-  if (!allowance) return [];
-
   const purchases = items.filter((item) => item.category === "purchase" && item.cost);
   if (purchases.length === 0) return [];
 
-  const total = purchases.reduce((sum, item) => {
-    const converted = convert(item.cost!.amount, item.cost!.currency, allowance.currency);
-    return sum + (converted ?? 0);
-  }, 0);
+  // The allowance is the one you walk through on the way back, so it belongs
+  // to where each person is returning to — not to one country for the party.
+  return originGroups(trip).flatMap((group): Flag[] => {
+    const allowance = dutyFreeAllowance(group.countryCode);
+    if (!allowance) return [];
 
-  const over = total > allowance.amount;
+    const total = purchases.reduce((sum, item) => {
+      const converted = convert(item.cost!.amount, item.cost!.currency, allowance.currency);
+      return sum + (converted ?? 0);
+    }, 0);
 
-  return [
-    {
-      id: "customs",
-      severity: over ? "warning" : "info",
-      category: "money",
-      title: over
-        ? `Your shopping list is over the ${trip.homeCountry} duty-free allowance`
-        : `Duty-free allowance coming home: ${formatMoney(allowance.amount, allowance.currency)}`,
-      detail: `${formatMoney(total, allowance.currency)} of purchases filed against a ${formatMoney(
-        allowance.amount,
-        allowance.currency,
-      )} allowance. ${allowance.note}.${over ? " Anything over is declarable." : ""}`,
-      itemIds: purchases.map((item) => item.id),
-    },
-  ];
+    const over = total > allowance.amount;
+    const whose = group.everyone ? "" : ` (${nameList(group.travelers)})`;
+
+    return [
+      {
+        id: group.everyone ? "customs" : `customs:${group.countryCode}`,
+        severity: over ? "warning" : "info",
+        category: "money",
+        title: over
+          ? `Your shopping list is over the ${group.countryCode} duty-free allowance${whose}`
+          : `Duty-free allowance coming home: ${formatMoney(allowance.amount, allowance.currency)}${whose}`,
+        detail: `${formatMoney(total, allowance.currency)} of purchases filed against a ${formatMoney(
+          allowance.amount,
+          allowance.currency,
+        )} allowance. ${allowance.note}.${over ? " Anything over is declarable." : ""}`,
+        itemIds: purchases.map((item) => item.id),
+      },
+    ];
+  });
 }
 
 export function connectivity(ctx: RuleContext): Flag[] {

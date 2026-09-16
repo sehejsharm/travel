@@ -12,6 +12,7 @@ import {
   formatDay,
   hasDate,
   type RuleContext,
+  windowForCountry,
 } from "./shared";
 
 const VERIFY_NOTE = "the destination's embassy or official immigration site";
@@ -246,6 +247,104 @@ export function insuranceCoverage({ trip }: RuleContext): Flag[] {
           traveler.insuranceTo,
         )}, but the trip runs ${formatDay(trip.startDate)} to ${formatDay(trip.endDate)}.`,
         itemIds: [],
+      },
+    ];
+  });
+}
+
+/**
+ * Someone ticked "I want help with the visa". That changes nothing about what
+ * they are allowed to do — the entry checks above already ran for them — but
+ * it turns the answer into the steps, in order, for the destinations that
+ * actually need paperwork. It is a warning rather than info so it becomes a
+ * tickable task rather than a line they read once.
+ */
+export function visaAssistance(
+  ctx: RuleContext,
+  provider: EntryRequirementsProvider = localProvider,
+): Flag[] {
+  const { trip, items } = ctx;
+  const asked = trip.travelers.filter((traveler) => traveler.needsVisaHelp);
+  if (asked.length === 0) return [];
+
+  const destinations = destinationCountries(trip, items);
+  if (destinations.length === 0) return [];
+
+  return asked.flatMap((traveler): Flag[] => {
+    if (!traveler.passportCountry?.trim()) {
+      return [
+        {
+          id: `visa-help-passport:${traveler.id}`,
+          severity: "warning",
+          category: "compliance",
+          title: `Add ${traveler.name}'s passport country to walk them through the visa`,
+          detail:
+            "Which paperwork applies depends entirely on the passport. With it, this lists the steps for each destination in order.",
+          itemIds: [],
+        },
+      ];
+    }
+
+    const steps = destinations.flatMap((destination) => {
+      const requirement = provider.lookup(traveler.passportCountry, destination);
+      const countryName = getCountry(destination)?.name ?? destination;
+      const window = windowForCountry(trip, destination);
+      const lead = Math.round(daysBetween(ctx.now, window.startDate));
+
+      if (requirement.outcome === "visa-required") {
+        return [
+          `${countryName}: a visa has to be granted before you fly. Book the consulate or visa-centre appointment first — that slot, not the decision, is usually what runs out. Take the passport, photos to their spec, proof of funds, and your return flight and lodging bookings.${
+            lead > 0 ? ` You have ${lead} days.` : ""
+          }`,
+        ];
+      }
+      if (requirement.outcome === "e-visa") {
+        return [
+          `${countryName}: applied for online, but not instant. Apply on the official government portal only — search results are full of paid intermediaries charging for a free form. Have a passport scan and a card ready.${
+            lead > 0 ? ` You have ${lead} days.` : ""
+          }`,
+        ];
+      }
+      if (requirement.outcome === "visa-on-arrival") {
+        return [
+          `${countryName}: nothing to do in advance, but land prepared — the fee is often cash only in a specific currency, and they will ask for an onward ticket and an address.${
+            requirement.maxStayDays ? ` Good for ${requirement.maxStayDays} days.` : ""
+          }`,
+        ];
+      }
+      if (requirement.authorisation) {
+        return [
+          `${countryName}: no visa, but ${requirement.authorisation} is mandatory and easy to miss. Do it on the official site.`,
+        ];
+      }
+      return [];
+    });
+
+    if (steps.length === 0) {
+      return [
+        {
+          id: `visa-help-clear:${traveler.id}`,
+          severity: "info",
+          category: "compliance",
+          title: `${traveler.name} has no visa to arrange for this trip`,
+          detail: `Nothing to apply for on a ${traveler.passportCountry} passport for these destinations. Still worth reconfirming close to travel — rules move.`,
+          itemIds: [],
+          verifyWith: VERIFY_NOTE,
+        },
+      ];
+    }
+
+    return [
+      {
+        id: `visa-help:${traveler.id}`,
+        severity: "warning",
+        category: "compliance",
+        title: `Walk ${traveler.name} through the visa paperwork`,
+        detail: `${steps.join(" ")} Reference data last checked ${
+          provider.lookup(traveler.passportCountry, destinations[0]).lastVerified
+        }.`,
+        itemIds: [],
+        verifyWith: VERIFY_NOTE,
       },
     ];
   });

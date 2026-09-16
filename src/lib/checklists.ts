@@ -1,7 +1,7 @@
 import type { Flag, Trip, TripItem } from "./domain/types";
 import { weatherFor } from "./reference/climate";
 import { getCountry } from "./reference/countries";
-import { destinationCountries } from "./rules/shared";
+import { affected, destinationCountries, nameList, originGroups } from "./rules/shared";
 import { getPurpose } from "./trip-purpose";
 
 export type ChecklistKind = "packing" | "task";
@@ -39,7 +39,7 @@ const BASE_PACKING: GeneratedEntry[] = [
  */
 export function generatePacking(trip: Trip, items: TripItem[]): GeneratedEntry[] {
   const entries = [...BASE_PACKING];
-  const home = getCountry(trip.homeCountry);
+  const origins = originGroups(trip);
   const nights = Math.max(
     1,
     Math.round(
@@ -88,10 +88,26 @@ export function generatePacking(trip: Trip, items: TripItem[]): GeneratedEntry[]
       }
     }
 
-    if (home && !country.plugTypes.some((type) => home.plugTypes.includes(type))) {
+    // Whose plugs fit depends on where each person set off from — but the
+    // adapter itself usually does not, so this packs one line unless the
+    // answer genuinely differs across the party.
+    const needsAdapter = affected(origins, (group) => {
+      const from = getCountry(group.countryCode);
+      return Boolean(from) && !country.plugTypes.some((type) => from!.plugTypes.includes(type));
+    });
+
+    if (needsAdapter) {
+      const froms = needsAdapter.groups
+        .map((group) => getCountry(group.countryCode))
+        .filter((from): from is NonNullable<typeof from> => Boolean(from));
+
       entries.push({
-        label: `Type ${country.plugTypes.join("/")} plug adapter`,
-        detail: `${country.name} sockets will not take your Type ${home.plugTypes.join(", ")} plugs.`,
+        label: needsAdapter.everyone
+          ? `Type ${country.plugTypes.join("/")} plug adapter`
+          : `Type ${country.plugTypes.join("/")} plug adapter for ${nameList(needsAdapter.travelers)}`,
+        detail: `${country.name} sockets will not take ${froms
+          .map((from) => `Type ${from.plugTypes.join(", ")}${origins.length > 1 ? ` (${from.name})` : ""}`)
+          .join(" or ")} plugs.`,
         generatedFrom: `${country.name} sockets`,
       });
     }

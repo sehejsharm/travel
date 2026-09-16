@@ -6,7 +6,12 @@ import {
   overbookedDays,
   timeOverlaps,
 } from "./conflicts";
-import { entryRequirements, healthAdvisories, insuranceCoverage } from "./compliance";
+import {
+  entryRequirements,
+  healthAdvisories,
+  insuranceCoverage,
+  visaAssistance,
+} from "./compliance";
 import { lodgingAfterDeparture, lodgingCoverage, onwardTransport } from "./gaps";
 import { baggageAllowance, connectivity, customsAllowance } from "./logistics";
 import { budgetFlags, refundDeadlines } from "./money";
@@ -30,6 +35,7 @@ const RULES: Rule[] = [
   lodgingAfterDeparture,
   onwardTransport,
   entryRequirements,
+  visaAssistance,
   healthAdvisories,
   insuranceCoverage,
   budgetFlags,
@@ -51,6 +57,7 @@ const RULES: Rule[] = [
  */
 const NEEDS_DATES: Rule[] = [
   entryRequirements,
+  visaAssistance,
   healthAdvisories,
   insuranceCoverage,
   weatherOutlook,

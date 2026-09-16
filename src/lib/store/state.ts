@@ -219,6 +219,10 @@ export interface TravelerInput {
   name: string;
   passportCountry?: string;
   passportExpiry?: string;
+  /** Where they fly from, if it is not the trip's own origin. */
+  originCountry?: string;
+  /** They asked to be walked through the visa. */
+  needsVisaHelp?: boolean;
 }
 
 export interface TripInput {
@@ -265,6 +269,13 @@ export function createTrip(input: TripInput): string {
         name: traveler.name.trim(),
         passportCountry: traveler.passportCountry?.toUpperCase() ?? "",
         passportExpiry: traveler.passportExpiry ?? "",
+        // Only stored when it differs, so the trip's own origin stays the
+        // single answer for everyone who did not say otherwise.
+        originCountry:
+          traveler.originCountry && traveler.originCountry.toUpperCase() !== input.homeCountry.toUpperCase()
+            ? traveler.originCountry.toUpperCase()
+            : undefined,
+        needsVisaHelp: traveler.needsVisaHelp || undefined,
       })),
     budgetTarget:
       input.budgetAmount && input.budgetCurrency

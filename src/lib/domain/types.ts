@@ -71,6 +71,19 @@ export interface Traveler {
   passportExpiry: string;
   insuranceFrom?: string;
   insuranceTo?: string;
+  /**
+   * Where this person is flying from, when that is not the trip's own origin.
+   * Nationality and origin are different questions: an Indian passport holder
+   * living in Berlin carries German plugs and clears German customs coming
+   * home, but still needs whatever visa an Indian passport needs. Absent means
+   * they set off from the trip's homeCountry, which is the common case.
+   */
+  originCountry?: string;
+  /**
+   * They have said they want a hand with the visa. Nothing is withheld either
+   * way — this only decides whether the paperwork is spelled out for them.
+   */
+  needsVisaHelp?: boolean;
 }
 
 /**

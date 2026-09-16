@@ -1,3 +1,4 @@
+import { guard } from "@/lib/api/guard";
 import { extract, extractFromImage } from "@/lib/extract";
 import { SOURCE_LABELS, type SourceKind } from "@/lib/domain/types";
 
@@ -6,10 +7,19 @@ const MAX_TEXT_LENGTH = 20_000;
 /** Roughly a 4 MB image once base64 overhead is counted. */
 const MAX_IMAGE_CHARS = 5_600_000;
 
+/**
+ * Filing a whole inbox is a burst of a few dozen, not hundreds. Generous
+ * enough that nobody using the app ever meets it.
+ */
+const BUDGET = { limit: 40, windowMs: 60_000 };
+
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
 type ImageType = (typeof IMAGE_TYPES)[number];
 
 export async function POST(request: Request) {
+  const blocked = guard(request, "extract", BUDGET);
+  if (blocked) return blocked;
+
   let payload: unknown;
 
   try {

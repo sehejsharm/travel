@@ -1,3 +1,4 @@
+import { guard } from "@/lib/api/guard";
 import { advise } from "@/lib/advisor";
 import { INTERESTS } from "@/lib/advisor/interests";
 import type { Candidate } from "@/lib/advisor/types";
@@ -12,7 +13,16 @@ const MAX_FILED = 120;
 
 const VALID_INTERESTS = new Set(INTERESTS.map((interest) => interest.id));
 
+/**
+ * Advice is the expensive call — it runs a web search before it writes — and
+ * answers are cached per destination, so a real session asks for very few.
+ */
+const BUDGET = { limit: 10, windowMs: 60_000 };
+
 export async function POST(request: Request) {
+  const blocked = guard(request, "advise", BUDGET);
+  if (blocked) return blocked;
+
   let payload: unknown;
 
   try {

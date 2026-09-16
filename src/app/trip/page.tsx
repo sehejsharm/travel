@@ -167,6 +167,7 @@ export default function TripSettings() {
       <TravelerEditor
         tripId={trip.id}
         traveler={editingTraveler}
+        homeCountry={trip.homeCountry}
         open={travelerOpen}
         onClose={() => setTravelerOpen(false)}
       />

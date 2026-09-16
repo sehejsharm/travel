@@ -1,7 +1,7 @@
 import type { Trip, TripItem } from "../domain/types";
 import { getCountry } from "../reference/countries";
 import { weatherFor } from "../reference/climate";
-import { destinationCountries } from "../rules/shared";
+import { affected, destinationCountries, nameList, originGroups } from "../rules/shared";
 
 /**
  * Offers that fall out of the checks the app already runs. The rule is that
@@ -50,7 +50,7 @@ function esimLink(countryName: string): { url: string; affiliate: boolean } {
 
 export function offersFor(trip: Trip, items: TripItem[]): Offer[] {
   const offers: Offer[] = [];
-  const home = getCountry(trip.homeCountry);
+  const origins = originGroups(trip);
 
   // The same list the checks use, so a country you only change planes in is
   // not sold an eSIM it would never connect to.
@@ -74,43 +74,66 @@ export function offersFor(trip: Trip, items: TripItem[]): Offer[] {
     });
   }
 
-  // Sockets. Only when the plugs genuinely differ from home.
-  if (home) {
-    const homePlugs = new Set(home.plugTypes);
+  // Sockets. Only when the plugs genuinely differ from where you set off. The
+  // adapter is the same product whoever needs it, so this is one offer unless
+  // part of the party does not need it at all.
+  const known = origins.filter((group) => getCountry(group.countryCode));
+
+  const needsAdapter = affected(known, (group) => {
+    const homePlugs = new Set(getCountry(group.countryCode)!.plugTypes);
+    return destinations.some((country) => country.plugTypes.some((plug) => !homePlugs.has(plug)));
+  });
+
+  if (needsAdapter) {
+    const homePlugs = new Set(
+      needsAdapter.groups.flatMap((group) => getCountry(group.countryCode)!.plugTypes),
+    );
     const foreign = destinations.filter((country) =>
       country.plugTypes.some((plug) => !homePlugs.has(plug)),
     );
+    const types = [...new Set(foreign.flatMap((country) => country.plugTypes))].join(", ");
+    const link = amazonSearch("universal travel adapter");
 
-    if (foreign.length > 0) {
-      const types = [...new Set(foreign.flatMap((country) => country.plugTypes))].join(", ");
-      const link = amazonSearch("universal travel adapter");
-      offers.push({
-        id: "adapter",
-        kind: "adapter",
-        title: "A plug adapter that fits",
-        why: `${foreign.map((country) => country.name).join(" and ")} use type ${types}; home is type ${home.plugTypes.join(", ")}.`,
-        partner: "Amazon",
-        url: link.url,
-        affiliate: link.affiliate,
-      });
-    }
+    offers.push({
+      id: "adapter",
+      kind: "adapter",
+      title: `A plug adapter that fits${needsAdapter.everyone ? "" : ` for ${nameList(needsAdapter.travelers)}`}`,
+      why: `${foreign.map((country) => country.name).join(" and ")} use type ${types}; ${needsAdapter.groups
+        .map((group) => {
+          const home = getCountry(group.countryCode)!;
+          return known.length === 1 ? `home is type ${home.plugTypes.join(", ")}` : `${home.name} is type ${home.plugTypes.join(", ")}`;
+        })
+        .join(", ")}.`,
+      partner: "Amazon",
+      url: link.url,
+      affiliate: link.affiliate,
+    });
+  }
 
-    // Voltage is the one that destroys a hairdryer, so it is called out apart.
+  // Voltage is the one that destroys a hairdryer, so it is called out apart.
+  const wrongVoltage = affected(known, (group) => {
+    const home = getCountry(group.countryCode)!;
+    return destinations.some((country) => Math.abs(country.voltage - home.voltage) > 40);
+  });
+
+  if (wrongVoltage) {
+    const home = getCountry(wrongVoltage.groups[0].countryCode)!;
     const mismatch = destinations.find(
       (country) => Math.abs(country.voltage - home.voltage) > 40,
-    );
-    if (mismatch) {
-      const link = amazonSearch("dual voltage travel converter");
-      offers.push({
-        id: "voltage",
-        kind: "power",
-        title: "Check your chargers take 240V",
-        why: `${mismatch.name} runs at ${mismatch.voltage}V against ${home.voltage}V at home. Laptops and phones cope; heating appliances do not.`,
-        partner: "Amazon",
-        url: link.url,
-        affiliate: link.affiliate,
-      });
-    }
+    )!;
+    const link = amazonSearch("dual voltage travel converter");
+
+    offers.push({
+      id: "voltage",
+      kind: "power",
+      title: `Check your chargers take 240V${wrongVoltage.everyone ? "" : ` for ${nameList(wrongVoltage.travelers)}`}`,
+      why: `${mismatch.name} runs at ${mismatch.voltage}V against ${[
+        ...new Set(wrongVoltage.groups.map((group) => getCountry(group.countryCode)!.voltage)),
+      ].join(" or ")}V where you set off. Laptops and phones cope; heating appliances do not.`,
+      partner: "Amazon",
+      url: link.url,
+      affiliate: link.affiliate,
+    });
   }
 
   // Weather, read off the same normals the packing list uses.

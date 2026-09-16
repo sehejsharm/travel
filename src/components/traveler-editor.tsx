@@ -22,12 +22,15 @@ const BLANK: Draft = {
 export function TravelerEditor({
   tripId,
   traveler,
+  homeCountry,
   open,
   onClose,
 }: {
   tripId: string;
   /** Null when adding someone new. */
   traveler: Traveler | null;
+  /** The trip's own origin, which every traveller inherits unless they differ. */
+  homeCountry: string;
   open: boolean;
   onClose: () => void;
 }) {
@@ -38,6 +41,7 @@ export function TravelerEditor({
       key={traveler?.id ?? "new"}
       tripId={tripId}
       traveler={traveler}
+      homeCountry={homeCountry}
       onClose={onClose}
     />
   );
@@ -46,10 +50,12 @@ export function TravelerEditor({
 function TravelerEditorForm({
   tripId,
   traveler,
+  homeCountry,
   onClose,
 }: {
   tripId: string;
   traveler: Traveler | null;
+  homeCountry: string;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() =>
@@ -69,6 +75,13 @@ function TravelerEditorForm({
       passportExpiry: draft.passportExpiry,
       insuranceFrom: draft.insuranceFrom || undefined,
       insuranceTo: draft.insuranceTo || undefined,
+      // Stored only when it differs from the trip, so clearing it goes back to
+      // inheriting rather than pinning the same country twice.
+      originCountry:
+        draft.originCountry && draft.originCountry.toUpperCase() !== homeCountry.toUpperCase()
+          ? draft.originCountry.toUpperCase()
+          : undefined,
+      needsVisaHelp: draft.needsVisaHelp || undefined,
     };
 
     if (traveler) updateTraveler(tripId, traveler.id, payload);
@@ -126,6 +139,39 @@ function TravelerEditorForm({
             onChange={(event) => set("passportExpiry", event.target.value)}
           />
         </Field>
+
+        <Field
+          label="Flying from"
+          hint="Where this person sets off from, if it is not where the trip does. Sets their plugs, voltage, jet lag and the customs allowance they come home to — the passport above still decides the visa."
+        >
+          <Select
+            value={draft.originCountry ?? ""}
+            onChange={(event) => set("originCountry", event.target.value || undefined)}
+          >
+            <option value="">Same as the trip ({homeCountry})</option>
+            {COUNTRY_OPTIONS.map((country) => (
+              <option key={country.code} value={country.code}>
+                {country.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <label className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={Boolean(draft.needsVisaHelp)}
+            onChange={(event) => set("needsVisaHelp", event.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]"
+          />
+          <span className="text-sm">
+            Needs a hand with the visa
+            <span className="mt-0.5 block font-mono text-[10px] leading-relaxed text-ink-faint">
+              Adds a check that spells out the paperwork, in order, for every destination that
+              needs it.
+            </span>
+          </span>
+        </label>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Insurance from">

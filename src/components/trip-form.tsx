@@ -249,6 +249,7 @@ export function TripForm({
           >
             <TravelerQuickAdd
               travelers={draft.travelers}
+              homeCountry={draft.homeCountry}
               onChange={(travelers) => set("travelers", travelers)}
             />
           </Disclosure>
