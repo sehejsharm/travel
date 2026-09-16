@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { TripSwitcher } from "./trip-switcher";
 
 interface Tab {
   href: string;
@@ -61,25 +62,6 @@ const TABS: Tab[] = [
     ),
   },
   {
-    href: "/more",
-    label: "More",
-    icon: (
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-        <circle cx="5.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
-        <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
-        <circle cx="18.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
-      </svg>
-    ),
-  },
-];
-
-/**
- * The bottom bar holds five; Checks has its own big entry on the trip screen,
- * so on a wide screen it joins the sidebar rather than taking a tab.
- */
-const SIDEBAR_TABS: Tab[] = [
-  ...TABS,
-  {
     href: "/checks",
     label: "Checks",
     icon: (
@@ -91,7 +73,22 @@ const SIDEBAR_TABS: Tab[] = [
   },
 ];
 
-function Wordmark() {
+const MORE: Tab = {
+  href: "/more",
+  label: "More",
+  icon: (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <circle cx="5.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="18.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+};
+
+/** Wide screens have room for everything, More included. */
+const SIDEBAR_TABS: Tab[] = [...TABS, MORE];
+
+function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2">
       <svg width="22" height="22" viewBox="0 0 40 40" aria-hidden="true">
@@ -109,7 +106,9 @@ function Wordmark() {
         <circle cx="11" cy="24" r="2" fill="var(--accent)" />
         <line x1="16" y1="24" x2="31" y2="24" stroke="var(--accent)" strokeWidth="2.2" />
       </svg>
-      <span className="font-display text-[17px] font-semibold tracking-tight">Manifest</span>
+      {!compact && (
+        <span className="font-display text-[17px] font-semibold tracking-tight">Manifest</span>
+      )}
     </span>
   );
 }
@@ -132,6 +131,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link href="/" className="px-2">
           <Wordmark />
         </Link>
+
+        <div className="mt-4 px-2">
+          <TripSwitcher />
+        </div>
 
         <nav className="mt-8 flex flex-col gap-1">
           {SIDEBAR_TABS.map((tab) => {
@@ -157,10 +160,26 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="nav-surface pt-safe sticky top-0 z-30 border-b border-line lg:hidden">
-          <div className="flex h-14 items-center justify-between px-5">
-            <Link href="/">
-              <Wordmark />
+          <div className="flex h-14 items-center gap-2 px-5">
+            <Link href="/" aria-label="Manifest home">
+              <Wordmark compact />
             </Link>
+
+            <div className="ml-auto flex items-center gap-2">
+              <TripSwitcher />
+              <Link
+                href="/more"
+                aria-label="More"
+                aria-current={isActive(pathname, "/more") ? "page" : undefined}
+                className={`press flex h-9 w-9 items-center justify-center rounded-xl ${
+                  isActive(pathname, "/more")
+                    ? "bg-accent-soft text-accent-strong"
+                    : "text-ink-soft"
+                }`}
+              >
+                {MORE.icon}
+              </Link>
+            </div>
           </div>
         </header>
 

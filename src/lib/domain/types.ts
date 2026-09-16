@@ -91,6 +91,14 @@ export interface Trip {
    * answers into these sections, so picking them shapes every suggestion.
    */
   interests?: string[];
+  /**
+   * A trip can exist before its dates do. The dates below still hold a
+   * provisional window so the UI has something to show, but nothing that
+   * depends on when you travel is claimed until this is cleared.
+   */
+  datesTbd?: boolean;
+  /** Prompts the traveller has waved away, so they are asked once. */
+  dismissedPrompts?: string[];
 }
 
 export type FlagSeverity = "critical" | "warning" | "info";

@@ -3,6 +3,7 @@ import { generatePacking, generateTasks } from "../checklists";
 import type { Trip, TripItem, Traveler } from "../domain/types";
 import type { AdviceResult } from "../advisor/types";
 import type { ItemDraft } from "../extract/types";
+import { getCountry } from "../reference/countries";
 import { runChecks } from "../rules";
 import { SEED_ITEMS, SEED_TRIP } from "./seed";
 
@@ -184,7 +185,12 @@ export interface TripInput {
   startDate: string;
   endDate: string;
   homeCountry: string;
-  destinationCountry: string;
+  /** Country codes. A city destination resolves to its country before it lands here. */
+  destinationCountries: string[];
+  /** A trip can be created before its dates are known. */
+  datesTbd?: boolean;
+  /** Names only — documents are asked for later, by the checks that need them. */
+  travelerNames?: string[];
   budgetAmount?: number;
   budgetCurrency?: string;
 }
@@ -194,14 +200,20 @@ export function createTrip(input: TripInput): string {
     id: id("trip"),
     name: input.name.trim() || "Untitled trip",
     homeCountry: input.homeCountry.toUpperCase(),
-    destinationCountries: input.destinationCountry ? [input.destinationCountry.toUpperCase()] : [],
+    destinationCountries: [
+      ...new Set(input.destinationCountries.map((code) => code.toUpperCase()).filter(Boolean)),
+    ],
     startDate: input.startDate,
     endDate: input.endDate,
+    datesTbd: input.datesTbd,
+    travelers: (input.travelerNames ?? [])
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name) => ({ id: id("traveler"), name, passportCountry: "", passportExpiry: "" })),
     budgetTarget:
       input.budgetAmount && input.budgetCurrency
         ? { amount: input.budgetAmount, currency: input.budgetCurrency.toUpperCase() }
         : undefined,
-    travelers: [],
   };
 
   mutate((current) => ({
@@ -233,10 +245,84 @@ export function deleteTrip(tripId: string): void {
   });
 }
 
+/**
+ * A trip used as a template. What carries over is the shape of the trip —
+ * who is going, what they are into, the packing habits — never the bookings,
+ * the dates or the checks, which belong to the trip that is now finished.
+ */
+export function duplicateTrip(tripId: string, name: string): string | undefined {
+  const source = getSnapshot().trips.find((trip) => trip.id === tripId);
+  if (!source) return undefined;
+
+  const copy: Trip = {
+    ...source,
+    id: id("trip"),
+    name: name.trim() || `${source.name} again`,
+    datesTbd: true,
+    // Travellers come with their documents: a passport does not expire because
+    // you started a new trip, and the checks need it either way.
+    travelers: source.travelers.map((traveler) => ({ ...traveler, id: id("traveler") })),
+  };
+
+  // Hand-written checklist entries are habits worth keeping; generated ones
+  // rebuild themselves from the new trip's own checks.
+  const handwritten = getSnapshot()
+    .checklist.filter((entry) => entry.tripId === tripId && !entry.generatedFrom)
+    .map((entry) => ({ ...entry, id: id("check"), tripId: copy.id, done: false, assigneeId: undefined }));
+
+  mutate((current) => ({
+    ...current,
+    trips: [...current.trips, copy],
+    activeTripId: copy.id,
+    checklist: [...current.checklist, ...handwritten],
+  }));
+
+  return copy.id;
+}
+
+/**
+ * A trip conjured out of the first thing you filed. A flight confirmation
+ * knows where and when; a Reel usually only knows where. Whatever it does not
+ * know is left open rather than guessed, which is what datesTbd is for.
+ */
+export function startTripFromDraft(draft: ItemDraft, homeCountry = "IN"): string {
+  const country = draft.arrivalPlace?.countryCode ?? draft.place?.countryCode;
+  const city = draft.arrivalPlace?.city ?? draft.place?.city;
+  const info = country ? getCountry(country) : undefined;
+
+  const start = draft.startsAt?.slice(0, 10);
+  const end = draft.endsAt?.slice(0, 10) ?? start;
+
+  return createTrip({
+    name: city ?? info?.name ?? "New trip",
+    destinationCountries: country && country !== homeCountry ? [country] : [],
+    startDate: start ?? new Date().toISOString().slice(0, 10),
+    endDate: end && start && end >= start ? end : (start ?? new Date().toISOString().slice(0, 10)),
+    datesTbd: !start,
+    homeCountry,
+  });
+}
+
+/** A prompt waved away stays away — asked once, not every launch. */
+export function dismissPrompt(tripId: string, prompt: string): void {
+  mutate((current) => ({
+    ...current,
+    trips: current.trips.map((trip) =>
+      trip.id === tripId
+        ? { ...trip, dismissedPrompts: [...new Set([...(trip.dismissedPrompts ?? []), prompt])] }
+        : trip,
+    ),
+  }));
+}
+
 export function selectTrip(tripId: string): void {
   mutate((current) => ({ ...current, activeTripId: tripId }));
 }
 
+/** The sample trip's id, so the UI can tell whether it is already loaded. */
+export const SAMPLE_TRIP_ID = SEED_TRIP.id;
+
+/** Adds the sample alongside whatever is already there — never replaces it. */
 export function loadSampleTrip(): string {
   const sample = sampleState();
   mutate((current) => ({

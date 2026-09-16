@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Trip, TripItem } from "@/lib/domain/types";
+import type { Readiness } from "@/lib/readiness";
 import { getCountry } from "@/lib/reference/countries";
 import { flagEmoji, heroGradient } from "@/lib/theme";
 import { daysBetween, formatDay } from "@/lib/rules";
@@ -13,13 +14,11 @@ import { daysBetween, formatDay } from "@/lib/rules";
 export function TripHero({
   trip,
   items,
-  critical,
-  ready,
+  readiness,
 }: {
   trip: Trip;
   items: TripItem[];
-  critical: number;
-  ready: number;
+  readiness: Readiness;
 }) {
   const countries = destinationsOf(trip, items);
   const seed = countries.join("") || trip.name;
@@ -27,7 +26,8 @@ export function TripHero({
   const now = new Date();
   const daysToGo = Math.ceil(daysBetween(now, trip.startDate));
   const nights = Math.max(0, Math.round(daysBetween(trip.startDate, trip.endDate)));
-  const underway = daysToGo <= 0 && daysBetween(now, trip.endDate) >= 0;
+  const underway = !trip.datesTbd && daysToGo <= 0 && daysBetween(now, trip.endDate) >= 0;
+  const critical = readiness.criticalOpen;
 
   return (
     <section
@@ -59,14 +59,28 @@ export function TripHero({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/70">
-              {underway ? "Under way" : daysToGo > 0 ? "Counting down" : "Wrapped"}
+              {trip.datesTbd
+                ? "No dates yet"
+                : underway
+                  ? "Under way"
+                  : daysToGo > 0
+                    ? "Counting down"
+                    : "Wrapped"}
             </p>
             <h1 className="mt-1.5 font-display text-[30px] leading-tight font-semibold tracking-tight sm:text-4xl">
               {trip.name}
             </h1>
             <p className="mt-1.5 text-sm text-white/80">
-              {formatDay(trip.startDate)} – {formatDay(trip.endDate)}
-              {nights > 0 && ` · ${nights} nights`}
+              {trip.datesTbd ? (
+                <Link href="/trip" className="underline decoration-white/40 underline-offset-2">
+                  Add dates to switch on the rest of the checks
+                </Link>
+              ) : (
+                <>
+                  {formatDay(trip.startDate)} – {formatDay(trip.endDate)}
+                  {nights > 0 && ` · ${nights} nights`}
+                </>
+              )}
             </p>
           </div>
 
@@ -92,7 +106,7 @@ export function TripHero({
         )}
 
         <div className="mt-5 flex items-center gap-4 border-t border-white/15 pt-4">
-          <ReadyRing critical={critical} ready={ready} />
+          <ReadyRing readiness={readiness} />
 
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">
@@ -101,8 +115,8 @@ export function TripHero({
                 : "Nothing blocking — you are clear to fly"}
             </p>
             <p className="mt-0.5 font-mono text-[11px] text-white/70 tabular">
-              {items.length} filed
-              {!underway && daysToGo > 0 && ` · ${daysToGo} days to go`}
+              {readiness.done}/{readiness.total} done · {items.length} filed
+              {!trip.datesTbd && !underway && daysToGo > 0 && ` · ${daysToGo} days to go`}
             </p>
           </div>
 
@@ -119,10 +133,13 @@ export function TripHero({
   );
 }
 
-/** Share of the checks that pass, as a ring rather than another number. */
-function ReadyRing({ critical, ready }: { critical: number; ready: number }) {
-  const total = ready + critical;
-  const share = total === 0 ? 1 : ready / total;
+/**
+ * Share of the work done, as a ring rather than another number. It reads the
+ * same checklist the Checks screen writes to, so ticking a box out there moves
+ * this immediately.
+ */
+function ReadyRing({ readiness }: { readiness: Readiness }) {
+  const share = readiness.share;
   const circumference = 2 * Math.PI * 20;
 
   return (

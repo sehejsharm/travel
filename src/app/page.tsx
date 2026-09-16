@@ -6,9 +6,9 @@ import { BudgetCard } from "@/components/budget-card";
 import { SeveritySummary } from "@/components/flag-card";
 import { ItemEditor } from "@/components/item-editor";
 import { Timeline } from "@/components/timeline";
-import { TripForm } from "@/components/trip-form";
+import { DeferredPrompts } from "@/components/deferred-prompts";
+import { FirstRun } from "@/components/first-run";
 import { TripHero } from "@/components/trip-hero";
-import { heroGradient } from "@/lib/theme";
 import {
   Card,
   Chip,
@@ -19,12 +19,12 @@ import {
 } from "@/components/ui";
 import type { TripItem } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/reference/fx";
+import { readiness, settledFlagIds } from "@/lib/readiness";
 import { formatDay, formatTime, rollUpBudget } from "@/lib/rules";
-import { loadSampleTrip } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
 
 export default function TripScreen() {
-  const { trip, items, flags, hydrated, empty } = useTripView();
+  const { trip, items, flags, checklist, hydrated, empty } = useTripView();
   const [editing, setEditing] = useState<TripItem | null>(null);
 
   if (!hydrated) return <ScreenSkeleton />;
@@ -32,7 +32,8 @@ export default function TripScreen() {
 
   const now = new Date();
   const rollup = rollUpBudget(trip, items);
-  const critical = flags.filter((flag) => flag.severity === "critical").length;
+  const progress = readiness(flags, checklist);
+  const critical = progress.criticalOpen;
   const scheduled = items
     .filter((item) => item.startsAt)
     .sort((a, b) => Date.parse(a.startsAt!) - Date.parse(b.startsAt!));
@@ -42,35 +43,24 @@ export default function TripScreen() {
 
   return (
     <div className="flex flex-col gap-7">
-      <TripHero
-        trip={trip}
-        items={items}
-        critical={critical}
-        ready={flags.length - critical}
-      />
+      <TripHero trip={trip} items={items} readiness={progress} />
 
-      {trip.travelers.length === 0 && (
-        <Link href="/trip" className="press block">
-          <Card className="border-warning p-4">
-            <p className="text-sm font-medium">Add a traveller to switch on the checks</p>
-            <p className="mt-1 text-xs text-ink-soft">
-              Visa rules, passport validity and insurance cover all need a passport country and an
-              expiry date.
-            </p>
-          </Card>
-        </Link>
-      )}
+      <DeferredPrompts trip={trip} items={items} />
 
       <div className="grid grid-cols-3 gap-3">
         <Stat label="Scheduled" value={String(scheduled.length)} />
         <Stat label="Ideas" value={String(unscheduled.length)} />
-        <Stat label="To fix" value={String(critical)} tone={critical > 0 ? "critical" : "ok"} />
+        <Stat
+          label="To fix"
+          value={String(critical)}
+          tone={critical > 0 ? "critical" : "ok"}
+        />
       </div>
 
       {flags.length > 0 && (
         <Link href="/checks" className="press block">
           <Card className="flex items-center justify-between gap-3 p-4">
-            <SeveritySummary flags={flags} />
+            <SeveritySummary flags={flags} settledIds={settledFlagIds(checklist)} />
             <span className="flex shrink-0 items-center gap-1 font-mono text-[11px] text-ink-faint">
               open checks <span aria-hidden="true">›</span>
             </span>
@@ -166,76 +156,6 @@ export default function TripScreen() {
       </section>
 
       <ItemEditor item={editing} trip={trip} onClose={() => setEditing(null)} />
-    </div>
-  );
-}
-
-function FirstRun() {
-  return (
-    <div className="flex flex-col gap-6 py-2">
-      <section
-        className="animate-rise relative isolate overflow-hidden rounded-3xl p-6 text-white shadow-float sm:p-8"
-        style={{ backgroundImage: heroGradient("manifest") }}
-      >
-        <svg
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.16]"
-          preserveAspectRatio="none"
-          viewBox="0 0 400 220"
-        >
-          {[0, 1, 2, 3, 4, 5, 6].map((ring) => (
-            <ellipse
-              key={ring}
-              cx="340"
-              cy="30"
-              rx={36 + ring * 44}
-              ry={26 + ring * 32}
-              fill="none"
-              stroke="white"
-              strokeWidth="1.2"
-            />
-          ))}
-        </svg>
-
-        <div className="relative">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/70">Manifest</p>
-          <h1 className="mt-2 font-display text-[30px] leading-tight font-semibold tracking-tight sm:text-4xl">
-            Everything about your trip, in one file.
-          </h1>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80">
-            Send a booking email, a screenshot, or a Reel. Manifest pulls out the details, files
-            them, and catches the admin that ruins trips.
-          </p>
-
-          <ul className="mt-5 flex flex-col gap-2">
-            {[
-              ["Catch", "Layovers too short, a museum booked on the day it is shut"],
-              ["Comply", "Visa rules, passport validity and insurance, per traveller"],
-              ["Count", "Every price in one currency, planned against booked"],
-            ].map(([title, body]) => (
-              <li key={title} className="flex gap-3 text-sm">
-                <span className="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full bg-white/70" />
-                <span>
-                  <span className="font-medium">{title}. </span>
-                  <span className="text-white/75">{body}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <Card className="p-5">
-        <TripForm onDone={() => undefined} submitLabel="Create my trip" />
-      </Card>
-
-      <button
-        type="button"
-        onClick={() => loadSampleTrip()}
-        className="press mx-auto font-mono text-[11px] text-accent-strong underline"
-      >
-        or explore a sample trip first
-      </button>
     </div>
   );
 }

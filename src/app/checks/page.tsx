@@ -7,6 +7,7 @@ import { FlagCard, SeveritySummary } from "@/components/flag-card";
 import { Card, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import type { FlagSeverity } from "@/lib/domain/types";
 import { offersFor } from "@/lib/partners";
+import { readiness, settledFlagIds } from "@/lib/readiness";
 import { useTripView } from "@/lib/store/use-store";
 
 const FILTERS: { value: FlagSeverity | "all"; label: string }[] = [
@@ -30,7 +31,18 @@ export default function ChecksScreen() {
     );
   }
 
-  const visible = filter === "all" ? flags : flags.filter((flag) => flag.severity === filter);
+  const settled = settledFlagIds(checklist);
+  const progress = readiness(flags, checklist);
+  const isSettled = (flagId: string, title: string) => settled.has(flagId) || settled.has(title);
+
+  // Handled checks drop to the bottom rather than vanishing, so ticking a box
+  // reads as progress instead of as something going missing.
+  const visible = (filter === "all" ? flags : flags.filter((flag) => flag.severity === filter))
+    .slice()
+    .sort(
+      (a, b) =>
+        Number(isSettled(a.id, a.title)) - Number(isSettled(b.id, b.title)),
+    );
   const offers = offersFor(trip, items);
   const tasks = checklist.filter((entry) => entry.kind === "task");
   const packing = checklist.filter((entry) => entry.kind === "packing");
@@ -40,7 +52,16 @@ export default function ChecksScreen() {
       <ScreenHeader
         eyebrow="Checks"
         title="What needs attention"
-        meta={<SeveritySummary flags={flags} />}
+        meta={
+          <div className="flex flex-col gap-1.5">
+            <SeveritySummary flags={flags} settledIds={settled} />
+            <span className="font-mono text-[11px] text-ink-faint tabular">
+              {progress.done}/{progress.total} done
+              {progress.criticalSettled > 0 &&
+                ` · ${progress.criticalSettled} critical ticked off`}
+            </span>
+          </div>
+        }
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -103,7 +124,7 @@ export default function ChecksScreen() {
         ) : (
           <ul className="flex flex-col gap-3">
             {visible.map((flag) => (
-              <FlagCard key={flag.id} flag={flag} />
+              <FlagCard key={flag.id} flag={flag} settled={isSettled(flag.id, flag.title)} />
             ))}
           </ul>
         )}

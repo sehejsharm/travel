@@ -15,7 +15,7 @@ export function Checklist({
   tripId,
   title,
   kind,
-  entries,
+  entries: allEntries,
   travelers,
   emptyLabel,
   note,
@@ -32,6 +32,21 @@ export function Checklist({
   compact?: boolean;
 }) {
   const [draft, setDraft] = useState("");
+  const [whose, setWhose] = useState<string>("everyone");
+
+  /**
+   * There are no accounts and nothing syncs, so "assign" would be a promise
+   * the app cannot keep. What this actually is, is a way to split the list
+   * between the people holding this phone — so it says that, and filtering by
+   * a name is the point rather than a side effect.
+   */
+  const entries =
+    whose === "everyone"
+      ? allEntries
+      : whose === "nobody"
+        ? allEntries.filter((entry) => !entry.assigneeId)
+        : allEntries.filter((entry) => entry.assigneeId === whose);
+
   const done = entries.filter((entry) => entry.done).length;
   const progress = entries.length > 0 ? (done / entries.length) * 100 : 0;
 
@@ -46,6 +61,30 @@ export function Checklist({
 
       {note && <p className="mt-1 text-xs text-ink-faint">{note}</p>}
 
+      {travelers.length > 1 && (
+        <div className="no-scrollbar mt-3 flex gap-1.5 overflow-x-auto">
+          {[
+            { value: "everyone", label: "Everyone" },
+            ...travelers.map((traveler) => ({ value: traveler.id, label: traveler.name })),
+            { value: "nobody", label: "Nobody yet" },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setWhose(option.value)}
+              aria-pressed={whose === option.value}
+              className={`press shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] ${
+                whose === option.value
+                  ? "border-accent bg-accent-soft text-accent-strong"
+                  : "border-line text-ink-soft"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2">
         <div
           className="h-full rounded-full bg-teal transition-[width] duration-300"
@@ -54,7 +93,9 @@ export function Checklist({
       </div>
 
       {entries.length === 0 ? (
-        <p className="mt-4 text-sm text-ink-soft">{emptyLabel}</p>
+        <p className="mt-4 text-sm text-ink-soft">
+          {allEntries.length > 0 ? "Nothing on this person's list." : emptyLabel}
+        </p>
       ) : (
         <ul className="mt-4 flex flex-col gap-1">
           {entries.map((entry) => (
@@ -91,10 +132,10 @@ export function Checklist({
                       onChange={(event) =>
                         setChecklistAssignee(entry.id, event.target.value || undefined)
                       }
-                      aria-label={`Assign ${entry.label}`}
+                      aria-label={`Whose job: ${entry.label}`}
                       className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-soft outline-none focus:border-accent"
                     >
-                      <option value="">unassigned</option>
+                      <option value="">whose job?</option>
                       {travelers.map((traveler) => (
                         <option key={traveler.id} value={traveler.id}>
                           {traveler.name}

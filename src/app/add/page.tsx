@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { Card, Chip, EmptyState, ScreenHeader, ScreenSkeleton } from "@/components/ui";
+import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { prepareImage, requestExtraction, sourceForText, type CaptureImage } from "@/lib/capture";
 import { SOURCE_LABELS } from "@/lib/domain/types";
 import type { ExtractionResult } from "@/lib/extract/types";
 import { formatMoney } from "@/lib/reference/fx";
-import { addItem } from "@/lib/store/state";
+import { addItem, startTripFromDraft } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
 
 const EXAMPLES: { label: string; text: string }[] = [
@@ -82,7 +82,6 @@ function AddScreenInner() {
   }, []);
 
   if (!hydrated) return <ScreenSkeleton />;
-  if (!trip) return <NoTrip />;
 
   async function loadImage(file: File) {
     setError(null);
@@ -131,10 +130,14 @@ function AddScreenInner() {
 
   function file() {
     if (!result) return;
-    addItem(trip!.id, result.draft, {
+
+    // With no trip yet, the thing you just filed becomes the start of one.
+    const target = trip ?? { id: startTripFromDraft(result.draft), travelers: [] };
+
+    addItem(target.id, result.draft, {
       confidence: result.confidence,
       extractionMethod: result.method,
-      addedBy: trip!.travelers[0]?.id,
+      addedBy: target.travelers[0]?.id,
     });
     setFiled(result.draft.title);
     setResult(null);
@@ -305,7 +308,7 @@ function AddScreenInner() {
           </Card>
         )}
 
-        {result && <Preview result={result} onFile={file} />}
+        {result && <Preview result={result} onFile={file} startsTrip={!trip} />}
       </div>
     </div>
   );
@@ -345,24 +348,16 @@ function CaptureButton({
   );
 }
 
-function NoTrip() {
-  return (
-    <EmptyState
-      title="No trip yet"
-      body="Create a trip first — everything you file has to belong to one."
-      action={
-        <Link
-          href="/"
-          className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
-        >
-          Start a trip
-        </Link>
-      }
-    />
-  );
-}
-
-function Preview({ result, onFile }: { result: ExtractionResult; onFile: () => void }) {
+function Preview({
+  result,
+  onFile,
+  startsTrip = false,
+}: {
+  result: ExtractionResult;
+  onFile: () => void;
+  /** With no trip open, filing this creates one around it. */
+  startsTrip?: boolean;
+}) {
   const { draft } = result;
   const percent = Math.round(result.confidence * 100);
 
@@ -442,8 +437,15 @@ function Preview({ result, onFile }: { result: ExtractionResult; onFile: () => v
         onClick={onFile}
         className="press mt-4 w-full rounded-xl bg-teal px-4 py-2.5 text-sm font-medium text-white"
       >
-        File it
+        {startsTrip ? "Start a new trip from this" : "File it"}
       </button>
+
+      {startsTrip && (
+        <p className="mt-2 text-center font-mono text-[10px] leading-relaxed text-ink-faint">
+          You have no trip open. This builds one around what was found — you can rename it and
+          fill in the dates after.
+        </p>
+      )}
     </Card>
   );
 }

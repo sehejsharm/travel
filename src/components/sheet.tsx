@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * A bottom sheet on phones, a centred dialog on wide screens. Closes on
@@ -21,6 +22,12 @@ export function Sheet({
   footer?: ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  // There is no document on the server, so the portal waits for the client.
+  const mounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -40,9 +47,15 @@ export function Sheet({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  /**
+   * Rendered into the body, not where it was written. A sheet opened from the
+   * sticky header would otherwise be trapped inside that header's stacking
+   * context, and the bottom nav — same z-index, later in the document — would
+   * sit on top of it and swallow taps on anything near the bottom.
+   */
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <button
         type="button"
@@ -93,6 +106,7 @@ export function Sheet({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

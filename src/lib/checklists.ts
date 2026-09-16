@@ -13,12 +13,17 @@ export interface ChecklistEntry {
   detail?: string;
   /** Set where the entry was generated rather than typed by a person. */
   generatedFrom?: string;
+  /** The check this came from, so ticking it can settle that check. */
+  sourceFlagId?: string;
   assigneeId?: string;
   done: boolean;
   createdAt: string;
 }
 
-export type GeneratedEntry = Pick<ChecklistEntry, "label" | "detail" | "generatedFrom">;
+export type GeneratedEntry = Pick<
+  ChecklistEntry,
+  "label" | "detail" | "generatedFrom" | "sourceFlagId"
+>;
 
 const BASE_PACKING: GeneratedEntry[] = [
   { label: "Passport", generatedFrom: "every trip" },
@@ -130,6 +135,7 @@ export function generateTasks(flags: Flag[]): GeneratedEntry[] {
       label: flag.title,
       detail: flag.detail,
       generatedFrom: `${flag.category} check`,
+      sourceFlagId: flag.id,
     })),
   );
 }
