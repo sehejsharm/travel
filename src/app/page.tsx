@@ -8,6 +8,7 @@ import { ItemEditor } from "@/components/item-editor";
 import { Timeline } from "@/components/timeline";
 import { DeferredPrompts } from "@/components/deferred-prompts";
 import { FirstRun } from "@/components/first-run";
+import { GroupStatusCard } from "@/components/divert/group-status-card";
 import { Onboarding } from "@/components/onboarding";
 import { ReviewPrompt } from "@/components/review-prompt";
 import { TripHero } from "@/components/trip-hero";
@@ -72,6 +73,8 @@ export default function TripScreen() {
           tone={critical > 0 ? "critical" : "ok"}
         />
       </div>
+
+      <GroupStatusCard />
 
       {flags.length > 0 && (
         <Link href="/checks" className="press block">

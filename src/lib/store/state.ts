@@ -2,6 +2,7 @@ import type { ChecklistEntry, ChecklistKind, GeneratedEntry } from "../checklist
 import { generatePacking, generateTasks, purposeTasks } from "../checklists";
 import type { Trip, TripItem, TripLeg, TripPurpose, Traveler } from "../domain/types";
 import type { AdviceResult } from "../advisor/types";
+import type { DivertSession, RejoinOptionType } from "../divert/types";
 import type { ItemDraft } from "../extract/types";
 import { getCountry } from "../reference/countries";
 import { getPurpose } from "../trip-purpose";
@@ -23,6 +24,11 @@ export interface AppState {
   checklist: ChecklistEntry[];
   /** Suggestions already paid for, kept so they are not paid for twice. */
   advice?: CachedAdvice[];
+  /**
+   * Whoever holds this device, off on their own for a bit. One at a time,
+   * for one trip, and gone again the moment they rejoin.
+   */
+  divert?: DivertSession;
 }
 
 const STORAGE_KEY = "manifest.state.v2";
@@ -125,6 +131,7 @@ function read(): AppState {
           items: parsed.items ?? [],
           checklist: parsed.checklist ?? [],
           advice: parsed.advice ?? [],
+          divert: parsed.divert,
         });
       }
     }
@@ -308,6 +315,7 @@ export function deleteTrip(tripId: string): void {
       items: current.items.filter((item) => item.tripId !== tripId),
       checklist: current.checklist.filter((entry) => entry.tripId !== tripId),
       advice: (current.advice ?? []).filter((entry) => entry.tripId !== tripId),
+      divert: current.divert?.tripId === tripId ? undefined : current.divert,
     };
   });
 }
@@ -566,4 +574,30 @@ export function importTrip(trip: Trip, items: TripItem[]): void {
     activeTripId: trip.id,
     items: [...current.items.filter((item) => item.tripId !== trip.id), ...items],
   }));
+}
+
+/* ----------------------------------------------------------------- divert */
+
+/** One person breaks off. Replaces any diversion already running, on any trip. */
+export function startDivert(session: Omit<DivertSession, "startedAt">, now = new Date()): void {
+  mutate((current) => ({
+    ...current,
+    divert: { ...session, startedAt: now.toISOString() },
+  }));
+}
+
+/** Changes to the running diversion: a different spot, a chosen way back. */
+export function updateDivert(patch: Partial<Omit<DivertSession, "tripId" | "startedAt">>): void {
+  mutate((current) =>
+    current.divert ? { ...current, divert: { ...current.divert, ...patch } } : current,
+  );
+}
+
+export function chooseRejoin(type: RejoinOptionType): void {
+  updateDivert({ chosen: type });
+}
+
+/** Back with the group: the diversion is over and nothing of it is kept. */
+export function rejoinGroup(): void {
+  mutate((current) => ({ ...current, divert: undefined }));
 }
