@@ -1,116 +1,179 @@
-import { offsetOf } from "../datetime";
+import { dateAt, offsetOf } from "../datetime";
 import type { TripItem } from "../domain/types";
-import { estimateTravel, type TravelMode } from "../geo";
+import { estimateTravel, type TravelEstimate } from "../geo";
+import { hasDate, localDateKey } from "../rules/shared";
 import { lerp } from "./geometry";
 import { DEMO_STOPS } from "./mock";
-import type { GroupRoute, GroupWaypoint, RouteStop } from "./types";
+import type { GroupPhase, GroupRoute, GroupWaypoint, RouteStop } from "./types";
 
 /** With no end time filed, this is how long the group is assumed to stay. */
 export const DEFAULT_DWELL_MIN = 60;
 /** How far into the first stop the stand-in clock sits when the day is not live. */
 const SIMULATED_INTO_FIRST_STOP_MIN = 20;
-/** Beyond this either side of the day, "now" is not a useful clock for it. */
+/** How long after the day's last stop "now" is still a useful clock for it. */
 const LIVE_SLACK_MIN = 30;
 
 /** Bookings that move the group between days or cities, not stops on a walk. */
 const NOT_STOPS = new Set(["flight", "lodging", "rail", "car"]);
 
-/** The stops a group actually moves between: timed, placed, and not a flight or a bed. */
+/**
+ * Extraction files a date with no time as local midnight. That names a day,
+ * not a moment the group is somewhere, so it is not a stop — unless an end
+ * time says it really is something happening at midnight.
+ */
+function hasTimeOfDay(item: TripItem): boolean {
+  return item.startsAt!.slice(11, 16) !== "00:00" || hasDate(item.endsAt);
+}
+
+/**
+ * The stops a group actually moves between: timed with a readable date,
+ * placed, and not a flight or a bed. Named after the place rather than the
+ * item, because a meeting point is somewhere, not something.
+ */
 export function stopsFromItems(items: TripItem[]): RouteStop[] {
   return items
     .filter(
       (item) =>
-        item.startsAt &&
+        hasDate(item.startsAt) &&
         item.place?.point &&
+        hasTimeOfDay(item) &&
         !(item.bookingKind && NOT_STOPS.has(item.bookingKind)),
     )
     .sort((a, b) => Date.parse(a.startsAt!) - Date.parse(b.startsAt!))
     .map((item) => ({
       id: item.id,
-      name: item.title,
+      name: item.place!.name.trim() || item.title,
       point: item.place!.point!,
       startsAt: item.startsAt!,
-      endsAt: item.endsAt,
+      endsAt: hasDate(item.endsAt) ? item.endsAt : undefined,
     }));
 }
 
-function localDateKey(now: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+interface Schedule {
+  /** Epoch ms the group gets to each stop. */
+  arrive: number[];
+  /** Epoch ms it leaves each one. */
+  depart: number[];
+  /** The way in to each stop; undefined for the first. */
+  legs: (TravelEstimate | undefined)[];
 }
 
 /**
- * Which day's stops to plan around: today's when there are any, otherwise the
- * nearest day ahead with somewhere to go between, so the route has a shape.
- * Once the trip is over, the most recent day, for looking back.
+ * When the group is actually at each stop. Filed times are honoured where
+ * they are consistent: where the next stop starts before the group could get
+ * there, it arrives when it arrives. A stop with no end is assumed to take an
+ * hour, but never so long that the group misses the next stop's filed start,
+ * and an end before the start is a typo, as the item editor treats it.
  */
-export function pickDay(stops: RouteStop[], now: Date): RouteStop[] {
+function schedule(stops: RouteStop[]): Schedule {
+  const legs = stops.map((stop, i) =>
+    i === 0 ? undefined : estimateTravel(stops[i - 1].point, stop.point),
+  );
+  const arrive: number[] = [];
+  const depart: number[] = [];
+
+  for (let i = 0; i < stops.length; i++) {
+    const start = Date.parse(stops[i].startsAt);
+    const filedEnd = stops[i].endsAt ? Date.parse(stops[i].endsAt!) : Number.NaN;
+    const end = filedEnd > start ? filedEnd : Number.NaN;
+
+    const earliest = i === 0 ? start : Math.max(start, depart[i - 1] + legs[i]!.minutes * 60_000);
+
+    let leave: number;
+    if (!Number.isNaN(end)) {
+      leave = Math.max(end, earliest);
+    } else {
+      leave = earliest + DEFAULT_DWELL_MIN * 60_000;
+      const next = stops[i + 1];
+      if (next) {
+        const latest = Date.parse(next.startsAt) - legs[i + 1]!.minutes * 60_000;
+        leave = Math.max(earliest, Math.min(leave, latest));
+      }
+    }
+
+    arrive.push(earliest);
+    depart.push(leave);
+  }
+
+  return { arrive, depart, legs };
+}
+
+/**
+ * Whether a moment falls inside a day's live window: from the first arrival
+ * to a little after the last departure. Before the first stop the group is
+ * somewhere the timeline does not say, so that is not live.
+ */
+function liveAt(sched: Schedule, at: number): boolean {
+  const first = sched.arrive[0];
+  const last = sched.depart[sched.depart.length - 1];
+  return at >= first && at <= last + LIVE_SLACK_MIN * 60_000;
+}
+
+/** "Today" for a day's stops, in the offset they were filed in. */
+function todayFor(stops: RouteStop[], now: Date): string {
+  return dateAt(now, offsetOf(stops[0].startsAt));
+}
+
+/**
+ * Which day's stops to plan around, most specific first: a day under way;
+ * the day a running diversion began in, so the plan does not jump when that
+ * day ends; today, as the destination's calendar reads it; the nearest day
+ * ahead with somewhere to go between; and once the trip is over, the most
+ * recent day, for looking back.
+ */
+export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[] {
   const byDay = new Map<string, RouteStop[]>();
   for (const stop of stops) {
-    const day = stop.startsAt.slice(0, 10);
+    const day = localDateKey(stop.startsAt);
     byDay.set(day, [...(byDay.get(day) ?? []), stop]);
   }
   if (byDay.size === 0) return [];
 
-  const today = localDateKey(now);
-  const todays = byDay.get(today);
-  if (todays?.length) return todays;
+  const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
 
-  const days = [...byDay.keys()].sort();
-  const ahead = days.filter((day) => day > today);
+  const liveNow = days.find(([, day]) => liveAt(schedule(day), now.getTime()));
+  if (liveNow) return liveNow[1];
+
+  if (since) {
+    const started = days.find(([, day]) => liveAt(schedule(day), since.getTime()));
+    if (started) return started[1];
+  }
+
+  const today = days.find(([key, day]) => key === todayFor(day, now));
+  if (today) return today[1];
+
+  const ahead = days.filter(([key, day]) => key > todayFor(day, now));
   const pool = ahead.length > 0 ? ahead : [...days].reverse();
-  const chosen = pool.find((day) => byDay.get(day)!.length >= 2) ?? pool[0];
+  const chosen = pool.find(([, day]) => day.length >= 2) ?? pool[0];
 
-  return byDay.get(chosen)!;
+  return chosen[1];
 }
 
 /**
- * Turns a day's stops into a timeline the group can be placed on. Filed times
- * are honoured where they are consistent; where the next stop starts before
- * the group could get there, the group arrives when it arrives.
+ * Turns a day's stops into a timeline the group can be placed on. The clock
+ * is now while the day is live — or while a diversion that began during it is
+ * still running — and otherwise sits partway into the first stop, so the
+ * group is somewhere rather than nowhere yet. The bundled sample is never
+ * live: its date is fixed, and it is nobody's actual day.
  */
 export function buildRoute(
   stops: RouteStop[],
   now: Date,
-  options: { demo?: boolean } = {},
+  options: { demo?: boolean; since?: Date } = {},
 ): GroupRoute | undefined {
   if (stops.length === 0) return undefined;
 
-  const arrive: number[] = [];
-  const depart: number[] = [];
-  const modes: TravelMode[] = [];
+  const sched = schedule(stops);
+  const { arrive, depart, legs } = sched;
+  const startedInDay =
+    options.since !== undefined &&
+    liveAt(sched, options.since.getTime()) &&
+    now.getTime() >= options.since.getTime();
+  const live = !options.demo && (liveAt(sched, now.getTime()) || startedInDay);
 
-  for (let i = 0; i < stops.length; i++) {
-    const scheduledStart = Date.parse(stops[i].startsAt);
-    const scheduledEnd = stops[i].endsAt ? Date.parse(stops[i].endsAt!) : Number.NaN;
-
-    let mode: TravelMode = "walk";
-    let earliest = scheduledStart;
-
-    if (i > 0) {
-      const travel = estimateTravel(stops[i - 1].point, stops[i].point);
-      mode = travel.mode;
-      earliest = Math.max(scheduledStart, depart[i - 1] + travel.minutes * 60_000);
-    }
-
-    arrive.push(earliest);
-    depart.push(
-      Number.isNaN(scheduledEnd)
-        ? earliest + DEFAULT_DWELL_MIN * 60_000
-        : Math.max(scheduledEnd, earliest),
-    );
-    modes.push(mode);
-  }
-
-  // The clock is now while the day is live; otherwise it sits partway into
-  // the first stop, so the group is somewhere rather than nowhere yet.
-  const first = arrive[0];
-  const last = depart[depart.length - 1];
-  const slack = LIVE_SLACK_MIN * 60_000;
-  const live = now.getTime() >= first - slack && now.getTime() <= last + slack;
   const clockMs = live
     ? now.getTime()
-    : Math.min(first + SIMULATED_INTO_FIRST_STOP_MIN * 60_000, depart[0]);
+    : Math.min(arrive[0] + SIMULATED_INTO_FIRST_STOP_MIN * 60_000, depart[0]);
 
   const waypoints: GroupWaypoint[] = stops.map((stop, i) => ({
     id: stop.id,
@@ -118,61 +181,79 @@ export function buildRoute(
     point: stop.point,
     arriveMin: (arrive[i] - clockMs) / 60_000,
     departMin: (depart[i] - clockMs) / 60_000,
-    mode: modes[i],
+    mode: legs[i]?.mode ?? "walk",
+    travelMin: legs[i]?.minutes ?? 0,
+    offset: offsetOf(stop.startsAt),
   }));
+
+  const located = locate(waypoints);
+  const reference = waypoints[located.atStop ?? Math.min(located.nextStop, waypoints.length - 1)];
 
   return {
     waypoints,
-    ...locate(waypoints),
+    ...located,
     clock: new Date(clockMs),
-    offset: offsetOf(stops[0].startsAt) || "+00:00",
+    offset: reference.offset,
     simulated: !live,
     demo: Boolean(options.demo),
   };
 }
 
-/** Where along its day the group is at the clock, and how to say so. */
-function locate(
-  waypoints: GroupWaypoint[],
-): Pick<GroupRoute, "position" | "atStop" | "nextStop" | "progress" | "nowLabel"> {
+type Located = Pick<GroupRoute, "position" | "phase" | "atStop" | "nextStop" | "progress" | "nowLabel">;
+
+/**
+ * Where along its day the group is at the clock, and how to say so. After
+ * leaving a stop the group travels for as long as the trip takes, then waits
+ * near the next stop until it starts — a free afternoon is not a four-hour
+ * walk down one street.
+ */
+function locate(waypoints: GroupWaypoint[]): Located {
   const last = waypoints.length - 1;
 
+  // The clock never sits before the first arrival (see buildRoute), but a
+  // caller building a route by hand could put it there.
   if (waypoints[0].arriveMin > 0) {
-    return {
-      position: waypoints[0].point,
-      nextStop: 0,
-      progress: 0,
-      nowLabel: `Setting off for ${waypoints[0].name}`,
-    };
+    return at(waypoints, 0, `Due at ${waypoints[0].name}`);
   }
 
   for (let i = 0; i <= last; i++) {
     const stop = waypoints[i];
 
     if (stop.arriveMin <= 0 && stop.departMin >= 0) {
-      return {
-        position: stop.point,
-        atStop: i,
-        nextStop: i + 1,
-        progress: 0,
-        nowLabel: i === last ? `At ${stop.name}, the last stop of the day` : `At ${stop.name}`,
-      };
+      return at(
+        waypoints,
+        i,
+        i === last ? `At ${stop.name}, the last stop of the day` : `At ${stop.name}`,
+      );
     }
 
     const next = waypoints[i + 1];
-    if (next && stop.departMin < 0 && next.arriveMin > 0) {
-      const progress = -stop.departMin / (next.arriveMin - stop.departMin);
+    if (!next || stop.departMin >= 0 || next.arriveMin <= 0) continue;
+
+    const out = -stop.departMin;
+    if (next.travelMin > 0 && out < next.travelMin) {
+      const progress = out / next.travelMin;
       return {
         position: lerp(stop.point, next.point, progress),
+        phase: "on-the-way",
         nextStop: i + 1,
         progress,
         nowLabel: `On the way to ${next.name}`,
       };
     }
+
+    return {
+      position: next.point,
+      phase: "free-time",
+      nextStop: i + 1,
+      progress: 1,
+      nowLabel: `Free time before ${next.name}`,
+    };
   }
 
   return {
     position: waypoints[last].point,
+    phase: "finished",
     atStop: last,
     nextStop: last + 1,
     progress: 0,
@@ -180,12 +261,34 @@ function locate(
   };
 }
 
+function at(waypoints: GroupWaypoint[], index: number, nowLabel: string): Located {
+  return {
+    position: waypoints[index].point,
+    phase: "at-stop" satisfies GroupPhase,
+    atStop: index,
+    nextStop: index + 1,
+    progress: 0,
+    nowLabel,
+  };
+}
+
+/**
+ * The stop to name a place after: the one the group is at, or has free time
+ * near. On the move there is none, and a stand-in reads "near the group".
+ */
+export function anchorName(route: GroupRoute): string | undefined {
+  if (route.phase === "on-the-way") return undefined;
+  const index = route.phase === "free-time" ? route.nextStop : route.atStop;
+  return index === undefined ? undefined : route.waypoints[index]?.name;
+}
+
 /**
  * The group's route for this trip: its own timeline when it has timed,
- * located stops, and the bundled sample walk when it has none yet.
+ * located stops, and the bundled sample walk when it has none yet. `since`
+ * is when a running diversion began, which keeps its day live until it ends.
  */
-export function routeForGroup(items: TripItem[], now = new Date()): GroupRoute {
-  const own = pickDay(stopsFromItems(items), now);
-  if (own.length > 0) return buildRoute(own, now)!;
+export function routeForGroup(items: TripItem[], now = new Date(), since?: Date): GroupRoute {
+  const own = pickDay(stopsFromItems(items), now, since);
+  if (own.length > 0) return buildRoute(own, now, { since })!;
   return buildRoute(DEMO_STOPS, now, { demo: true })!;
 }

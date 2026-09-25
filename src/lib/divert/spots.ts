@@ -1,6 +1,18 @@
 import type { GeoPoint } from "../domain/types";
+import { groundPlace } from "../reference/places";
 import { distanceM, offsetPoint } from "./geometry";
 import type { DivertCategory, DivertSpot } from "./types";
+
+/**
+ * A place's coordinates from the app's own gazetteer, so a place both lists
+ * know about is only ever typed once. Throws on a miss, which the tests hit
+ * at import time rather than a user hitting it on a screen.
+ */
+export function gazetteerPoint(name: string): GeoPoint {
+  const point = groundPlace(name)?.point;
+  if (!point) throw new Error(`"${name}" is not in the gazetteer`);
+  return point;
+}
 
 /** How far someone will go for a coffee before it stops being a quick detour. */
 export const SPOT_RADIUS_M = 1500;
@@ -28,7 +40,7 @@ const SPOTS: DivertSpot[] = [
 
   // Shibuya
   { id: "streamer-shibuya", name: "Streamer Coffee Company, Shibuya", category: "coffee", point: { lat: 35.6607, lng: 139.7038 }, detail: "Big lattes, big room" },
-  { id: "scramble-crossing", name: "Shibuya Scramble Crossing", category: "sights", point: { lat: 35.6595, lng: 139.7005 }, detail: "From the station bridge, not the road" },
+  { id: "scramble-crossing", name: "Shibuya Crossing", category: "sights", point: gazetteerPoint("Shibuya Crossing"), detail: "From the station bridge, not the road" },
   { id: "uogashi-shibuya", name: "Uogashi Nihon-Ichi standing sushi", category: "food", point: { lat: 35.6598, lng: 139.7019 }, detail: "Ten minutes, standing" },
   { id: "donki-shibuya", name: "MEGA Don Quijote, Shibuya", category: "shopping", point: { lat: 35.6614, lng: 139.6993 }, detail: "Six floors, easy to lose an hour" },
   { id: "miyashita-rooftop", name: "Miyashita Park rooftop", category: "rest", point: { lat: 35.6616, lng: 139.7024 }, detail: "Grass on top of the shops" },

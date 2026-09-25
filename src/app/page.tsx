@@ -27,7 +27,7 @@ import { daysBetween, formatDay, formatTime, rollUpBudget } from "@/lib/rules";
 import { useTripView } from "@/lib/store/use-store";
 
 export default function TripScreen() {
-  const { trip, items, flags, checklist, hydrated, empty } = useTripView();
+  const { state, trip, items, flags, checklist, hydrated, empty } = useTripView();
   const [editing, setEditing] = useState<TripItem | null>(null);
 
   if (!hydrated) return <ScreenSkeleton />;
@@ -74,7 +74,8 @@ export default function TripScreen() {
         />
       </div>
 
-      <GroupStatusCard />
+      {/* Only a group, or someone already out, has anything to show here. */}
+      {(trip.travelers.length >= 2 || state.divert?.tripId === trip.id) && <GroupStatusCard />}
 
       {flags.length > 0 && (
         <Link href="/checks" className="press block">

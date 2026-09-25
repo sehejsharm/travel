@@ -4,89 +4,167 @@ import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { PrimaryButton } from "@/components/form";
 import { Card, Chip, ScreenHeader, SectionTitle } from "@/components/ui";
-import type { Trip } from "@/lib/domain/types";
+import type { GeoPoint, Trip } from "@/lib/domain/types";
 import { formatDistance, formatMinutes } from "@/lib/divert/format";
 import { distanceM } from "@/lib/divert/geometry";
-import { DIVERT_INTERESTS, dwellFor, interestsFor } from "@/lib/divert/interests";
+import { categoriesFor, DIVERT_INTERESTS, dwellFor, interestsFor } from "@/lib/divert/interests";
+import { respot, travellerPosition } from "@/lib/divert/rejoin";
+import { anchorName } from "@/lib/divert/route";
 import { findSpots, SPOT_RADIUS_M } from "@/lib/divert/spots";
-import type { GroupRoute } from "@/lib/divert/types";
-import { startDivert } from "@/lib/store/state";
+import type { DivertSession, DivertSpot, GroupRoute } from "@/lib/divert/types";
+import { startDivert, updateDivert } from "@/lib/store/state";
 import { DivertIconGlyph } from "./divert-icon";
 import { GroupNowCard } from "./group-now-card";
+
+interface Origin {
+  position: GeoPoint;
+  anchor?: string;
+}
 
 /**
  * Picking what to break off for. Interests first, then the spots that serve
  * them near where the group is; the nearest is preselected so one tap on the
- * button is enough.
+ * button is enough. Given a running session, the same screen changes it
+ * instead, measuring from wherever the traveller is now.
  */
-export function DivertPreferencesView({ trip, route }: { trip: Trip; route: GroupRoute }) {
-  const [picked, setPicked] = useState<string[]>([]);
-  const [spotId, setSpotId] = useState<string | null>(null);
-  const [travelerId, setTravelerId] = useState<string | undefined>(trip.travelers[0]?.id);
+export function DivertPreferencesView({
+  trip,
+  route,
+  session,
+  onDone,
+}: {
+  trip: Trip;
+  route: GroupRoute;
+  session?: DivertSession;
+  onDone?: () => void;
+}) {
+  const editing = session !== undefined;
+
+  // Where "nearby" is measured from. Frozen when the picks change rather than
+  // on every tick, so a live group walking on does not reshuffle the list
+  // under a finger or quietly swap the spot that was tapped.
+  const originNow = (): Origin =>
+    session
+      ? { position: travellerPosition(route, session), anchor: session.spot.name }
+      : { position: route.position, anchor: anchorName(route) };
+
+  const [picked, setPicked] = useState<string[]>(session?.interestIds ?? []);
+  const [chosen, setChosen] = useState<DivertSpot | null>(session?.spot ?? null);
+  const [travelerId, setTravelerId] = useState<string | undefined>(session?.travelerId);
+  const [origin, setOrigin] = useState<Origin>(originNow);
 
   const interests = interestsFor(picked);
-  const categories = [...new Set(interests.map((interest) => interest.category))];
-  const anchor =
-    route.waypoints[route.atStop ?? Math.max(0, route.nextStop - 1)]?.name;
-  const spots = categories.length > 0 ? findSpots(route.position, categories, anchor) : [];
-  const spot = spots.find((candidate) => candidate.id === spotId) ?? spots[0];
+  const categories = categoriesFor(interests);
+  const found = categories.length > 0 ? findSpots(origin.position, categories, origin.anchor) : [];
+  // A spot already chosen stays on the list while its kind is still wanted,
+  // even if it is not among the nearest from here.
+  const keepChosen =
+    chosen && categories.includes(chosen.category) && !found.some((spot) => spot.id === chosen.id);
+  const spots = keepChosen ? [chosen, ...found] : found;
+  const spot =
+    (chosen && categories.includes(chosen.category) ? chosen : undefined) ?? spots[0];
+
   const dwell = dwellFor(interests);
   const group = trip.travelers.length >= 2;
+  const selected = trip.travelers.some((traveler) => traveler.id === travelerId)
+    ? travelerId
+    : trip.travelers[0]?.id;
+  const ready = Boolean(spot) && group && !route.demo;
 
   function toggle(id: string) {
-    setPicked((current) =>
-      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
-    );
-    setSpotId(null);
+    const next = picked.includes(id) ? picked.filter((entry) => entry !== id) : [...picked, id];
+    const nextCategories = categoriesFor(interestsFor(next));
+
+    setPicked(next);
+    setOrigin(originNow());
+    if (chosen && !nextCategories.includes(chosen.category)) setChosen(null);
   }
 
   function go() {
-    if (!spot || !group) return;
+    if (!spot || !ready) return;
+    const interestIds = interests.map((interest) => interest.id);
+
+    if (session) {
+      const moved = spot.id !== session.spot.id;
+      updateDivert({
+        travelerId: selected,
+        interestIds,
+        ...(moved ? respot(route, session, spot) : {}),
+      });
+      onDone?.();
+      return;
+    }
+
     startDivert({
       tripId: trip.id,
-      travelerId,
-      interestIds: interests.map((interest) => interest.id),
+      travelerId: selected,
+      interestIds,
       spot,
+      from: route.position,
     });
   }
 
   return (
     <div className="flex flex-col gap-6">
       <ScreenHeader
-        eyebrow="Divert from group"
-        title="Break off for a bit"
-        meta="Pick what you are after. Manifest works out where to meet the others again."
+        eyebrow={editing ? "Diverted" : "Divert from group"}
+        title={editing ? "Change your plans" : "Break off for a bit"}
+        meta={
+          editing
+            ? "Pick again. The way back is worked out from wherever you are now."
+            : "Pick what you are after. Manifest works out where to meet the others again."
+        }
         action={
-          <Link
-            href="/"
-            className="press rounded-xl border border-line px-3 py-1.5 font-mono text-[11px] text-ink-soft"
-          >
-            Back
-          </Link>
+          editing ? (
+            <button
+              type="button"
+              onClick={onDone}
+              className="press rounded-xl border border-line px-3 py-1.5 font-mono text-[11px] text-ink-soft"
+            >
+              Back
+            </button>
+          ) : (
+            <Link
+              href="/"
+              className="press rounded-xl border border-line px-3 py-1.5 font-mono text-[11px] text-ink-soft"
+            >
+              Back
+            </Link>
+          )
         }
       />
 
       <GroupNowCard route={route} />
 
       {!group && (
-        <Card className="border-warning/40 p-4">
-          <p className="text-sm font-medium">This trip has only one traveller on it.</p>
+        <Card className="p-4">
+          <p className="text-sm font-medium">Diverting needs at least two people on the trip.</p>
           <p className="mt-1 text-sm text-ink-soft">
-            Diverting needs a group to divert from.{" "}
+            There is no group to break off from yet.{" "}
             <Link href="/trip" className="text-accent-strong underline underline-offset-2">
-              Add the others on the Trip screen
+              Add the others in Trip settings
             </Link>{" "}
             and come back.
           </p>
         </Card>
       )}
 
-      {trip.travelers.length >= 2 && (
+      {group && route.demo && (
+        <Card className="p-4">
+          <p className="text-sm font-medium">This is the sample walk, not your day.</p>
+          <p className="mt-1 text-sm text-ink-soft">
+            Your timeline has no timed, placed stops yet, so there is no route to meet the group
+            on. Look around here, then put times and places on your timeline to break off for real.
+          </p>
+        </Card>
+      )}
+
+      {group && (
         <section>
           <SectionTitle>Who is breaking off</SectionTitle>
           <div className="flex flex-wrap gap-2">
-            {trip.travelers.map((traveler) => {
-              const active = traveler.id === travelerId;
+            {trip.travelers.map((traveler, index) => {
+              const active = traveler.id === selected;
               return (
                 <button
                   key={traveler.id}
@@ -99,7 +177,7 @@ export function DivertPreferencesView({ trip, route }: { trip: Trip; route: Grou
                       : "border-line bg-surface text-ink-soft"
                   }`}
                 >
-                  {traveler.name}
+                  {traveler.name.trim() || `Traveller ${index + 1}`}
                 </button>
               );
             })}
@@ -145,7 +223,9 @@ export function DivertPreferencesView({ trip, route }: { trip: Trip; route: Grou
 
       {spots.length > 0 && (
         <section>
-          <SectionTitle trailing={`within ${formatDistance(SPOT_RADIUS_M)}`}>Nearby</SectionTitle>
+          <SectionTitle trailing={`within ${formatDistance(SPOT_RADIUS_M)}`}>
+            {route.demo ? "Sample places" : "Nearby"}
+          </SectionTitle>
           <Card className="divide-y divide-line">
             {spots.map((candidate) => {
               const active = candidate.id === spot?.id;
@@ -154,7 +234,7 @@ export function DivertPreferencesView({ trip, route }: { trip: Trip; route: Grou
                   key={candidate.id}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => setSpotId(candidate.id)}
+                  onClick={() => setChosen(candidate)}
                   className={`press flex w-full items-center justify-between gap-3 px-4 py-3 text-left ${
                     active ? "bg-accent-soft" : "hover:bg-surface-2"
                   }`}
@@ -167,12 +247,13 @@ export function DivertPreferencesView({ trip, route }: { trip: Trip; route: Grou
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     {candidate.synthetic && <Chip tone="warning">stand-in</Chip>}
+                    {route.demo && !candidate.synthetic && <Chip tone="warning">sample</Chip>}
                     <span
                       className={`font-mono text-[11px] tabular ${
                         active ? "text-accent-strong" : "text-ink-faint"
                       }`}
                     >
-                      {formatDistance(distanceM(route.position, candidate.point))}
+                      {formatDistance(distanceM(origin.position, candidate.point))}
                     </span>
                   </span>
                 </button>
@@ -183,13 +264,15 @@ export function DivertPreferencesView({ trip, route }: { trip: Trip; route: Grou
       )}
 
       <div className="flex flex-col gap-2">
-        <PrimaryButton onClick={go} disabled={!spot || !group}>
-          Find rejoin route
+        <PrimaryButton onClick={go} disabled={!ready}>
+          {editing ? "Update rejoin route" : "Find rejoin route"}
         </PrimaryButton>
         <p className="text-center font-mono text-[11px] text-ink-faint">
-          {spot
-            ? `${formatMinutes(dwell)} at ${spot.name}, then back to the others`
-            : "Pick what you are after and a spot appears"}
+          {route.demo
+            ? "Sample only: put timed, placed stops on your timeline to break off for real"
+            : spot
+              ? `${editing ? "" : "Starts your diversion: "}${formatMinutes(dwell)} at ${spot.name}, then back to the others`
+              : "Pick what you are after and a spot appears"}
         </p>
       </div>
     </div>

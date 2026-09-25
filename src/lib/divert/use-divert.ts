@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTripView, type TripView } from "../store/use-store";
-import { activeDivert } from "./index";
+import { activeDivert, groupStatus } from "./index";
 import { buildPlan } from "./rejoin";
 import { routeForGroup } from "./route";
 import type { DivertPlan, DivertSession, GroupRoute, UserGroupStatus } from "./types";
@@ -18,13 +18,14 @@ export interface DivertView extends TripView {
   now: Date;
 }
 
-/** Ticks on the half minute, so an ETA left on screen counts down. */
+/** Ticks on the half minute, so a live ETA left on screen counts down. */
 const TICK_MS = 30_000;
 
 /**
  * The trip view plus where the group is and, if someone has diverted, how
  * they get back together. The clock is state rather than read each render,
- * so one render agrees with itself about what time it is.
+ * so one render agrees with itself about what time it is. A running
+ * diversion anchors the route to the day it began in.
  */
 export function useDivert(): DivertView {
   const view = useTripView();
@@ -37,7 +38,12 @@ export function useDivert(): DivertView {
   }, []);
 
   const session = trip ? activeDivert(state, trip.id, now) : undefined;
-  const route = useMemo(() => (trip ? routeForGroup(items, now) : undefined), [trip, items, now]);
+  const since = session ? Date.parse(session.startedAt) : undefined;
+
+  const route = useMemo(
+    () => (trip ? routeForGroup(items, now, since === undefined ? undefined : new Date(since)) : undefined),
+    [trip, items, now, since],
+  );
   const plan = useMemo(
     () => (route && session ? buildPlan(route, session) : undefined),
     [route, session],
@@ -45,7 +51,7 @@ export function useDivert(): DivertView {
 
   return {
     ...view,
-    status: session ? "DIVERTED" : "IN_GROUP",
+    status: trip ? groupStatus(state, trip.id, now) : "IN_GROUP",
     session,
     route,
     plan,

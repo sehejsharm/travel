@@ -1,4 +1,4 @@
-import type { DivertInterest } from "./types";
+import type { DivertCategory, DivertInterest } from "./types";
 
 /**
  * The quick things one person peels off for while the rest keep going. Each
@@ -48,10 +48,6 @@ export const DIVERT_INTERESTS: DivertInterest[] = [
   },
 ];
 
-export function getDivertInterest(id: string): DivertInterest | undefined {
-  return DIVERT_INTERESTS.find((interest) => interest.id === id);
-}
-
 /** The interests behind a set of ids, in the picker's order and without repeats. */
 export function interestsFor(ids: string[]): DivertInterest[] {
   const wanted = new Set(ids);
@@ -62,4 +58,9 @@ export function interestsFor(ids: string[]): DivertInterest[] {
 export function dwellFor(interests: DivertInterest[]): number {
   const total = interests.reduce((sum, interest) => sum + interest.dwellMinutes, 0);
   return Math.max(10, total);
+}
+
+/** The spot categories a set of interests needs, in the picker's order. */
+export function categoriesFor(interests: DivertInterest[]): DivertCategory[] {
+  return [...new Set(interests.map((interest) => interest.category))];
 }

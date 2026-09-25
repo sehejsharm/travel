@@ -108,6 +108,12 @@ export default function PrivacyPolicy() {
           Tapping &ldquo;Maps&rdquo; or &ldquo;Directions&rdquo; opens Google Maps in a new tab and
           hands off to it in the ordinary way.
         </p>
+        <p>
+          The small map on the Divert screen is different: it is drawn on your device from places
+          you filed, loads nothing, and contacts no one. Breaking off from your group stores who
+          broke off, the spot they chose and when, in this browser only, and that record is deleted
+          when they rejoin, after twelve hours, or when you delete the trip.
+        </p>
       </Section>
 
       <Section heading="Permissions we ask for, and why">

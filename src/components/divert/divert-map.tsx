@@ -1,6 +1,7 @@
 "use client";
 
 import type { GeoPoint } from "@/lib/domain/types";
+import { NEAR_ENOUGH_M } from "@/lib/divert/format";
 import type { DivertSpot, GroupRoute, RejoinOption } from "@/lib/divert/types";
 import { distanceM } from "@/lib/divert/geometry";
 import { useReducedMotion } from "@/lib/use-motion";
@@ -50,21 +51,69 @@ function path(points: Projected[]): string {
   return points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
 }
 
-/** Where a marker's label goes: above it, or below when there is no room above. */
-function labelAt(marker: Projected, below = false): Projected {
+interface PlacedLabel {
+  at: Projected;
+  text: string;
+  tone: string;
+  /** Rendered width, so the label can be kept whole inside the frame. */
+  width: number;
+}
+
+/** Labels are cut to this many characters, with an ellipsis. */
+const LABEL_CHARS = 26;
+/** Plex Mono advances 0.6em a character; the labels are 9px. */
+const CHAR_WIDTH = 5.4;
+
+function shorten(text: string): string {
+  return text.length > LABEL_CHARS ? `${text.slice(0, LABEL_CHARS - 1)}…` : text;
+}
+
+/**
+ * Where a marker's label goes: above it, or below. Centred on the marker
+ * where there is room, and slid inward at the edges so it is never clipped.
+ */
+function labelAt(marker: Projected, below: boolean, width: number): Projected {
+  const half = width / 2 + 4;
+  const y = below ? marker.y + 18 : marker.y - 11;
   return {
-    x: Math.max(44, Math.min(WIDTH - 44, marker.x)),
-    y: below || marker.y < 22 ? marker.y + 18 : marker.y - 11,
+    x: Math.max(half, Math.min(WIDTH - half, marker.x)),
+    y: Math.max(12, Math.min(HEIGHT - 6, y)),
   };
 }
 
-function collide(a: Projected, b: Projected): boolean {
-  return Math.abs(a.x - b.x) < 110 && Math.abs(a.y - b.y) < 14;
+function collide(a: PlacedLabel, b: PlacedLabel): boolean {
+  return Math.abs(a.at.x - b.at.x) < (a.width + b.width) / 2 + 6 && Math.abs(a.at.y - b.at.y) < 14;
 }
 
-function Label({ at, text, tone }: { at: Projected; text: string; tone: string }) {
-  const shown = text.length > 26 ? `${text.slice(0, 25)}…` : text;
+/**
+ * Places labels in priority order, each above or below its marker, wherever
+ * it does not overlap one already placed. A label with nowhere to go is left
+ * off rather than drawn over another.
+ */
+function placeLabels(
+  wanted: { marker: Projected; text: string; tone: string; preferBelow?: boolean; required?: boolean }[],
+): PlacedLabel[] {
+  const placed: PlacedLabel[] = [];
 
+  for (const label of wanted) {
+    const text = shorten(label.text);
+    const width = text.length * CHAR_WIDTH;
+    const tries = (label.preferBelow ? [true, false] : [false, true]).map((below) => ({
+      at: labelAt(label.marker, below, width),
+      text,
+      tone: label.tone,
+      width,
+    }));
+    const fits = tries.find((candidate) => placed.every((other) => !collide(candidate, other)));
+
+    if (fits) placed.push(fits);
+    else if (label.required) placed.push(tries[0]);
+  }
+
+  return placed;
+}
+
+function Label({ at, text, tone }: PlacedLabel) {
   return (
     <text
       x={at.x}
@@ -77,7 +126,7 @@ function Label({ at, text, tone }: { at: Projected; text: string; tone: string }
       strokeWidth="3"
       paintOrder="stroke"
     >
-      {shown}
+      {text}
     </text>
   );
 }
@@ -85,7 +134,8 @@ function Label({ at, text, tone }: { at: Projected; text: string; tone: string }
 /**
  * One option, drawn: the group's day as a line, where it is now, where the
  * solo traveller is going, and where the two meet. Inline SVG rather than a
- * tile map, so it works with no signal and in both themes.
+ * tile map, so it works with no signal and in both themes. The group, the
+ * spot and the meeting point differ in shape and label as well as colour.
  */
 export function DivertMap({
   route,
@@ -128,33 +178,38 @@ export function DivertMap({
   // The solo traveller: out to the spot, then across to wherever they meet.
   const userPath = catchUp ? path([here, there, meet]) : path([here, there]);
 
-  const meetIsSpot = distanceM(option.location, spot.point) < 15;
+  const meetIsSpot = distanceM(option.location, spot.point) < NEAR_ENOUGH_M;
+  const meetIsGroup = distanceM(option.location, route.position) < NEAR_ENOUGH_M;
 
-  // Two labels a few metres apart go one above and one below their markers.
-  let spotLabel = labelAt(there);
-  let meetLabel = labelAt(meet);
-  if (!meetIsSpot && collide(spotLabel, meetLabel)) {
-    if (meet.y + 18 <= HEIGHT - 6) meetLabel = labelAt(meet, true);
-    else spotLabel = labelAt(there, true);
-  }
+  const labels = placeLabels([
+    { marker: meet, text: option.meetingPointName, tone: "var(--accent-strong)", required: true },
+    ...(meetIsSpot ? [] : [{ marker: there, text: spot.name, tone: "var(--teal)" }]),
+    ...(meetIsGroup ? [] : [{ marker: here, text: "Group", tone: "var(--accent-strong)", preferBelow: true }]),
+  ]);
+
+  // A diamond, so the spot never reads as another circle beside the group's.
+  const diamond = `M${there.x} ${there.y - 6} L${there.x + 6} ${there.y} L${there.x} ${there.y + 6} L${there.x - 6} ${there.y} Z`;
 
   return (
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       role="img"
-      aria-label={`Map: ${catchUp ? "you rejoin the group at" : "the group joins you at"} ${option.meetingPointName}`}
+      aria-label={`Map: the group, your spot at ${spot.name}, and ${
+        catchUp ? "where you rejoin them" : "where they join you"
+      }, ${option.meetingPointName}`}
       className="block h-auto w-full bg-surface-2"
     >
       <path d={path(stops)} fill="none" stroke="var(--line-strong)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-      <path d={groupPath} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" strokeOpacity={catchUp ? 0.55 : 0.85} strokeDasharray={catchUp ? undefined : "5 4"} />
-      <path d={userPath} fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" strokeDasharray="5 4" />
+      <path d={groupPath} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" strokeOpacity={catchUp ? 0.55 : 0.85} strokeDasharray={catchUp ? undefined : "6 4"} />
+      {/* Dotted, so the traveller's line differs from the group's in shape, not only hue. */}
+      <path d={userPath} fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" strokeDasharray="0.5 5" />
 
       {stops.map((stop, index) => (
         <circle key={route.waypoints[index].id} cx={stop.x} cy={stop.y} r="3.5" fill="var(--surface)" stroke="var(--ink-faint)" strokeWidth="1.5" />
       ))}
 
-      {/* The group, breathing so it reads as live rather than pinned. */}
-      {!reduced && (
+      {/* The group breathes only on a live day; a simulated clock is not now. */}
+      {!reduced && !route.simulated && (
         <circle cx={here.x} cy={here.y} r="5" fill="var(--accent)" opacity="0.4">
           <animate attributeName="r" values="5;12;5" dur="2.4s" repeatCount="indefinite" />
           <animate attributeName="opacity" values="0.4;0;0.4" dur="2.4s" repeatCount="indefinite" />
@@ -162,13 +217,14 @@ export function DivertMap({
       )}
       <circle cx={here.x} cy={here.y} r="5" fill="var(--accent)" stroke="var(--surface)" strokeWidth="2" />
 
-      <circle cx={there.x} cy={there.y} r="5" fill="var(--teal)" stroke="var(--surface)" strokeWidth="2" />
+      <path d={diamond} fill="var(--teal)" stroke="var(--surface)" strokeWidth="2" strokeLinejoin="round" />
 
       <circle cx={meet.x} cy={meet.y} r="8" fill="none" stroke="var(--accent)" strokeWidth="2" />
       <circle cx={meet.x} cy={meet.y} r="2.5" fill="var(--accent)" />
 
-      {!meetIsSpot && <Label at={spotLabel} text={spot.name} tone="var(--teal)" />}
-      <Label at={meetLabel} text={option.meetingPointName} tone="var(--accent-strong)" />
+      {labels.map((label) => (
+        <Label key={label.text} {...label} />
+      ))}
     </svg>
   );
 }

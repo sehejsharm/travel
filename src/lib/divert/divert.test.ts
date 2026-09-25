@@ -1,26 +1,47 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { AdviceResult } from "../advisor/types";
 import type { TripItem } from "../domain/types";
+import { formatTime } from "../rules/shared";
+import { buildBackup, parseBackup, restore } from "../store/backup";
 import { SEED_ITEMS } from "../store/seed";
 import {
+  addTraveler,
+  cacheAdvice,
+  cachedAdvice,
   chooseRejoin,
   createTrip,
   deleteTrip,
   emptyState,
   getSnapshot,
+  loadSampleTrip,
   rejoinGroup,
+  removeTraveler,
   replaceState,
   startDivert,
   updateDivert,
 } from "../store/state";
-import { formatDistance, formatEta, formatMinutes, wallClock } from "./format";
+import { formatDistance, formatEta, formatMinutes, NEAR_ENOUGH_M, wallClock } from "./format";
 import { distanceM } from "./geometry";
-import { activeDivert, DIVERT_EXPIRES_MS, groupStatus } from "./index";
-import { DIVERT_INTERESTS, dwellFor, interestsFor } from "./interests";
+import {
+  activeDivert,
+  DIVERT_EXPIRES_MS,
+  divertedName,
+  groupStatus,
+  isDivertSession,
+} from "./index";
+import { categoriesFor, DIVERT_INTERESTS, dwellFor, interestsFor } from "./interests";
 import { DEMO_STOPS } from "./mock";
-import { buildPlan, planRejoin } from "./rejoin";
-import { buildRoute, pickDay, routeForGroup, stopsFromItems } from "./route";
-import { findSpots, SPOT_RADIUS_M } from "./spots";
-import type { DivertSpot, RouteStop } from "./types";
+import {
+  buildPlan,
+  planRejoin,
+  progressOf,
+  quickestRejoin,
+  respot,
+  travellerPosition,
+} from "./rejoin";
+import { anchorName, buildRoute, pickDay, routeForGroup, stopsFromItems } from "./route";
+import { findSpots, gazetteerPoint, SPOT_RADIUS_M } from "./spots";
+import type { DivertSession, DivertSpot, RejoinOption, RouteStop } from "./types";
 
 const TEAMLAB = { lat: 35.6605, lng: 139.7396 };
 const REYKJAVIK = { lat: 64.1466, lng: -21.9426 };
@@ -32,10 +53,30 @@ const FUGLEN: DivertSpot = {
   point: { lat: 35.7142, lng: 139.7935 },
 };
 
-/** A trip-shaped session for the store tests. */
 function spot(patch: Partial<DivertSpot> = {}): DivertSpot {
   return { ...FUGLEN, ...patch };
 }
+
+/** A placed, timed item, for building a day by hand. */
+function item(id: string, name: string, point: { lat: number; lng: number }, startsAt: string, endsAt?: string): TripItem {
+  return {
+    id,
+    tripId: "t1",
+    title: `${name} (the item title)`,
+    category: "activity",
+    source: "manual",
+    place: { name, point },
+    startsAt,
+    endsAt,
+    confidence: 1,
+    extractionMethod: "deterministic",
+    createdAt: "2026-09-01T00:00:00Z",
+  };
+}
+
+/** Two points a straight walk north of each other, about 1.15 km apart. */
+const SOUTH = { lat: 35.7, lng: 139.78 };
+const NORTH = { lat: 35.71033, lng: 139.78 };
 
 describe("divert interests", () => {
   it("offers the five quick interests with unique ids", () => {
@@ -60,6 +101,7 @@ describe("divert interests", () => {
       "coffee",
       "rest",
     ]);
+    expect(categoriesFor(interestsFor(["rest", "bite", "coffee"]))).toEqual(["coffee", "food", "rest"]);
   });
 });
 
@@ -95,29 +137,105 @@ describe("divert spots", () => {
 
     expect(new Set(found.map((entry) => entry.category)).size).toBe(5);
   });
+
+  it("takes shared places from the gazetteer rather than typing them twice", () => {
+    const crossing = findSpots(gazetteerPoint("Shibuya Crossing"), ["sights"]).find(
+      (entry) => entry.id === "scramble-crossing",
+    );
+
+    expect(crossing?.name).toBe("Shibuya Crossing");
+    expect(crossing?.point).toEqual(gazetteerPoint("Shibuya Crossing"));
+    expect(DEMO_STOPS[0].point).toEqual(gazetteerPoint("Senso-ji"));
+    expect(() => gazetteerPoint("Nowhere In Particular")).toThrow(/gazetteer/);
+  });
 });
 
-describe("group route", () => {
-  it("walks between the day's placed, timed stops and skips flights and beds", () => {
-    const ids = stopsFromItems(SEED_ITEMS).map((stop) => stop.id);
+describe("group route: which stops", () => {
+  it("walks between placed, timed stops, named after the place, and skips flights and beds", () => {
+    const stops = stopsFromItems(SEED_ITEMS);
+    const ids = stops.map((stop) => stop.id);
 
     expect(ids).not.toContain("item-flight-out");
     expect(ids).not.toContain("item-hotel");
     expect(ids).toContain("item-teamlab");
     expect(ids.indexOf("item-teamlab")).toBeLessThan(ids.indexOf("item-sensoji"));
+    expect(stops.find((stop) => stop.id === "item-omoide")?.name).toBe("Omoide Yokocho");
   });
 
-  it("plans around today when today has stops, with a stand-in clock once the day is over", () => {
-    // 11:00Z is the same calendar day almost everywhere, and 20:00 in Tokyo.
-    const now = new Date("2026-10-18T11:00:00Z");
-    const day = pickDay(stopsFromItems(SEED_ITEMS), now);
-    expect(day.map((stop) => stop.id)).toEqual(["item-sensoji", "item-tsukiji"]);
+  it("drops a malformed start rather than letting it poison the clock", () => {
+    const items = [
+      item("bad", "Senso-ji", DEMO_STOPS[0].point, "2026-10-16T9:00:00+09:00"),
+      item("ok", "Ueno Park", DEMO_STOPS[2].point, "2026-10-16T11:00:00+09:00"),
+    ];
 
-    const route = routeForGroup(SEED_ITEMS, now);
+    expect(stopsFromItems(items).map((stop) => stop.id)).toEqual(["ok"]);
+
+    const route = routeForGroup([items[0]], new Date("2026-10-16T02:00:00Z"));
+    expect(route.demo).toBe(true);
+    expect(Number.isNaN(route.clock.getTime())).toBe(false);
+  });
+
+  it("treats a date with no time as a day, not a midnight stop, unless it has an end", () => {
+    const items = [
+      item("date-only", "Tsukiji Outer Market", { lat: 35.6654, lng: 139.7707 }, "2026-10-16T00:00:00+09:00"),
+      item("midnight-show", "Golden Gai", { lat: 35.6938, lng: 139.7036 }, "2026-10-16T00:00:00+09:00", "2026-10-16T01:30:00+09:00"),
+      item("sky", "Shibuya Sky", { lat: 35.658, lng: 139.7016 }, "2026-10-16T14:00:00+09:00"),
+    ];
+
+    expect(stopsFromItems(items).map((stop) => stop.id)).toEqual(["midnight-show", "sky"]);
+  });
+});
+
+describe("group route: which day", () => {
+  const day = (date: string, times: [string, string][]): RouteStop[] =>
+    times.map(([start, end], index) => ({
+      id: `${date}-${index}`,
+      name: `Stop ${index} on ${date}`,
+      point: { lat: 35.7 + index * 0.002, lng: 139.78 },
+      startsAt: `${date}T${start}:00+09:00`,
+      endsAt: `${date}T${end}:00+09:00`,
+    }));
+
+  it("reads today from the destination's calendar, not the phone's", () => {
+    const stops = [...day("2026-10-15", [["09:00", "10:00"], ["11:00", "12:00"]]), ...day("2026-10-16", [["15:00", "16:00"], ["17:00", "18:00"]])];
+    // 06:00 on the 16th in Tokyo is still the 15th on a phone in the Americas.
+    const picked = pickDay(stops, new Date("2026-10-16T06:00:00+09:00"));
+
+    expect(picked.map((stop) => stop.startsAt.slice(0, 10))).toEqual(["2026-10-16", "2026-10-16"]);
+  });
+
+  it("keeps a day that runs past midnight while it is still under way", () => {
+    const stops = [...day("2026-10-17", [["21:00", "22:00"], ["22:30", "23:59"]]), ...day("2026-10-18", [["09:00", "10:00"]])];
+    const picked = pickDay(stops, new Date("2026-10-18T00:10:00+09:00"));
+
+    expect(picked[0].startsAt.slice(0, 10)).toBe("2026-10-17");
+  });
+
+  it("stays on the day a running diversion began in once that day ends", () => {
+    const items = [
+      item("a", "Ueno Park", { lat: 35.7125, lng: 139.777 }, "2026-10-18T16:00:00+09:00", "2026-10-18T17:00:00+09:00"),
+      item("b", "Ameyoko", { lat: 35.71, lng: 139.7745 }, "2026-10-18T17:30:00+09:00", "2026-10-18T18:00:00+09:00"),
+    ];
+    const since = new Date("2026-10-18T17:40:00+09:00");
+    const now = new Date("2026-10-18T18:45:00+09:00");
+
+    const anchored = routeForGroup(items, now, since);
+    expect(anchored.simulated).toBe(false);
+    expect(anchored.phase).toBe("finished");
+    expect(anchored.nowLabel).toBe("Finished for the day at Ameyoko");
+
+    // Without a diversion running, the same moment plans the day ahead of time.
+    expect(routeForGroup(items, now).simulated).toBe(true);
+  });
+
+  it("plans around today with a stand-in clock once the day is over", () => {
+    const route = routeForGroup(SEED_ITEMS, new Date("2026-10-18T11:00:00Z"));
+
+    expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["item-sensoji", "item-tsukiji"]);
     expect(route.demo).toBe(false);
     expect(route.simulated).toBe(true);
     expect(route.atStop).toBe(0);
-    expect(route.nowLabel).toBe("At Senso-ji early morning");
+    expect(route.nowLabel).toBe("At Senso-ji");
     expect(route.offset).toBe("+09:00");
   });
 
@@ -129,39 +247,117 @@ describe("group route", () => {
     expect(route.waypoints[1].mode).toBe("transit");
   });
 
-  it("places the group between stops on a live day", () => {
+  it("uses the sample walk when the trip has nothing placed and timed, and never treats it as live", () => {
+    const route = routeForGroup([], new Date("2026-10-18T10:20:00+09:00"));
+
+    expect(route.demo).toBe(true);
+    expect(route.simulated).toBe(true);
+    expect(route.waypoints).toHaveLength(4);
+    expect(route.waypoints.slice(1).every((waypoint) => waypoint.mode === "walk")).toBe(true);
+  });
+});
+
+describe("group route: where the group is", () => {
+  it("places the group between stops while it is actually travelling", () => {
     const route = buildRoute(DEMO_STOPS, new Date("2026-10-18T10:20:00+09:00"))!;
 
     expect(route.simulated).toBe(false);
+    expect(route.phase).toBe("on-the-way");
     expect(route.atStop).toBeUndefined();
     expect(route.nextStop).toBe(1);
     expect(route.progress).toBeGreaterThan(0.2);
     expect(route.progress).toBeLessThan(0.5);
     expect(route.nowLabel).toBe("On the way to Kappabashi Kitchen Town");
-    expect(distanceM(route.position, DEMO_STOPS[0].point)).toBeGreaterThan(100);
-    expect(distanceM(route.position, DEMO_STOPS[1].point)).toBeGreaterThan(100);
+    expect(anchorName(route)).toBeUndefined();
   });
 
-  it("arrives late rather than teleporting when the schedule is tighter than the walk", () => {
+  it("is not live before the first stop, so the group is never 'already there' early", () => {
+    const route = buildRoute(DEMO_STOPS, new Date("2026-10-18T08:45:00+09:00"))!;
+
+    expect(route.simulated).toBe(true);
+    expect(route.phase).toBe("at-stop");
+    expect(route.atStop).toBe(0);
+  });
+
+  it("gives a free afternoon as free time near the next stop, not a four-hour walk", () => {
+    const stops: RouteStop[] = [
+      { id: "lunch", name: "Lunch", point: SOUTH, startsAt: "2026-10-18T11:00:00+09:00", endsAt: "2026-10-18T12:00:00+09:00" },
+      { id: "museum", name: "Museum", point: NORTH, startsAt: "2026-10-18T16:00:00+09:00", endsAt: "2026-10-18T17:00:00+09:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-10-18T13:00:00+09:00"))!;
+
+    expect(route.phase).toBe("free-time");
+    expect(route.position).toEqual(NORTH);
+    expect(route.nowLabel).toBe("Free time before Museum");
+    expect(anchorName(route)).toBe("Museum");
+
+    // The only honest meeting is at the museum when it starts; nobody is walking the street for hours.
+    const [catchUp] = planRejoin(route, spot({ point: { lat: 35.708, lng: 139.781 } }), 20);
+    expect(catchUp.meetingPointName).toBe("Museum");
+    expect(catchUp.groupETA).toBe(180);
+  });
+
+  it("does not let an assumed hour at a stop push the next stop past its filed start", () => {
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: DEMO_STOPS[0].point, startsAt: "2026-10-18T09:00:00+09:00" },
+      { id: "b", name: "B", point: DEMO_STOPS[1].point, startsAt: "2026-10-18T09:30:00+09:00" },
+      { id: "c", name: "C", point: DEMO_STOPS[2].point, startsAt: "2026-10-18T13:00:00+09:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-09-01T00:00:00Z"))!;
+    const [a, b] = route.waypoints;
+    const clockAt = (minutes: number) => route.clock.getTime() + minutes * 60_000;
+
+    expect(clockAt(b.arriveMin)).toBe(Date.parse("2026-10-18T09:30:00+09:00"));
+    expect(Math.round(b.arriveMin - a.departMin)).toBe(b.travelMin);
+    // With room to spare, the assumed hour stands.
+    expect(Math.round(b.departMin - b.arriveMin)).toBe(60);
+  });
+
+  it("reads an end before the start as a typo and assumes the usual stay", () => {
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: SOUTH, startsAt: "2026-10-18T10:00:00+09:00", endsAt: "2026-10-18T09:00:00+09:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-10-18T10:00:30+09:00"))!;
+
+    expect(Math.round(route.waypoints[0].departMin - route.waypoints[0].arriveMin)).toBe(60);
+    expect(route.nowLabel).toBe("At A, the last stop of the day");
+  });
+
+  it("arrives late rather than teleporting when the schedule is tighter than the trip", () => {
     const stops: RouteStop[] = [
       { id: "a", name: "Senso-ji", point: { lat: 35.7148, lng: 139.7967 }, startsAt: "2026-10-18T10:00:00+09:00", endsAt: "2026-10-18T10:10:00+09:00" },
       { id: "b", name: "Ueno Park", point: { lat: 35.7146, lng: 139.773 }, startsAt: "2026-10-18T10:12:00+09:00" },
     ];
     const route = buildRoute(stops, new Date("2026-09-01T00:00:00Z"))!;
 
-    // The stand-in clock sits at the first stop's departure, so a scheduled
-    // 10:12 arrival would be two minutes out; the walk takes far longer.
     expect(route.waypoints[1].arriveMin).toBeGreaterThan(10);
     expect(route.waypoints[1].departMin - route.waypoints[1].arriveMin).toBe(60);
   });
+});
 
-  it("uses the sample walk when the trip has nothing placed and timed", () => {
-    const items: TripItem[] = [];
-    const route = routeForGroup(items, new Date("2026-09-20T11:00:00Z"));
+describe("group route: telling the time", () => {
+  it("reads stops filed without an offset the way the timeline does, in any zone", () => {
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: SOUTH, startsAt: "2026-10-18T09:00:00", endsAt: "2026-10-18T10:00:00" },
+      { id: "b", name: "B", point: NORTH, startsAt: "2026-10-18T11:00:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-09-01T00:00:00Z"))!;
 
-    expect(route.demo).toBe(true);
-    expect(route.waypoints).toHaveLength(4);
-    expect(route.waypoints.slice(1).every((waypoint) => waypoint.mode === "walk")).toBe(true);
+    expect(route.offset).toBe("");
+    expect(wallClock(route.clock, route.offset, route.waypoints[0].arriveMin)).toBe(formatTime(stops[0].startsAt));
+    expect(wallClock(route.clock, route.waypoints[1].offset, route.waypoints[1].arriveMin)).toBe(formatTime(stops[1].startsAt));
+  });
+
+  it("keeps each stop's own offset when a day crosses one", () => {
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: SOUTH, startsAt: "2026-10-18T09:00:00+05:30", endsAt: "2026-10-18T10:00:00+05:30" },
+      { id: "b", name: "B", point: NORTH, startsAt: "2026-10-18T15:00:00+05:45" },
+    ];
+    const route = buildRoute(stops, new Date("2026-09-01T00:00:00Z"))!;
+    const [a, b] = route.waypoints;
+
+    expect(wallClock(route.clock, a.offset, a.arriveMin)).toBe("09:00");
+    expect(wallClock(route.clock, b.offset, b.arriveMin)).toBe("15:00");
   });
 });
 
@@ -195,7 +391,6 @@ describe("rejoin planning", () => {
 
     expect(detour.location).toEqual(FUGLEN.point);
     expect(detour.meetingPointName).toBe("Fuglen Asakusa");
-    // The group finishes at Senso-ji first, then walks over.
     expect(detour.groupETA).toBeGreaterThan(route.waypoints[0].departMin);
     expect(detour.userETA).toBeLessThan(detour.groupETA);
     expect(detour.feasible).toBe(true);
@@ -211,18 +406,17 @@ describe("rejoin planning", () => {
     expect(catchUp.feasible).toBe(false);
     expect(catchUp.meetingPointName).toBe("Ameyoko");
     expect(catchUp.note).toContain("after the group moves on");
+    expect(catchUp.groupLeaveMin).toBeGreaterThan(0);
+    expect(catchUp.userETA).toBeGreaterThan(catchUp.groupLeaveMin!);
   });
 
   it("intercepts on the street when that is quicker than the next stop", () => {
-    // A straight walking leg north; the spot sits on it, ahead of the group.
-    const a = { lat: 35.7, lng: 139.78 };
-    const b = { lat: 35.71033, lng: 139.78 };
     const stops: RouteStop[] = [
-      { id: "a", name: "A", point: a, startsAt: "2026-10-18T10:00:00+09:00", endsAt: "2026-10-18T10:10:00+09:00" },
-      { id: "b", name: "B", point: b, startsAt: "2026-10-18T10:31:00+09:00", endsAt: "2026-10-18T11:30:00+09:00" },
+      { id: "a", name: "A", point: SOUTH, startsAt: "2026-10-18T10:00:00+09:00", endsAt: "2026-10-18T10:10:00+09:00" },
+      { id: "b", name: "B", point: NORTH, startsAt: "2026-10-18T10:31:00+09:00", endsAt: "2026-10-18T11:30:00+09:00" },
     ];
     const route = buildRoute(stops, new Date("2026-10-18T10:11:00+09:00"))!;
-    expect(route.atStop).toBeUndefined();
+    expect(route.phase).toBe("on-the-way");
 
     const onTheWay: DivertSpot = { id: "kiosk", name: "Kiosk", category: "coffee", point: { lat: 35.7062, lng: 139.78 } };
     const [catchUp] = planRejoin(route, onTheWay, 0);
@@ -230,21 +424,182 @@ describe("rejoin planning", () => {
     expect(catchUp.feasible).toBe(true);
     expect(catchUp.meetingPointName).toBe("On the way to B");
     expect(catchUp.location.lat).toBeGreaterThan(onTheWay.point.lat);
-    expect(catchUp.location.lat).toBeLessThan(b.lat);
+    expect(catchUp.location.lat).toBeLessThan(NORTH.lat);
     expect(Math.max(catchUp.userETA, catchUp.groupETA)).toBeLessThan(route.waypoints[1].arriveMin);
   });
 
-  it("builds a plan from a stored session", () => {
-    const plan = buildPlan(atSensoji(), {
-      tripId: "t1",
-      interestIds: ["photo", "coffee"],
-      spot: FUGLEN,
-      startedAt: "2026-10-18T00:20:00Z",
-    });
+  it("never offers a street meeting the group has already walked past", () => {
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: SOUTH, startsAt: "2026-10-18T10:00:00+09:00", endsAt: "2026-10-18T10:10:00+09:00" },
+      { id: "b", name: "B", point: NORTH, startsAt: "2026-10-18T10:31:00+09:00", endsAt: "2026-10-18T11:30:00+09:00" },
+    ];
+    // Most of the way up the street; a spot right beside the start.
+    const route = buildRoute(stops, new Date("2026-10-18T10:21:00+09:00"))!;
+    expect(route.progress).toBeGreaterThan(0.5);
+    const [catchUp] = planRejoin(route, spot({ point: SOUTH }), 0);
 
-    expect(plan.dwellMinutes).toBe(35);
-    expect(plan.interests.map((interest) => interest.id)).toEqual(["coffee", "photo"]);
-    expect(plan.options.map((option) => option.type)).toEqual(["CATCH_UP", "GROUP_DETOUR"]);
+    // Whatever it picks, it is ahead of the group, never behind it.
+    expect(catchUp.location.lat).toBeGreaterThanOrEqual(route.position.lat);
+  });
+
+  it("names the group's leg by how most of it is travelled", () => {
+    // A short walk, a long hop across town, then a short walk.
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: { lat: 35.7148, lng: 139.7967 }, startsAt: "2026-10-18T09:00:00+09:00", endsAt: "2026-10-18T09:30:00+09:00" },
+      { id: "b", name: "B", point: { lat: 35.7135, lng: 139.788 }, startsAt: "2026-10-18T09:50:00+09:00", endsAt: "2026-10-18T10:00:00+09:00" },
+      { id: "c", name: "C", point: { lat: 35.658, lng: 139.7016 }, startsAt: "2026-10-18T11:00:00+09:00", endsAt: "2026-10-18T11:10:00+09:00" },
+      { id: "d", name: "D", point: { lat: 35.6595, lng: 139.7005 }, startsAt: "2026-10-18T11:20:00+09:00", endsAt: "2026-10-18T13:00:00+09:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-10-18T09:10:00+09:00"))!;
+    const [catchUp] = planRejoin(route, spot({ point: { lat: 35.6598, lng: 139.7019 } }), 90);
+
+    expect(catchUp.meetingPointName).toBe("D");
+    expect(catchUp.groupMode).toBe("transit");
+  });
+
+  it("reports no cost to the group's day when the next stop is hours off anyway", () => {
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: SOUTH, startsAt: "2026-10-18T09:00:00+09:00", endsAt: "2026-10-18T10:00:00+09:00" },
+      { id: "b", name: "B", point: NORTH, startsAt: "2026-10-18T14:00:00+09:00", endsAt: "2026-10-18T15:00:00+09:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-10-18T09:30:00+09:00"))!;
+    const [, detour] = planRejoin(route, spot({ point: { lat: 35.705, lng: 139.781 } }), 20);
+
+    expect(detour.detourMinutes).toBe(0);
+    expect(detour.feasible).toBe(true);
+    expect(detour.note).toContain("No cost to the day");
+  });
+
+  it("says the group would miss its next stop when the detour runs past its end", () => {
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: SOUTH, startsAt: "2026-10-18T10:00:00+09:00", endsAt: "2026-10-18T10:10:00+09:00" },
+      { id: "b", name: "B", point: NORTH, startsAt: "2026-10-18T10:31:00+09:00", endsAt: "2026-10-18T10:40:00+09:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-10-18T10:15:00+09:00"))!;
+    const [, detour] = planRejoin(route, spot({ point: { lat: 35.7, lng: 139.795 } }), 30);
+
+    expect(detour.feasible).toBe(false);
+    expect(detour.note).toContain("altogether");
+    // Mid-leg the group turns now, so its time there is just the trip.
+    expect(detour.groupETA).toBeGreaterThan(0);
+  });
+
+  it("charges nothing to the group's plan when there is nothing left after the last stop", () => {
+    const route = buildRoute(DEMO_STOPS, new Date("2026-10-18T13:00:00+09:00"))!;
+    const [, detour] = planRejoin(route, spot({ point: { lat: 35.7118, lng: 139.7762 } }), 20);
+
+    expect(route.nowLabel).toContain("the last stop of the day");
+    expect(detour.detourMinutes).toBe(0);
+    expect(detour.note).toContain("Nothing left on the group's day");
+  });
+
+  it("says the day is over rather than pointing at a stop the group has left", () => {
+    const route = buildRoute(DEMO_STOPS, new Date("2026-10-18T13:45:00+09:00"))!;
+    const [catchUp, detour] = planRejoin(route, FUGLEN, 20);
+
+    expect(route.phase).toBe("finished");
+    expect(catchUp.feasible).toBe(false);
+    expect(catchUp.note).toContain("day is over");
+    expect(detour.detourMinutes).toBe(0);
+  });
+
+  it("writes notes from the same rounded numbers the card shows", () => {
+    // A live clock with seconds in it makes every group time fractional.
+    const route = buildRoute(DEMO_STOPS, new Date("2026-10-18T10:16:27.123+09:00"))!;
+    for (const candidate of [FUGLEN, spot({ point: { lat: 35.7132, lng: 139.7872 } }), spot({ point: DEMO_STOPS[2].point })]) {
+      const [catchUp, detour] = planRejoin(route, candidate, 15);
+
+      if (catchUp.feasible) expect(catchUp.waitMinutes).toBe(Math.max(0, catchUp.groupETA - catchUp.userETA));
+      if (catchUp.note.includes("before the group arrives")) expect(catchUp.waitMinutes).toBeGreaterThan(0);
+      if (detour.note.includes("later than planned")) expect(detour.detourMinutes).toBeGreaterThan(0);
+      if (detour.note.includes("spare after")) expect(detour.waitMinutes).toBeGreaterThan(0);
+      for (const option of [catchUp, detour]) {
+        expect(Number.isInteger(option.userETA)).toBe(true);
+        expect(Number.isInteger(option.groupETA)).toBe(true);
+      }
+    }
+  });
+});
+
+describe("a diversion under way", () => {
+  const session = (patch: Partial<DivertSession> = {}): DivertSession => ({
+    tripId: "t1",
+    interestIds: ["coffee"],
+    spot: FUGLEN,
+    startedAt: "2026-10-18T09:30:00+09:00",
+    from: DEMO_STOPS[0].point,
+    ...patch,
+  });
+  const liveAt = (time: string) => buildRoute(DEMO_STOPS, new Date(`2026-10-18T${time}:00+09:00`))!;
+
+  it("counts the ETA down as time passes instead of re-planning from scratch", () => {
+    const early = buildPlan(liveAt("09:30"), session());
+    const later = buildPlan(liveAt("09:50"), session());
+    const [catchUpEarly] = early.options;
+    const [catchUpLater, detourLater] = later.options;
+
+    expect(catchUpEarly.meetingPointName).toBe("Senso-ji");
+    expect(catchUpLater.meetingPointName).toBe("Senso-ji");
+    expect(catchUpLater.feasible).toBe(true);
+    expect(catchUpEarly.userETA - catchUpLater.userETA).toBe(20);
+    // The same meeting, whenever you look.
+    expect(wallClock(later.route.clock, later.route.offset, catchUpLater.userETA)).toBe(
+      wallClock(early.route.clock, early.route.offset, catchUpEarly.userETA),
+    );
+    // Twenty minutes in, they are already at the café.
+    expect(detourLater.userETA).toBe(0);
+    expect(detourLater.userDistanceM).toBe(0);
+  });
+
+  it("counts nothing as elapsed on a simulated clock", () => {
+    const route = buildRoute(DEMO_STOPS, new Date("2026-09-01T00:00:00Z"))!;
+    expect(route.simulated).toBe(true);
+    expect(progressOf(route, session()).elapsedMin).toBe(0);
+  });
+
+  it("starts the walk to a new spot from wherever the traveller is now", () => {
+    const route = liveAt("10:00");
+    const patch = respot(route, session(), spot({ id: "turret", name: "Turret Coffee" }));
+
+    // Thirty minutes in, they had long since reached the first café.
+    expect(patch.from).toEqual(FUGLEN.point);
+    expect(patch.fromAt).toBe(route.clock.toISOString());
+    expect(patch.chosen).toBeUndefined();
+
+    const moved = session({ ...patch, spot: patch.spot });
+    expect(progressOf(route, moved).elapsedMin).toBe(0);
+  });
+
+  it("puts a traveller who is still walking out partway along", () => {
+    const where = travellerPosition(liveAt("09:33"), session({ spot: spot({ point: DEMO_STOPS[2].point }) }));
+
+    expect(where.lng).toBeLessThan(DEMO_STOPS[0].point.lng);
+    expect(where.lng).toBeGreaterThan(DEMO_STOPS[2].point.lng);
+  });
+});
+
+describe("leading with an option", () => {
+  const option = (patch: Partial<RejoinOption>): RejoinOption => ({
+    type: "CATCH_UP",
+    location: SOUTH,
+    meetingPointName: "Somewhere",
+    userETA: 30,
+    groupETA: 20,
+    userDistanceM: 500,
+    groupDistanceM: 0,
+    waitMinutes: 0,
+    detourMinutes: 0,
+    feasible: true,
+    note: "",
+    userMode: "walk",
+    groupMode: "walk",
+    ...patch,
+  });
+
+  it("prefers one that works, then the soonest, then the catch-up", () => {
+    expect(quickestRejoin([option({ feasible: false }), option({ type: "GROUP_DETOUR" })]).type).toBe("GROUP_DETOUR");
+    expect(quickestRejoin([option({ userETA: 50 }), option({ type: "GROUP_DETOUR", userETA: 5, groupETA: 25 })]).type).toBe("GROUP_DETOUR");
+    expect(quickestRejoin([option({}), option({ type: "GROUP_DETOUR" })]).type).toBe("CATCH_UP");
   });
 });
 
@@ -260,6 +615,10 @@ describe("divert state", () => {
       endDate: "2026-10-22",
       travelers: [{ name: "Sehej" }, { name: "Aanya" }],
     });
+  }
+
+  function travelers(tripId: string) {
+    return getSnapshot().trips.find((entry) => entry.id === tripId)!.travelers;
   }
 
   beforeEach(() => {
@@ -292,19 +651,29 @@ describe("divert state", () => {
     chooseRejoin("GROUP_DETOUR");
     expect(activeDivert(getSnapshot(), japan, NOW)?.chosen).toBe("GROUP_DETOUR");
 
-    updateDivert({ spot: spot({ id: "turret", name: "Turret Coffee" }), chosen: undefined });
+    updateDivert({ spot: spot({ id: "turret", name: "Turret Coffee" }), chosen: undefined }, NOW);
     const session = activeDivert(getSnapshot(), japan, NOW);
     expect(session?.spot.name).toBe("Turret Coffee");
     expect(session?.chosen).toBeUndefined();
   });
 
-  it("expires a diversion left running overnight", () => {
+  it("names whoever broke off, and nobody once they are gone", () => {
+    const japan = trip("Japan");
+    const [sehej] = travelers(japan);
+    expect(divertedName(travelers(japan), { travelerId: sehej.id })).toBe("Sehej");
+    expect(divertedName(travelers(japan), { travelerId: "someone-else" })).toBeUndefined();
+  });
+
+  it("expires a diversion left running overnight, and will not revive it", () => {
     const japan = trip("Japan");
     const lastNight = new Date(NOW.getTime() - DIVERT_EXPIRES_MS - 60_000);
     startDivert({ tripId: japan, interestIds: ["coffee"], spot: spot() }, lastNight);
 
     expect(activeDivert(getSnapshot(), japan, NOW)).toBeUndefined();
     expect(groupStatus(getSnapshot(), japan, NOW)).toBe("IN_GROUP");
+
+    updateDivert({ chosen: "CATCH_UP" }, NOW);
+    expect(getSnapshot().divert?.chosen).toBeUndefined();
   });
 
   it("deleting the trip ends its diversion", () => {
@@ -315,23 +684,85 @@ describe("divert state", () => {
     expect(getSnapshot().divert).toBeUndefined();
   });
 
-  it("reads a session with no usable spot as no session", () => {
-    const broken = {
-      divert: {
-        tripId: "t1",
-        interestIds: [],
-        spot: undefined as unknown as DivertSpot,
-        startedAt: NOW.toISOString(),
-      },
-    };
+  it("keeps the diversion when someone else leaves and a group remains", () => {
+    const japan = trip("Japan");
+    const [sehej, aanya] = travelers(japan);
+    addTraveler(japan, { name: "Ria", passportCountry: "IN", passportExpiry: "" });
 
-    expect(activeDivert(broken, "t1", NOW)).toBeUndefined();
+    startDivert({ tripId: japan, travelerId: sehej.id, interestIds: ["coffee"], spot: spot() }, NOW);
+    removeTraveler(japan, aanya.id);
+
+    expect(getSnapshot().divert?.travelerId).toBe(sehej.id);
+  });
+
+  it("ends the diversion when the person who broke off leaves the trip", () => {
+    const japan = trip("Japan");
+    const [sehej] = travelers(japan);
+    addTraveler(japan, { name: "Ria", passportCountry: "IN", passportExpiry: "" });
+
+    startDivert({ tripId: japan, travelerId: sehej.id, interestIds: ["coffee"], spot: spot() }, NOW);
+    removeTraveler(japan, sehej.id);
+
+    expect(getSnapshot().divert).toBeUndefined();
+  });
+
+  it("ends the diversion when the group drops to one", () => {
+    const japan = trip("Japan");
+    const [sehej, aanya] = travelers(japan);
+
+    startDivert({ tripId: japan, travelerId: sehej.id, interestIds: ["coffee"], spot: spot() }, NOW);
+    removeTraveler(japan, aanya.id);
+
+    expect(getSnapshot().divert).toBeUndefined();
+  });
+
+  it("loading the sample keeps a diversion and every trip's paid-for advice", () => {
+    const japan = trip("Japan");
+    const advice: AdviceResult = { destination: "Tokyo", sections: [], tiersUsed: [], generatedAt: NOW.toISOString() };
+    cacheAdvice(japan, "tokyo|food", advice);
+    startDivert({ tripId: japan, interestIds: ["coffee"], spot: spot() }, NOW);
+
+    loadSampleTrip();
+
+    expect(getSnapshot().divert?.tripId).toBe(japan);
+    expect(cachedAdvice(getSnapshot(), japan, "tokyo|food")).toEqual(advice);
+  });
+
+  it("keeps a diversion through a merge restore, drops it on replace, and never writes one out", () => {
+    const japan = trip("Japan");
+    startDivert({ tripId: japan, interestIds: ["coffee"], spot: spot() }, NOW);
+
+    const backup = buildBackup();
+    expect("divert" in backup.state).toBe(false);
+
+    const parsed = parseBackup(JSON.stringify(backup));
+    if ("error" in parsed) throw new Error(parsed.error);
+
+    restore(parsed, "merge");
+    expect(getSnapshot().divert?.tripId).toBe(japan);
+
+    restore(parsed, "replace");
+    expect(getSnapshot().divert).toBeUndefined();
+  });
+
+  it("reads a session of the wrong shape as no session", () => {
+    const good: DivertSession = { tripId: "t1", interestIds: ["coffee"], spot: FUGLEN, startedAt: NOW.toISOString() };
+
+    expect(isDivertSession(good)).toBe(true);
+    expect(isDivertSession({ ...good, interestIds: { 0: "coffee" } })).toBe(false);
+    expect(isDivertSession({ ...good, interestIds: "coffee" })).toBe(false);
+    expect(isDivertSession({ ...good, spot: { ...FUGLEN, point: { lat: "35", lng: 139 } } })).toBe(false);
+    expect(isDivertSession({ ...good, spot: undefined })).toBe(false);
+    expect(isDivertSession({ ...good, startedAt: "yesterday-ish" })).toBe(false);
+    expect(isDivertSession({ ...good, chosen: "TELEPORT" })).toBe(false);
+    expect(isDivertSession({ ...good, from: { lat: Number.NaN, lng: 1 } })).toBe(false);
+    expect(activeDivert({ divert: { ...good, interestIds: 42 } as unknown as DivertSession }, "t1", NOW)).toBeUndefined();
   });
 });
 
 describe("divert formatting", () => {
   it("rounds distances the way a person would say them", () => {
-    expect(formatDistance(10)).toBe("here");
+    expect(formatDistance(NEAR_ENOUGH_M - 1)).toBe("here");
     expect(formatDistance(654)).toBe("650 m");
     expect(formatDistance(1234)).toBe("1.2 km");
     expect(formatDistance(12_000)).toBe("12 km");
@@ -346,10 +777,15 @@ describe("divert formatting", () => {
     expect(formatEta(0)).toBe("now");
   });
 
-  it("tells the time in the route's own offset", () => {
+  it("tells the time in the route's own offset, or the device's when it has none", () => {
     const clock = new Date("2026-10-18T01:20:00Z");
     expect(wallClock(clock, "+09:00", 10)).toBe("10:30");
     expect(wallClock(clock, "-05:00", 10)).toBe("20:30");
+    expect(wallClock(clock, "+05:45")).toBe("07:05");
     expect(wallClock(clock, "+00:00")).toBe("01:20");
+
+    const local = new Date(clock.getTime() + 10 * 60_000);
+    const pad = (value: number) => String(value).padStart(2, "0");
+    expect(wallClock(clock, "", 10)).toBe(`${pad(local.getHours())}:${pad(local.getMinutes())}`);
   });
 });

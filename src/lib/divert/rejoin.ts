@@ -1,5 +1,6 @@
 import type { GeoPoint } from "../domain/types";
-import { estimateTravel, type TravelEstimate, type TravelMode } from "../geo";
+import { estimateTravel, type TravelMode } from "../geo";
+import { formatMinutes } from "./format";
 import { distanceM, lerp } from "./geometry";
 import { dwellFor, interestsFor } from "./interests";
 import type {
@@ -15,20 +16,77 @@ const LEG_SAMPLES = [0.25, 0.5, 0.75];
 /** A group will slow down this much for someone waving at them from a side street. */
 const INTERCEPT_SLACK_MIN = 3;
 
+/** How far into their own diversion the solo traveller is. */
+export interface TravellerProgress {
+  /** Minutes since they set off toward the spot. */
+  elapsedMin: number;
+  /** Where they set off from; the group's position when not given. */
+  origin?: GeoPoint;
+}
+
+interface Traveller {
+  /** Minutes until they are done at the spot and free to move. */
+  readyMin: number;
+  /** What is left of the trip out to the spot. */
+  toSpotMin: number;
+  toSpotM: number;
+  toSpotMode: TravelMode;
+}
+
 /**
- * The two ways back together, given where the group is going and how long
- * the solo traveller wants at their spot. Pure over its inputs, so the same
- * question always gets the same answer and the whole thing is testable.
+ * Where the traveller stands in their diversion: still heading out, at the
+ * spot with some of their time left, or done. Time already spent comes off
+ * the walk first and then off the stay, so an ETA left on screen counts down.
+ */
+function travellerAt(
+  route: GroupRoute,
+  spot: DivertSpot,
+  dwellMinutes: number,
+  progress: TravellerProgress,
+): Traveller {
+  const origin = progress.origin ?? route.position;
+  const walk = estimateTravel(origin, spot.point);
+  const elapsed = Math.max(0, progress.elapsedMin);
+
+  const walkLeft = Math.max(0, walk.minutes - elapsed);
+  const stayLeft = Math.max(0, dwellMinutes - Math.max(0, elapsed - walk.minutes));
+
+  return {
+    readyMin: walkLeft + stayLeft,
+    toSpotMin: walkLeft,
+    toSpotM: Math.round(distanceM(origin, spot.point) * (walkLeft / walk.minutes)),
+    toSpotMode: walk.mode,
+  };
+}
+
+/**
+ * The two ways back together, given where the group is going, how long the
+ * solo traveller wants at their spot, and how far into that they already
+ * are. Pure over its inputs, so the same question always gets the same
+ * answer and the whole thing is testable.
  */
 export function planRejoin(
   route: GroupRoute,
   spot: DivertSpot,
   dwellMinutes: number,
+  progress: TravellerProgress = { elapsedMin: 0 },
 ): RejoinOption[] {
-  const toSpot = estimateTravel(route.position, spot.point);
-  const readyMin = toSpot.minutes + dwellMinutes;
+  const traveller = travellerAt(route, spot, dwellMinutes, progress);
+  return [catchUp(route, spot, traveller.readyMin), groupDetour(route, spot, traveller)];
+}
 
-  return [catchUp(route, spot, readyMin), groupDetour(route, spot, toSpot, readyMin)];
+/**
+ * How far into the diversion the traveller is, by the route's clock. A
+ * simulated clock is not now, so nothing has elapsed on it.
+ */
+export function progressOf(route: GroupRoute, session: DivertSession): TravellerProgress {
+  const setOff = Date.parse(session.fromAt ?? session.startedAt);
+  const elapsedMin =
+    route.simulated || Number.isNaN(setOff)
+      ? 0
+      : Math.max(0, (route.clock.getTime() - setOff) / 60_000);
+
+  return { elapsedMin, origin: session.from };
 }
 
 /** A plan from a stored session, for the screens. */
@@ -41,8 +99,68 @@ export function buildPlan(route: GroupRoute, session: DivertSession): DivertPlan
     interests,
     dwellMinutes,
     route,
-    options: planRejoin(route, session.spot, dwellMinutes),
+    options: planRejoin(route, session.spot, dwellMinutes, progressOf(route, session)),
   };
+}
+
+/** Where the traveller probably is now: partway out, or at the spot. */
+export function travellerPosition(route: GroupRoute, session: DivertSession): GeoPoint {
+  const { elapsedMin, origin } = progressOf(route, session);
+  const from = origin ?? route.position;
+  const walk = estimateTravel(from, session.spot.point).minutes;
+
+  return elapsedMin >= walk ? session.spot.point : lerp(from, session.spot.point, elapsedMin / walk);
+}
+
+/**
+ * Changing spot mid-diversion. The new walk starts from wherever the
+ * traveller is now, and the rendezvous they had picked no longer applies.
+ */
+export function respot(
+  route: GroupRoute,
+  session: DivertSession,
+  spot: DivertSpot,
+): Pick<DivertSession, "spot" | "from" | "fromAt" | "chosen"> {
+  return {
+    spot,
+    from: travellerPosition(route, session),
+    fromAt: route.simulated ? session.fromAt : route.clock.toISOString(),
+    chosen: undefined,
+  };
+}
+
+/**
+ * The option to lead with when none has been picked: one that works, then
+ * whichever gets everyone together soonest, then the catch-up, which costs
+ * the group nothing.
+ */
+export function quickestRejoin(options: RejoinOption[]): RejoinOption {
+  const together = (option: RejoinOption) => Math.max(option.userETA, option.groupETA);
+  return [...options].sort(
+    (a, b) =>
+      Number(b.feasible) - Number(a.feasible) ||
+      together(a) - together(b) ||
+      (a.type === "CATCH_UP" ? -1 : 1),
+  )[0];
+}
+
+type ModeTally = Partial<Record<TravelMode, number>>;
+
+function tally(counts: ModeTally, mode: TravelMode, metres: number): ModeTally {
+  return { ...counts, [mode]: (counts[mode] ?? 0) + metres };
+}
+
+/** The mode most of a multi-leg distance is covered by. */
+function dominantMode(counts: ModeTally): TravelMode {
+  let best: TravelMode = "walk";
+  let most = 0;
+  for (const [mode, metres] of Object.entries(counts) as [TravelMode, number][]) {
+    if (metres > most) {
+      best = mode;
+      most = metres;
+    }
+  }
+  return best;
 }
 
 interface Candidate {
@@ -65,7 +183,8 @@ interface Candidate {
  * The earliest point on what is left of the group's day that the solo
  * traveller can reach before the group has moved on. Stops are tried first
  * since they have names and the group lingers there; walking legs are also
- * sampled, because cutting across to meet them mid-street is often quicker.
+ * sampled over the time the group is actually on them, because cutting
+ * across to meet them mid-street is often quicker.
  */
 function catchUp(route: GroupRoute, spot: DivertSpot, readyMin: number): RejoinOption {
   const { waypoints } = route;
@@ -74,18 +193,23 @@ function catchUp(route: GroupRoute, spot: DivertSpot, readyMin: number): RejoinO
   const firstAhead = route.atStop ?? route.nextStop;
   const legStart = route.atStop ?? Math.max(0, route.nextStop - 1);
 
-  // Distance along the route from the group's position to each stop, so the
-  // group's share of a meeting is measured the way it will walk it.
+  // Distance along the route from the group to each stop, and by which modes
+  // it is covered, so the group's share of a meeting reads the way it travels.
   const along = new Map<number, number>();
-  if (route.atStop !== undefined) {
-    along.set(route.atStop, 0);
-  } else if (legStart < waypoints.length) {
-    const legLength =
-      waypoints[legStart + 1] ? distanceM(waypoints[legStart].point, waypoints[legStart + 1].point) : 0;
-    along.set(legStart, -route.progress * legLength);
+  const modes = new Map<number, ModeTally>();
+  const nextLeg = waypoints[legStart + 1];
+  if (route.atStop !== undefined || !nextLeg) {
+    along.set(legStart, 0);
+    modes.set(legStart, {});
+  } else {
+    const covered = route.progress * distanceM(waypoints[legStart].point, nextLeg.point);
+    along.set(legStart, -covered);
+    modes.set(legStart, { [nextLeg.mode]: -covered });
   }
   for (let i = legStart; i < waypoints.length - 1; i++) {
-    along.set(i + 1, (along.get(i) ?? 0) + distanceM(waypoints[i].point, waypoints[i + 1].point));
+    const metres = distanceM(waypoints[i].point, waypoints[i + 1].point);
+    along.set(i + 1, along.get(i)! + metres);
+    modes.set(i + 1, tally(modes.get(i)!, waypoints[i + 1].mode, metres));
   }
 
   for (let i = legStart; i < waypoints.length; i++) {
@@ -99,19 +223,16 @@ function catchUp(route: GroupRoute, spot: DivertSpot, readyMin: number): RejoinO
         groupArrive: Math.max(0, stop.arriveMin),
         groupLeave: stop.departMin,
         groupDistanceM: Math.max(0, along.get(i) ?? 0),
-        groupMode: i === route.atStop ? "walk" : stop.mode,
+        groupMode: dominantMode(modes.get(i) ?? {}),
         userArrive: readyMin + walk.minutes,
-        userDistanceM: Math.round(walk.distanceKm * 1000),
+        userDistanceM: distanceM(spot.point, stop.point),
         userMode: walk.mode,
         atStop: true,
       });
     }
 
     const next = waypoints[i + 1];
-    if (!next || next.mode !== "walk") continue;
-
-    const legMin = next.arriveMin - stop.departMin;
-    if (legMin <= 0) continue;
+    if (!next || next.mode !== "walk" || next.travelMin <= 0) continue;
 
     const legLength = distanceM(stop.point, next.point);
     const passed = i === legStart && route.atStop === undefined ? route.progress : 0;
@@ -120,7 +241,7 @@ function catchUp(route: GroupRoute, spot: DivertSpot, readyMin: number): RejoinO
       if (fraction <= passed) continue;
 
       const point = lerp(stop.point, next.point, fraction);
-      const groupPass = stop.departMin + fraction * legMin;
+      const groupPass = stop.departMin + fraction * next.travelMin;
       const walk = estimateTravel(spot.point, point);
 
       candidates.push({
@@ -131,7 +252,7 @@ function catchUp(route: GroupRoute, spot: DivertSpot, readyMin: number): RejoinO
         groupDistanceM: Math.max(0, (along.get(i) ?? 0) + fraction * legLength),
         groupMode: "walk",
         userArrive: readyMin + walk.minutes,
-        userDistanceM: Math.round(walk.distanceKm * 1000),
+        userDistanceM: distanceM(spot.point, point),
         userMode: walk.mode,
         atStop: false,
       });
@@ -139,51 +260,71 @@ function catchUp(route: GroupRoute, spot: DivertSpot, readyMin: number): RejoinO
   }
 
   const meetAt = (candidate: Candidate) => Math.max(candidate.userArrive, candidate.groupArrive);
-  const feasible = candidates
+  const best = candidates
     .filter((candidate) => candidate.userArrive <= candidate.groupLeave)
     .sort(
       (a, b) =>
         meetAt(a) - meetAt(b) ||
         Number(b.atStop) - Number(a.atStop) ||
         a.userDistanceM - b.userDistanceM,
-    );
+    )[0];
 
-  const best = feasible[0];
   if (best) {
-    const wait = Math.max(0, best.groupArrive - best.userArrive);
+    // Round once, and write the note from the same numbers the card shows.
+    const userETA = Math.round(best.userArrive);
+    const groupETA = Math.round(best.groupArrive);
+    const wait = Math.max(0, groupETA - userETA);
+    const spare = Math.round(best.groupLeave) - userETA;
+
     const note =
       wait > 0
-        ? `You would be there ${formatWait(wait)} before the group arrives.`
-        : best.atStop
-          ? best.groupArrive <= 0
-            ? `The group is there until ${formatWait(best.groupLeave)} from now, so walk straight in.`
-            : `The group will still be there when you arrive, with ${formatWait(best.groupLeave - best.userArrive)} to spare.`
-          : "Cut across and meet them on the street rather than at the next stop.";
+        ? `You would be there ${formatMinutes(wait)} before the group arrives.`
+        : !best.atStop
+          ? "Cut across and meet them on the street rather than at the next stop."
+          : groupETA <= 0
+            ? `The group is there for another ${formatMinutes(best.groupLeave)}, so walk straight in.`
+            : spare > 0
+              ? `The group will still be there when you arrive, with ${formatMinutes(spare)} to spare.`
+              : "The group will still be there when you arrive, just.";
 
-    return toOption(best, wait, note, true);
+    return toOption(best, { userETA, groupETA, wait, feasible: true, note });
   }
 
-  // Nothing works in time. Say so against the last stop rather than staying silent.
-  const fallback = candidates.filter((candidate) => candidate.atStop).at(-1) ?? lastStopCandidate(route, spot, readyMin, along);
-  const late = fallback.userArrive - fallback.groupLeave;
+  // Nothing works in time. Say so against a stop rather than staying silent.
+  const fallback =
+    candidates.filter((candidate) => candidate.atStop).at(-1) ??
+    lastStopCandidate(route, spot, readyMin, along.get(waypoints.length - 1) ?? 0, modes.get(waypoints.length - 1) ?? {});
+  const userETA = Math.round(fallback.userArrive);
+  const late = userETA - Math.round(fallback.groupLeave);
 
-  return toOption(
-    fallback,
-    0,
-    `You would reach ${fallback.name} about ${formatWait(late)} after the group moves on. Worth a message before you set off.`,
-    false,
-  );
+  const note =
+    route.phase === "finished"
+      ? "The group's day is over, so there is no stop left to meet them at. Message them to find out where they are."
+      : late > 0
+        ? `You would reach ${fallback.name} about ${formatMinutes(late)} after the group moves on. Worth messaging them.`
+        : `You would reach ${fallback.name} just as the group moves on. Worth messaging them.`;
+
+  return {
+    ...toOption(fallback, {
+      userETA,
+      groupETA: Math.round(fallback.groupArrive),
+      wait: 0,
+      feasible: false,
+      note,
+    }),
+    groupLeaveMin: Math.round(fallback.groupLeave),
+  };
 }
 
-/** The day's final stop as a candidate, for when the group has already finished. */
+/** The day's final stop as a candidate, for when every stop is already behind the group. */
 function lastStopCandidate(
   route: GroupRoute,
   spot: DivertSpot,
   readyMin: number,
-  along: Map<number, number>,
+  alongMetres: number,
+  counts: ModeTally,
 ): Candidate {
-  const index = route.waypoints.length - 1;
-  const stop = route.waypoints[index];
+  const stop = route.waypoints[route.waypoints.length - 1];
   const walk = estimateTravel(spot.point, stop.point);
 
   return {
@@ -191,28 +332,31 @@ function lastStopCandidate(
     name: stop.name,
     groupArrive: Math.max(0, stop.arriveMin),
     groupLeave: stop.departMin,
-    groupDistanceM: Math.max(0, along.get(index) ?? 0),
-    groupMode: stop.mode,
+    groupDistanceM: Math.max(0, alongMetres),
+    groupMode: dominantMode(counts),
     userArrive: readyMin + walk.minutes,
-    userDistanceM: Math.round(walk.distanceKm * 1000),
+    userDistanceM: distanceM(spot.point, stop.point),
     userMode: walk.mode,
     atStop: true,
   };
 }
 
-function toOption(candidate: Candidate, wait: number, note: string, feasible: boolean): RejoinOption {
+function toOption(
+  candidate: Candidate,
+  shown: { userETA: number; groupETA: number; wait: number; feasible: boolean; note: string },
+): RejoinOption {
   return {
     type: "CATCH_UP",
     location: candidate.location,
     meetingPointName: candidate.name,
-    userETA: Math.round(candidate.userArrive),
-    groupETA: Math.round(candidate.groupArrive),
+    userETA: shown.userETA,
+    groupETA: shown.groupETA,
     userDistanceM: candidate.userDistanceM,
     groupDistanceM: Math.round(candidate.groupDistanceM),
-    waitMinutes: Math.round(wait),
+    waitMinutes: shown.wait,
     detourMinutes: 0,
-    feasible,
-    note,
+    feasible: shown.feasible,
+    note: shown.note,
     userMode: candidate.userMode,
     groupMode: candidate.groupMode,
   };
@@ -223,24 +367,20 @@ function toOption(candidate: Candidate, wait: number, note: string, feasible: bo
  * carrying on. The cost is measured against its next stop: how much later it
  * gets there, and whether that still leaves any of the visit.
  */
-function groupDetour(
-  route: GroupRoute,
-  spot: DivertSpot,
-  toSpot: TravelEstimate,
-  readyMin: number,
-): RejoinOption {
+function groupDetour(route: GroupRoute, spot: DivertSpot, traveller: Traveller): RejoinOption {
   const { waypoints } = route;
-  const atStop = route.atStop !== undefined ? waypoints[route.atStop] : undefined;
+  const atStop = route.phase === "at-stop" ? waypoints[route.atStop!] : undefined;
   const next = waypoints[route.nextStop];
+  const trip = estimateTravel(route.position, spot.point);
 
-  // From a stop the group leaves when it was going to; mid-leg it turns now.
+  // From a stop the group leaves when it was going to; otherwise it turns now.
   const leaveMin = atStop ? Math.max(0, atStop.departMin) : 0;
-  const groupETA = leaveMin + toSpot.minutes;
+  const groupArrive = leaveMin + trip.minutes;
 
   // Everyone moves on together once the later of the two is done.
-  const departTogether = Math.max(groupETA, readyMin);
+  const departTogether = Math.max(groupArrive, traveller.readyMin);
 
-  let detourMinutes = toSpot.minutes;
+  let detourMinutes = 0;
   let feasible = true;
   let note: string;
 
@@ -250,47 +390,43 @@ function groupDetour(
     const arriveNext = departTogether + onward;
     const plannedNext = Math.max(next.arriveMin, leaveMin + direct);
 
-    detourMinutes = Math.max(0, arriveNext - plannedNext);
+    detourMinutes = Math.max(0, Math.round(arriveNext - plannedNext));
     feasible = arriveNext <= next.departMin;
 
     note = !feasible
       ? `They would miss ${next.name} altogether, arriving after it ends.`
       : detourMinutes > 0
-        ? `They would reach ${next.name} about ${formatWait(detourMinutes)} later than planned.`
-        : `No cost to the day: ${next.name} is on the way.`;
+        ? `They would reach ${next.name} about ${formatMinutes(detourMinutes)} later than planned.`
+        : `No cost to the day: they still reach ${next.name} on time.`;
+  } else if (route.phase === "finished") {
+    note = "The group's day is over, so coming to you costs it nothing.";
   } else {
-    note = "Nothing left on the group's day, so they simply come to you.";
+    note = "Nothing left on the group's day after this, so they simply come to you.";
   }
 
-  const spare = groupETA - readyMin;
+  const userETA = Math.round(traveller.toSpotMin);
+  const groupETA = Math.round(groupArrive);
+  const spare = groupETA - Math.round(traveller.readyMin);
   const timing =
     spare > 0
-      ? ` You would have ${formatWait(spare)} spare after you are done.`
+      ? ` You would have ${formatMinutes(spare)} spare after you are done.`
       : spare < 0
-        ? ` They would arrive while you are still at it, and can join in.`
+        ? " They would arrive while you are still at it, and can join in."
         : "";
 
   return {
     type: "GROUP_DETOUR",
     location: spot.point,
     meetingPointName: spot.name,
-    userETA: Math.round(toSpot.minutes),
-    groupETA: Math.round(groupETA),
-    userDistanceM: Math.round(toSpot.distanceKm * 1000),
-    groupDistanceM: Math.round(toSpot.distanceKm * 1000),
-    waitMinutes: Math.round(Math.max(0, spare)),
-    detourMinutes: Math.round(detourMinutes),
+    userETA,
+    groupETA,
+    userDistanceM: traveller.toSpotM,
+    groupDistanceM: distanceM(route.position, spot.point),
+    waitMinutes: Math.max(0, spare),
+    detourMinutes,
     feasible,
     note: note + timing,
-    userMode: toSpot.mode,
-    groupMode: toSpot.mode,
+    userMode: traveller.toSpotMode,
+    groupMode: trip.mode,
   };
-}
-
-function formatWait(minutes: number): string {
-  const whole = Math.max(1, Math.round(minutes));
-  if (whole < 60) return `${whole} min`;
-  const hours = Math.floor(whole / 60);
-  const rest = whole % 60;
-  return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }

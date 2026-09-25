@@ -2,6 +2,7 @@ import type { ChecklistEntry, ChecklistKind, GeneratedEntry } from "../checklist
 import { generatePacking, generateTasks, purposeTasks } from "../checklists";
 import type { Trip, TripItem, TripLeg, TripPurpose, Traveler } from "../domain/types";
 import type { AdviceResult } from "../advisor/types";
+import { liveDivertSession } from "../divert/session";
 import type { DivertSession, RejoinOptionType } from "../divert/types";
 import type { ItemDraft } from "../extract/types";
 import { getCountry } from "../reference/countries";
@@ -131,7 +132,8 @@ function read(): AppState {
           items: parsed.items ?? [],
           checklist: parsed.checklist ?? [],
           advice: parsed.advice ?? [],
-          divert: parsed.divert,
+          // A malformed or expired diversion is dropped here, so the next write clears it.
+          divert: liveDivertSession(parsed.divert, new Date()),
         });
       }
     }
@@ -400,7 +402,10 @@ export const SAMPLE_TRIP_ID = SEED_TRIP.id;
 /** Adds the sample alongside whatever is already there — never replaces it. */
 export function loadSampleTrip(): string {
   const sample = sampleState();
+  // Everything else on the device stays: other trips' paid-for advice, and a
+  // diversion someone is out on.
   mutate((current) => ({
+    ...current,
     trips: [...current.trips.filter((trip) => trip.id !== SEED_TRIP.id), ...sample.trips],
     activeTripId: SEED_TRIP.id,
     items: [...current.items.filter((item) => item.tripId !== SEED_TRIP.id), ...sample.items],
@@ -428,9 +433,22 @@ export function updateTraveler(
 }
 
 export function removeTraveler(tripId: string, travelerId: string): void {
-  updateTripTravelers(tripId, (travelers) =>
-    travelers.filter((traveler) => traveler.id !== travelerId),
-  );
+  mutate((current) => {
+    const trips = current.trips.map((trip) =>
+      trip.id === tripId
+        ? { ...trip, travelers: trip.travelers.filter((traveler) => traveler.id !== travelerId) }
+        : trip,
+    );
+    const remaining = trips.find((trip) => trip.id === tripId)?.travelers.length ?? 0;
+
+    // A diversion by someone no longer on the trip, or from a group of one,
+    // has nothing left to rejoin.
+    const orphaned =
+      current.divert?.tripId === tripId &&
+      (current.divert.travelerId === travelerId || remaining < 2);
+
+    return { ...current, trips, divert: orphaned ? undefined : current.divert };
+  });
 }
 
 function updateTripTravelers(
@@ -586,11 +604,18 @@ export function startDivert(session: Omit<DivertSession, "startedAt">, now = new
   }));
 }
 
-/** Changes to the running diversion: a different spot, a chosen way back. */
-export function updateDivert(patch: Partial<Omit<DivertSession, "tripId" | "startedAt">>): void {
-  mutate((current) =>
-    current.divert ? { ...current, divert: { ...current.divert, ...patch } } : current,
-  );
+/**
+ * Changes to the running diversion: a different spot, a chosen way back.
+ * Does nothing once it has expired, so a stale screen cannot revive it.
+ */
+export function updateDivert(
+  patch: Partial<Omit<DivertSession, "tripId" | "startedAt">>,
+  now = new Date(),
+): void {
+  mutate((current) => {
+    const session = liveDivertSession(current.divert, now);
+    return session ? { ...current, divert: { ...session, ...patch } } : current;
+  });
 }
 
 export function chooseRejoin(type: RejoinOptionType): void {

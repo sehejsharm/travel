@@ -8,12 +8,19 @@ import type { TravelMode } from "../geo";
  */
 export type UserGroupStatus = "IN_GROUP" | "DIVERTED";
 
+/**
+ * Divert-only vocabulary. These are not advisor interest ids
+ * (src/lib/advisor/interests.ts), even where the strings match ("coffee",
+ * "food", "shopping"): "food" here is a quick bite, there it is a whole
+ * section of eating. Never pass trip.interests in without a mapping.
+ */
 export type DivertCategory = "coffee" | "sights" | "food" | "shopping" | "rest";
 
 /** Keys into the icon set, so the data stays free of JSX. */
 export type DivertIcon = "cup" | "camera" | "bowl" | "bag" | "bench";
 
 export interface DivertInterest {
+  /** A divert interest id; see DivertCategory for why these are their own list. */
   id: string;
   title: string;
   icon: DivertIcon;
@@ -51,9 +58,19 @@ export interface GroupWaypoint {
   arriveMin: number;
   /** Minutes after the clock the group moves on. */
   departMin: number;
-  /** How the group gets here from the previous stop. */
+  /** How the group gets here from the previous stop. The first stop has no way in, so it reads "walk". */
   mode: TravelMode;
+  /** Minutes the trip here from the previous stop takes; zero for the first stop. */
+  travelMin: number;
+  /** The offset this stop was filed in, "" when it was filed without one. */
+  offset: string;
 }
+
+/**
+ * Where the group is in its day. Between two stops it is either travelling,
+ * or it has arrived early and has free time before the next one starts.
+ */
+export type GroupPhase = "at-stop" | "on-the-way" | "free-time" | "finished";
 
 /**
  * The group's day as a line through time and space. Everything is relative
@@ -64,14 +81,18 @@ export interface GroupRoute {
   waypoints: GroupWaypoint[];
   /** Where the group is at the clock. */
   position: GeoPoint;
-  /** The stop the group is at, when it is at one. */
+  phase: GroupPhase;
+  /** The stop the group is at (or finished at), when it is at one. */
   atStop?: number;
   /** The next stop it has yet to reach; equals the length once the day is done. */
   nextStop: number;
-  /** How far along the current leg the group is, 0 to 1. Zero at a stop. */
+  /** How far along the current leg the group is, 0 to 1. Zero at a stop, one in free time. */
   progress: number;
   clock: Date;
-  /** The UTC offset the stops are written in, so times read as the locals see them. */
+  /**
+   * The offset times are read in, taken from the stop the group is at or
+   * heading for; "" means the device's own zone, for stops filed without one.
+   */
   offset: string;
   /** True when the clock is a stand-in because the day is not live. */
   simulated: boolean;
@@ -99,6 +120,8 @@ export interface RejoinOption {
   detourMinutes: number;
   /** False when the times do not work: the group will have moved on. */
   feasible: boolean;
+  /** For a catch-up that does not work: minutes after the clock the group leaves the meeting point. */
+  groupLeaveMin?: number;
   /** One line on how it plays out. */
   note: string;
   userMode: TravelMode;
@@ -122,7 +145,12 @@ export interface DivertSession {
   travelerId?: string;
   interestIds: string[];
   spot: DivertSpot;
+  /** When they broke off. Drives "since" and the twelve-hour expiry. */
   startedAt: string;
+  /** Where they set off toward the spot from: the group, or the last spot when they changed it. */
+  from?: GeoPoint;
+  /** When they set off toward the current spot; startedAt until the spot changes. */
+  fromAt?: string;
   /** The rendezvous they went with, once they picked one. */
   chosen?: RejoinOptionType;
 }

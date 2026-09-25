@@ -1,3 +1,4 @@
+import { gazetteerPoint } from "./spots";
 import type { RouteStop } from "./types";
 
 /**
@@ -17,7 +18,7 @@ export const DEMO_STOPS: RouteStop[] = [
   {
     id: "demo-sensoji",
     name: "Senso-ji",
-    point: { lat: 35.7148, lng: 139.7967 },
+    point: gazetteerPoint("Senso-ji"),
     startsAt: at("09:00"),
     endsAt: at("10:15"),
   },
