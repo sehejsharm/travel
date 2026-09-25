@@ -6,8 +6,10 @@ import {
   formatDistance,
   formatEta,
   formatMinutes,
+  inSentence,
   MODE_LABELS,
   NEAR_ENOUGH_M,
+  standInSearch,
   wallClock,
 } from "@/lib/divert/format";
 import type { DivertPlan, RejoinOption } from "@/lib/divert/types";
@@ -77,9 +79,19 @@ export function RejoinOptionCard({
 
   // A stand-in is a made-up point, so Maps gets a search for the kind of
   // place rather than a pin on coordinates nobody checked.
+  const place = inSentence(option.meetingPointName);
   const mapsUrl = standIn
-    ? openInMapsUrl({ name: option.meetingPointName.replace(/^An? /, "") })
+    ? openInMapsUrl({ name: standInSearch(option.meetingPointName) })
     : openInMapsUrl({ name: option.meetingPointName, point: option.location });
+  // The button's name follows the card's own wording, so a screen reader is
+  // never promised a rejoin the card says will not happen.
+  const choice = gone
+    ? `head to ${place}, where the group was`
+    : missed
+      ? `try for ${place}, though the group will have left`
+      : catchUp
+        ? `rejoin at ${place}`
+        : `the group joins you at ${place}`;
 
   return (
     <Card
@@ -100,7 +112,7 @@ export function RejoinOptionCard({
         </h3>
         <p className="mt-1 text-sm text-ink-soft">
           {gone
-            ? "The group's last stop, though they had already moved on."
+            ? "The group's last stop, though they have already moved on."
             : missed
               ? "The group's last stop, though they will have moved on before you get there."
               : catchUp
@@ -165,7 +177,7 @@ export function RejoinOptionCard({
           type="button"
           onClick={onChoose}
           aria-pressed={chosen}
-          aria-label={`Go with this: ${catchUp ? "rejoin at" : "the group joins you at"} ${option.meetingPointName}`}
+          aria-label={`Go with this: ${choice}`}
           className={`press flex-1 rounded-xl px-4 py-2.5 text-sm font-medium ${
             chosen
               ? "border border-accent bg-accent-soft text-accent-strong"
@@ -180,7 +192,7 @@ export function RejoinOptionCard({
           rel="noreferrer"
           aria-label={
             standIn
-              ? `Search Google Maps for a ${option.meetingPointName.replace(/^An? /, "")}`
+              ? `Search Google Maps for a ${standInSearch(option.meetingPointName)}`
               : `Open ${option.meetingPointName} in Google Maps`
           }
           className="press shrink-0 rounded-xl border border-line px-3 py-2.5 font-mono text-[11px] text-ink-soft hover:border-accent hover:text-accent-strong"

@@ -1,7 +1,7 @@
 "use client";
 
 import type { GeoPoint } from "@/lib/domain/types";
-import { NEAR_ENOUGH_M } from "@/lib/divert/format";
+import { inSentence, NEAR_ENOUGH_M } from "@/lib/divert/format";
 import type { DivertSpot, GroupRoute, RejoinOption } from "@/lib/divert/types";
 import { distanceM } from "@/lib/divert/geometry";
 import { useReducedMotion } from "@/lib/use-motion";
@@ -194,9 +194,9 @@ export function DivertMap({
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       role="img"
-      aria-label={`Map: the group, your spot at ${spot.name}, and ${
+      aria-label={`Map: the group, your spot at ${inSentence(spot.name)}, and ${
         catchUp ? "where you rejoin them" : "where they join you"
-      }, ${option.meetingPointName}`}
+      }, ${inSentence(option.meetingPointName)}`}
       className="block h-auto w-full bg-surface-2"
     >
       <path d={path(stops)} fill="none" stroke="var(--line-strong)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />

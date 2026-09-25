@@ -63,18 +63,40 @@ describe("a diversion across a reload", () => {
     expect(second.getSnapshot().divert).toMatchObject({ tripId, spot: { name: "Fuglen Asakusa" } });
   });
 
+  /** A trip that does have a group, so only the session's own age is in question. */
+  function storedOnGroupTrip(hoursAgo: number) {
+    storage.set(
+      KEY,
+      JSON.stringify({
+        trips: [{ id: "t1", name: "Duo", homeCountry: "IN", startDate: "2026-10-14", endDate: "2026-10-22", travelers: [
+          { id: "a", name: "A", passportCountry: "IN", passportExpiry: "" },
+          { id: "b", name: "B", passportCountry: "IN", passportExpiry: "" },
+        ] }],
+        activeTripId: "t1",
+        items: [],
+        checklist: [],
+        advice: [],
+        divert: { tripId: "t1", interestIds: ["coffee"], spot: SPOT, startedAt: new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString() },
+      }),
+    );
+  }
+
   it("is dropped on load once it has expired, and removed from storage straight away", async () => {
-    stored({
-      tripId: "t1",
-      interestIds: ["coffee"],
-      spot: SPOT,
-      startedAt: new Date(Date.now() - 13 * 60 * 60 * 1000).toISOString(),
-    });
+    storedOnGroupTrip(13);
 
     const store = await freshStore();
     expect(store.getSnapshot().divert).toBeUndefined();
     // Nothing else has been saved, and the record is still gone from disk.
     expect(JSON.parse(storage.get(KEY)!).divert).toBeUndefined();
+  });
+
+  it("is kept on load while it is under twelve hours old, and nothing is rewritten", async () => {
+    storedOnGroupTrip(1);
+    const before = storage.get(KEY);
+
+    const store = await freshStore();
+    expect(store.getSnapshot().divert?.tripId).toBe("t1");
+    expect(storage.get(KEY)).toBe(before);
   });
 
   it("is dropped on load when its trip no longer has a group", async () => {

@@ -10,7 +10,7 @@ import { distanceM } from "@/lib/divert/geometry";
 import { categoriesFor, DIVERT_INTERESTS, dwellFor, interestsFor } from "@/lib/divert/interests";
 import { respot, travellerWhereabouts } from "@/lib/divert/rejoin";
 import { anchorName } from "@/lib/divert/route";
-import { findSpots, SPOT_RADIUS_M } from "@/lib/divert/spots";
+import { findSpots, SPOT_RADIUS_M, withoutFreshStandIn } from "@/lib/divert/spots";
 import type { DivertSession, DivertSpot, GroupRoute } from "@/lib/divert/types";
 import { startDivert, updateDivert } from "@/lib/store/state";
 import { DivertIconGlyph } from "./divert-icon";
@@ -53,12 +53,18 @@ export function DivertPreferencesView({
 
   const interests = interestsFor(picked);
   const categories = categoriesFor(interests);
-  const found = categories.length > 0 ? findSpots(origin.position, categories, origin.anchor) : [];
+  const found = withoutFreshStandIn(
+    categories.length > 0 ? findSpots(origin.position, categories, origin.anchor) : [],
+    chosen,
+  );
   // A spot already chosen stays on the list while its kind is still wanted,
-  // even if it is not among the nearest from here.
+  // even if it is not among the nearest from here, and always under the name
+  // it was saved with.
   const keepChosen =
     chosen && categories.includes(chosen.category) && !found.some((spot) => spot.id === chosen.id);
-  const spots = keepChosen ? [chosen, ...found] : found;
+  const spots = keepChosen
+    ? [chosen, ...found]
+    : found.map((candidate) => (chosen && candidate.id === chosen.id ? chosen : candidate));
   const spot =
     (chosen && categories.includes(chosen.category) ? chosen : undefined) ?? spots[0];
 

@@ -326,6 +326,8 @@ export function deleteTrip(tripId: string): void {
   mutate((current) => {
     const trips = current.trips.filter((trip) => trip.id !== tripId);
     return {
+      // Keep what belongs to other trips — including a diversion on one of them.
+      ...current,
       trips,
       activeTripId: current.activeTripId === tripId ? (trips[0]?.id ?? "") : current.activeTripId,
       items: current.items.filter((item) => item.tripId !== tripId),

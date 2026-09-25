@@ -35,6 +35,19 @@ export function wallClock(clock: Date, offset: string, minutesAfter = 0): string
   return clockAt(new Date(clock.getTime() + minutesAfter * 60_000), offset);
 }
 
+/** A place name as it reads mid-sentence: "A coffee stand near you" becomes "a coffee stand near you". */
+export function inSentence(name: string): string {
+  return name.replace(/^(An?) /, (_, article: string) => `${article.toLowerCase()} `);
+}
+
+/**
+ * What to search Maps for instead of a stand-in's made-up point: the kind of
+ * place, near the named stop, or near wherever the phone is when there is none.
+ */
+export function standInSearch(name: string): string {
+  return name.replace(/^An? /, "").replace(/ near (you|the group)$/, " near me");
+}
+
 export const MODE_LABELS: Record<TravelMode, string> = {
   walk: "on foot",
   transit: "by transit",

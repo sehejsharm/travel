@@ -72,9 +72,10 @@ interface Schedule {
  * When the group is actually at each stop. Filed times are honoured where
  * they are consistent: where the next stop starts before the group could get
  * there, it arrives when it arrives. A stop with no end is assumed to take an
- * hour, cut short so the group can still make the next stop's filed start,
- * but never to less than a quarter of an hour — a late group still visits.
- * An end before the start is a typo, as the item editor treats it.
+ * hour, cut short so the group can still make the next stop's filed start.
+ * Once that start is already lost, the group still gets a quarter of an hour
+ * there rather than passing straight through. An end before the start is a
+ * typo, as the item editor treats it.
  */
 function schedule(stops: RouteStop[]): Schedule {
   const legs = stops.map((stop, i) =>
@@ -98,7 +99,8 @@ function schedule(stops: RouteStop[]): Schedule {
       const next = stops[i + 1];
       if (next) {
         const latest = Date.parse(next.startsAt) - legs[i + 1]!.minutes * 60_000;
-        leave = Math.min(leave, Math.max(latest, earliest + MIN_DWELL_MIN * 60_000));
+        const floor = latest < earliest ? earliest + MIN_DWELL_MIN * 60_000 : earliest;
+        leave = Math.min(leave, Math.max(latest, floor));
       }
     }
 
@@ -142,11 +144,11 @@ function todayFor(stops: RouteStop[], now: Date): string {
 }
 
 /**
- * Which day's stops to plan around, most specific first: a day under way;
- * the day a running diversion began in, so the plan does not jump when that
- * day ends; today, as the destination's calendar reads it; the nearest day
- * ahead with somewhere to go between; and once the trip is over, the most
- * recent day, for looking back.
+ * Which day's stops to plan around, most specific first: the day a running
+ * diversion has run through, so the plan never jumps to another while it
+ * lasts; a day under way; today, as the destination's calendar reads it; the
+ * nearest day ahead with somewhere to go between; and once the trip is over,
+ * the most recent day, for looking back.
  */
 export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[] {
   const byDay = new Map<string, RouteStop[]>();
@@ -161,15 +163,15 @@ export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[
   // window open, and must not hide the day that is actually happening now.
   const latestFirst = [...days].reverse();
 
-  const liveNow = latestFirst.find(([, day]) => liveAt(schedule(day), now.getTime()));
-  if (liveNow) return liveNow[1];
-
   if (since) {
     const anchored = latestFirst.find(([, day]) =>
       ranThrough(schedule(day), since.getTime(), now.getTime()),
     );
     if (anchored) return anchored[1];
   }
+
+  const liveNow = latestFirst.find(([, day]) => liveAt(schedule(day), now.getTime()));
+  if (liveNow) return liveNow[1];
 
   const today = days.find(([key, day]) => key === todayFor(day, now));
   if (today) return today[1];

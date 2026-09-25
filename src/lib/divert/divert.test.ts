@@ -20,7 +20,15 @@ import {
   startDivert,
   updateDivert,
 } from "../store/state";
-import { formatDistance, formatEta, formatMinutes, NEAR_ENOUGH_M, wallClock } from "./format";
+import {
+  formatDistance,
+  formatEta,
+  formatMinutes,
+  inSentence,
+  NEAR_ENOUGH_M,
+  standInSearch,
+  wallClock,
+} from "./format";
 import { distanceM } from "./geometry";
 import {
   activeDivert,
@@ -41,7 +49,7 @@ import {
   travellerWhereabouts,
 } from "./rejoin";
 import { anchorName, buildRoute, pickDay, routeForGroup, stopsFromItems } from "./route";
-import { findSpots, gazetteerPoint, SPOT_RADIUS_M } from "./spots";
+import { findSpots, gazetteerPoint, SPOT_RADIUS_M, withoutFreshStandIn } from "./spots";
 import type { DivertSession, DivertSpot, RejoinOption, RouteStop } from "./types";
 
 const TEAMLAB = { lat: 35.6605, lng: 139.7396 };
@@ -138,6 +146,18 @@ describe("divert spots", () => {
 
     expect(here.id).not.toBe(there.id);
     expect(findSpots(REYKJAVIK, ["coffee"])[0].id).toBe(here.id);
+  });
+
+  it("never offers a fresh stand-in in place of the stand-in already chosen", () => {
+    const [current] = findSpots(REYKJAVIK, ["coffee"]);
+    const found = findSpots({ lat: 64.1475, lng: -21.94 }, ["coffee", "rest"]);
+    expect(found.some((entry) => entry.category === "coffee" && entry.id !== current.id)).toBe(true);
+
+    const kept = withoutFreshStandIn(found, current);
+    expect(kept.some((entry) => entry.category === "coffee" && entry.id !== current.id)).toBe(false);
+    expect(kept.some((entry) => entry.category === "rest")).toBe(true);
+    // A real spot never filters anything.
+    expect(withoutFreshStandIn(found, FUGLEN)).toEqual(found);
   });
 
   it("always includes the nearest of each category asked for", () => {
@@ -241,6 +261,21 @@ describe("group route: which day", () => {
     const picked = pickDay(stopsFromItems(items), new Date("2026-10-17T14:00:00+09:00"));
 
     expect(picked.map((stop) => stop.id)).toEqual(["l", "m"]);
+  });
+
+  it("keeps a running diversion on its own day even while an earlier long item is still open", () => {
+    const items = [
+      item("pass", "Conference hall", { lat: 35.63, lng: 139.79 }, "2026-10-16T09:00:00+09:00", "2026-10-18T18:00:00+09:00"),
+      item("l", "Lunch spot", { lat: 35.7125, lng: 139.777 }, "2026-10-17T12:00:00+09:00", "2026-10-17T13:00:00+09:00"),
+      item("m", "Museum", { lat: 35.7188, lng: 139.7766 }, "2026-10-17T14:00:00+09:00", "2026-10-17T16:00:00+09:00"),
+    ];
+    const now = new Date("2026-10-17T17:00:00+09:00");
+    const since = new Date("2026-10-17T14:00:00+09:00");
+
+    expect(pickDay(stopsFromItems(items), now, since).map((stop) => stop.id)).toEqual(["l", "m"]);
+    const route = routeForGroup(items, now, since);
+    expect(route.simulated).toBe(false);
+    expect(route.phase).toBe("finished");
   });
 
   it("stays on the day a diversion planned before it began, once the day is over", () => {
@@ -355,6 +390,20 @@ describe("group route: where the group is", () => {
     expect(Math.round(b.arriveMin - a.departMin)).toBe(b.travelMin);
     // With room to spare, the assumed hour stands.
     expect(Math.round(b.departMin - b.arriveMin)).toBe(60);
+  });
+
+  it("keeps a tight but on-time day to its filed times", () => {
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: DEMO_STOPS[2].point, startsAt: "2026-10-18T09:00:00+09:00" },
+      { id: "b", name: "B", point: DEMO_STOPS[3].point, startsAt: "2026-10-18T09:15:00+09:00", endsAt: "2026-10-18T11:00:00+09:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-09-01T00:00:00Z"))!;
+    const [a, b] = route.waypoints;
+    const at = (minutes: number) => route.clock.getTime() + minutes * 60_000;
+
+    expect(at(b.arriveMin)).toBe(Date.parse("2026-10-18T09:15:00+09:00"));
+    expect(Math.round(b.arriveMin - a.departMin)).toBe(b.travelMin);
+    expect(b.departMin - b.arriveMin).toBeGreaterThan(100);
   });
 
   it("still gives a late group a short visit rather than none at all", () => {
@@ -774,6 +823,15 @@ describe("divert state", () => {
     expect(getSnapshot().divert).toBeUndefined();
   });
 
+  it("deleting a different trip leaves the diversion alone", () => {
+    const japan = trip("Japan");
+    const old = trip("Old");
+    startDivert({ tripId: japan, interestIds: ["coffee"], spot: spot() }, NOW);
+    deleteTrip(old);
+
+    expect(getSnapshot().divert?.tripId).toBe(japan);
+  });
+
   it("deleting the trip ends its diversion", () => {
     const japan = trip("Japan");
     startDivert({ tripId: japan, interestIds: ["coffee"], spot: spot() }, NOW);
@@ -887,6 +945,15 @@ describe("divert state", () => {
 });
 
 describe("divert formatting", () => {
+  it("reads a place name naturally mid-sentence, and searches Maps sensibly for a stand-in", () => {
+    expect(inSentence("A coffee stand near you")).toBe("a coffee stand near you");
+    expect(inSentence("An izakaya near Ueno")).toBe("an izakaya near Ueno");
+    expect(inSentence("Ameyoko")).toBe("Ameyoko");
+    expect(standInSearch("A coffee stand near you")).toBe("coffee stand near me");
+    expect(standInSearch("A bench in the shade near the group")).toBe("bench in the shade near me");
+    expect(standInSearch("A viewpoint near Senso-ji")).toBe("viewpoint near Senso-ji");
+  });
+
   it("rounds distances the way a person would say them", () => {
     expect(formatDistance(NEAR_ENOUGH_M - 1)).toBe("here");
     expect(formatDistance(654)).toBe("650 m");

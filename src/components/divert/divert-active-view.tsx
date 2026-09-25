@@ -9,7 +9,7 @@ import { formatDistance, formatMinutes, wallClock } from "@/lib/divert/format";
 import { distanceM } from "@/lib/divert/geometry";
 import { categoriesFor } from "@/lib/divert/interests";
 import { respot, travellerWhereabouts } from "@/lib/divert/rejoin";
-import { findSpots } from "@/lib/divert/spots";
+import { findSpots, withoutFreshStandIn } from "@/lib/divert/spots";
 import type { DivertInterest, DivertPlan, DivertSession, GroupRoute } from "@/lib/divert/types";
 import { chooseRejoin, updateDivert } from "@/lib/store/state";
 import { DivertPreferencesView } from "./divert-preferences-view";
@@ -119,9 +119,10 @@ function Alternatives({
   interests: DivertInterest[];
 }) {
   const [where] = useState(() => travellerWhereabouts(route, session));
-  const alternatives = findSpots(where.position, categoriesFor(interests), where.anchor).filter(
-    (candidate) => candidate.id !== session.spot.id,
-  );
+  const alternatives = withoutFreshStandIn(
+    findSpots(where.position, categoriesFor(interests), where.anchor),
+    session.spot,
+  ).filter((candidate) => candidate.id !== session.spot.id);
 
   if (alternatives.length === 0) return null;
 

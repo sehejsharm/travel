@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PrimaryButton } from "@/components/form";
 import { Card, Chip } from "@/components/ui";
 import { divertedName } from "@/lib/divert";
-import { formatEta, wallClock } from "@/lib/divert/format";
+import { formatEta, inSentence, wallClock } from "@/lib/divert/format";
 import { DEMO_GROUP } from "@/lib/divert/mock";
 import { quickestRejoin } from "@/lib/divert/rejoin";
 import { useDivert } from "@/lib/divert/use-divert";
@@ -49,7 +49,7 @@ export function GroupStatusCard() {
               ) : (
                 <>
                   {option.type === "CATCH_UP" ? "Rejoin at" : "The group joins you at"}{" "}
-                  {option.meetingPointName},{" "}
+                  {inSentence(option.meetingPointName)},{" "}
                   {route.simulated
                     ? `at ${wallClock(route.clock, route.offset, together)} (simulated)`
                     : formatEta(together)}

@@ -125,6 +125,20 @@ function standIn(category: DivertCategory, near: GeoPoint, anchorName?: string):
 }
 
 /**
+ * A fresh search around a stand-in places a new stand-in of the same kind,
+ * with a new id, because stand-in ids come from where they sit. Offering it
+ * would be a made-up alternative to a made-up place, so it is left out.
+ */
+export function withoutFreshStandIn(found: DivertSpot[], current?: DivertSpot | null): DivertSpot[] {
+  if (!current?.synthetic) return found;
+  return found.filter(
+    (candidate) =>
+      candidate.id === current.id ||
+      !(candidate.synthetic && candidate.category === current.category),
+  );
+}
+
+/**
  * Spots for the categories asked for, nearest first, within a short walk of
  * where the group is. Every category gets at least one answer: when nothing
  * real is close, a stand-in is placed nearby and marked as such, so the flow
