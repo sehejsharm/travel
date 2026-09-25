@@ -32,6 +32,7 @@ export function isDivertSession(value: unknown): value is DivertSession {
     Array.isArray(session.interestIds) &&
     session.interestIds.every((id) => typeof id === "string") &&
     (session.travelerId === undefined || typeof session.travelerId === "string") &&
+    (session.day === undefined || typeof session.day === "string") &&
     (session.from === undefined || isPoint(session.from)) &&
     (session.fromAt === undefined ||
       (typeof session.fromAt === "string" && !Number.isNaN(Date.parse(session.fromAt)))) &&

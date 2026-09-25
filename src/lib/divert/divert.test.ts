@@ -380,6 +380,70 @@ describe("group route: which day", () => {
     expect(route.simulated).toBe(true);
   });
 
+  it("keeps a diversion on the day recorded when it began, whatever is edited meanwhile", () => {
+    const tokyo = { lat: 35.7125, lng: 139.777 };
+    const kyoto = { lat: 34.9949, lng: 135.785 };
+    const before = [
+      item("s1", "Ueno Park", tokyo, "2026-10-18T09:00:00+09:00", "2026-10-18T11:00:00+09:00"),
+      item("s2", "Kiyomizu-dera", kyoto, "2026-10-19T09:00:00+09:00", "2026-10-19T10:00:00+09:00"),
+      item("s3", "Gion", { lat: 35.0037, lng: 135.7788 }, "2026-10-19T11:00:00+09:00", "2026-10-19T12:00:00+09:00"),
+    ];
+    const since = new Date("2026-10-17T22:00:00+09:00");
+    const onScreen = routeForGroup(before, since);
+    expect(onScreen.day).toBe("2026-10-18");
+
+    // Ueno moved half an hour later: now more than twelve hours after the diversion began.
+    const after = before.map((entry) =>
+      entry.id === "s1" ? { ...entry, startsAt: "2026-10-18T10:30:00+09:00", endsAt: "2026-10-18T11:30:00+09:00" } : entry,
+    );
+    const route = routeForGroup(after, new Date("2026-10-17T22:30:00+09:00"), since, onScreen.day);
+    expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["s1"]);
+  });
+
+  it("keeps an overnight diversion on its night when the last stop's end is edited", () => {
+    const items = [
+      item("k1", "Izakaya", { lat: 35.6938, lng: 139.7 }, "2026-10-17T19:00:00+09:00", "2026-10-17T21:00:00+09:00"),
+      item("k2", "Karaoke", { lat: 35.6945, lng: 139.7025 }, "2026-10-17T22:00:00+09:00", "2026-10-18T01:00:00+09:00"),
+      item("c", "Fushimi Inari Taisha", { lat: 34.9671, lng: 135.7727 }, "2026-10-18T09:00:00+09:00", "2026-10-18T10:00:00+09:00"),
+      item("d", "Kiyomizu-dera", { lat: 34.9949, lng: 135.785 }, "2026-10-18T11:00:00+09:00", "2026-10-18T12:00:00+09:00"),
+    ];
+    const since = new Date("2026-10-18T00:45:00+09:00");
+    const onScreen = routeForGroup(items, since);
+    expect(onScreen.waypoints.map((waypoint) => waypoint.id)).toEqual(["k1", "k2"]);
+
+    const edited = items.map((entry) => (entry.id === "k2" ? { ...entry, endsAt: "2026-10-18T00:00:00+09:00" } : entry));
+    const route = routeForGroup(edited, new Date("2026-10-18T00:50:00+09:00"), since, onScreen.day);
+    expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["k1", "k2"]);
+  });
+
+  it("plans on the day the screen showed, even if the tap landed just past a day-choice threshold", () => {
+    const items = [
+      item("s1", "Ueno Park", { lat: 35.7125, lng: 139.777 }, "2026-10-18T09:00:00+09:00", "2026-10-18T11:00:00+09:00"),
+      item("s2", "Kiyomizu-dera", { lat: 34.9949, lng: 135.785 }, "2026-10-19T09:00:00+09:00", "2026-10-19T10:00:00+09:00"),
+      item("s3", "Gion", { lat: 35.0037, lng: 135.7788 }, "2026-10-19T11:00:00+09:00", "2026-10-19T12:00:00+09:00"),
+    ];
+    // The last tick, ten seconds before the twelve-hour mark, showed Kyoto.
+    const screen = routeForGroup(items, new Date("2026-10-17T20:59:50+09:00"));
+    expect(screen.waypoints.map((waypoint) => waypoint.id)).toEqual(["s2", "s3"]);
+
+    // The tap came five seconds after the mark.
+    const since = new Date("2026-10-17T21:00:05+09:00");
+    expect(routeForGroup(items, since, since).waypoints.map((waypoint) => waypoint.id)).toEqual(["s1"]);
+    expect(routeForGroup(items, since, since, screen.day).waypoints.map((waypoint) => waypoint.id)).toEqual(["s2", "s3"]);
+  });
+
+  it("falls back to the day at the start for a diversion saved without one, or whose day has emptied", () => {
+    const items = [
+      item("a", "Ueno Park", { lat: 35.7125, lng: 139.777 }, "2026-10-18T10:00:00+09:00", "2026-10-18T11:00:00+09:00"),
+      item("b", "Ameyoko", { lat: 35.71, lng: 139.7745 }, "2026-10-18T11:30:00+09:00", "2026-10-18T12:00:00+09:00"),
+    ];
+    const since = new Date("2026-10-18T10:30:00+09:00");
+    const now = new Date("2026-10-18T10:45:00+09:00");
+
+    expect(routeForGroup(items, now, since).waypoints.map((waypoint) => waypoint.id)).toEqual(["a", "b"]);
+    expect(routeForGroup(items, now, since, "2026-10-12").waypoints.map((waypoint) => waypoint.id)).toEqual(["a", "b"]);
+  });
+
   it("keeps an evening diversion on the day it was planned against, not the next morning's", () => {
     const items = [
       item("a", "Ueno Park", { lat: 35.7125, lng: 139.777 }, "2026-10-17T10:00:00+09:00", "2026-10-17T11:00:00+09:00"),
@@ -1100,6 +1164,8 @@ describe("divert state", () => {
     expect(isDivertSession({ ...good, startedAt: "yesterday-ish" })).toBe(false);
     expect(isDivertSession({ ...good, chosen: "TELEPORT" })).toBe(false);
     expect(isDivertSession({ ...good, from: { lat: Number.NaN, lng: 1 } })).toBe(false);
+    expect(isDivertSession({ ...good, day: "2026-10-18" })).toBe(true);
+    expect(isDivertSession({ ...good, day: 20261018 })).toBe(false);
     expect(activeDivert({ divert: { ...good, interestIds: 42 } as unknown as DivertSession }, "t1", NOW)).toBeUndefined();
   });
 });

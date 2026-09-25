@@ -78,6 +78,8 @@ export type GroupPhase = "at-stop" | "on-the-way" | "free-time" | "finished";
  * is not, so the same maths serves a live afternoon and a plan for October.
  */
 export interface GroupRoute {
+  /** The day these stops are on, as filed: the day a diversion started now is planned on. */
+  day: string;
   waypoints: GroupWaypoint[];
   /** Where the group is at the clock. */
   position: GeoPoint;
@@ -149,6 +151,12 @@ export interface DivertSession {
   spot: DivertSpot;
   /** When they broke off. Drives "since" and the twelve-hour expiry. */
   startedAt: string;
+  /**
+   * The day the group's route was on when they broke off, as the screen
+   * showed it. The diversion stays on it, whatever is edited or however the
+   * clock moves, for as long as that day still has stops.
+   */
+  day?: string;
   /** Where they set off toward the spot from: the group, or the last spot when they changed it. */
   from?: GeoPoint;
   /** When they set off toward the current spot; startedAt until the spot changes. */

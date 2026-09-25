@@ -612,7 +612,7 @@ export function startDivert(session: Omit<DivertSession, "startedAt">, now = new
  * revive it and the record does not linger.
  */
 export function updateDivert(
-  patch: Partial<Omit<DivertSession, "tripId" | "startedAt">>,
+  patch: Partial<Omit<DivertSession, "tripId" | "startedAt" | "day">>,
   now = new Date(),
 ): void {
   mutate((current) => {

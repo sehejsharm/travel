@@ -39,10 +39,14 @@ export function useDivert(): DivertView {
 
   const session = trip ? activeDivert(state, trip.id, now) : undefined;
   const since = session ? Date.parse(session.startedAt) : undefined;
+  const plannedDay = session?.day;
 
   const route = useMemo(
-    () => (trip ? routeForGroup(items, now, since === undefined ? undefined : new Date(since)) : undefined),
-    [trip, items, now, since],
+    () =>
+      trip
+        ? routeForGroup(items, now, since === undefined ? undefined : new Date(since), plannedDay)
+        : undefined,
+    [trip, items, now, since, plannedDay],
   );
   const plan = useMemo(
     () => (route && session ? buildPlan(route, session) : undefined),

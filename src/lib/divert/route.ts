@@ -159,18 +159,24 @@ function todayFor(stops: RouteStop[], now: Date): string {
 
 /**
  * Which day's stops to plan around. A running diversion stays on the day it
- * was planned against — whatever this showed at the moment it began — so the
- * plan never moves to another day or city while it lasts, and its start point
- * and spot always belong to the day on screen; buildRoute then decides
- * whether that day is live now. Otherwise, most specific first: a day under
+ * was planned against — the day recorded when it began — so the plan never
+ * moves to another day or city while it lasts, whatever is edited, and its
+ * start point and spot always belong to the day on screen; buildRoute then
+ * decides whether that day is live now. Otherwise, most specific first: a day under
  * way (the newest, if two overlap around midnight); today, as the
  * destination's calendar reads it; the next day, if it starts within a
  * diversion's lifetime, however few stops it has; the nearest day ahead with
  * somewhere to go between; and once the trip is over, the most recent day,
  * for looking back.
  */
-export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[] {
-  if (since) return pickDay(stops, since);
+export function pickDay(stops: RouteStop[], now: Date, since?: Date, day?: string): RouteStop[] {
+  if (since) {
+    // The day recorded when the diversion began, while it still has stops;
+    // before diversions recorded one, or once every stop has moved off it,
+    // whatever this would have shown at the moment it began.
+    const planned = day ? stops.filter((stop) => localDateKey(stop.startsAt) === day) : [];
+    return planned.length > 0 ? planned : pickDay(stops, since);
+  }
 
   const byDay = new Map<string, RouteStop[]>();
   for (const stop of stops) {
@@ -240,6 +246,7 @@ export function buildRoute(
   const reference = waypoints[located.atStop ?? Math.min(located.nextStop, waypoints.length - 1)];
 
   return {
+    day: localDateKey(stops[0].startsAt),
     waypoints,
     ...located,
     clock: new Date(clockMs),
@@ -335,10 +342,16 @@ export function anchorName(route: GroupRoute): string | undefined {
 /**
  * The group's route for this trip: its own timeline when it has timed,
  * located stops, and the bundled sample walk when it has none yet. `since`
- * is when a running diversion began, which keeps its day live until it ends.
+ * is when a running diversion began and `day` the day it was planned on,
+ * which keep it on that day, live while it lasts.
  */
-export function routeForGroup(items: TripItem[], now = new Date(), since?: Date): GroupRoute {
-  const own = pickDay(stopsFromItems(items), now, since);
+export function routeForGroup(
+  items: TripItem[],
+  now = new Date(),
+  since?: Date,
+  day?: string,
+): GroupRoute {
+  const own = pickDay(stopsFromItems(items), now, since, day);
   if (own.length > 0) return buildRoute(own, now, { since })!;
   return buildRoute(DEMO_STOPS, now, { demo: true })!;
 }

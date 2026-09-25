@@ -50,6 +50,15 @@ export function DivertPreferencesView({
   const [chosen, setChosen] = useState<DivertSpot | null>(session?.spot ?? null);
   const [travelerId, setTravelerId] = useState<string | undefined>(session?.travelerId);
   const [origin, setOrigin] = useState<Origin>(originNow);
+  // The group's day can change while this is open (midnight, a day
+  // starting). Spots found near the old day's place must not be saved with
+  // the new day's start, so the list is measured afresh when it does.
+  const [originDay, setOriginDay] = useState(route.day);
+  if (!session && route.day !== originDay) {
+    setOriginDay(route.day);
+    setOrigin(originNow());
+    setChosen(null);
+  }
 
   const interests = interestsFor(picked);
   const categories = categoriesFor(interests);
@@ -108,6 +117,8 @@ export function DivertPreferencesView({
       interestIds,
       spot,
       from: route.position,
+      // The day on screen, so the diversion is planned on exactly what was shown.
+      day: route.day,
     });
   }
 
