@@ -325,6 +325,22 @@ describe("group route: which day", () => {
     expect(route.phase).toBe("finished");
   });
 
+  it("lets the traveller's own day take over from a long item's once that day starts", () => {
+    const items = [
+      item("pass", "Conference hall", { lat: 35.63, lng: 139.79 }, "2026-10-16T09:00:00+09:00", "2026-10-18T18:00:00+09:00"),
+      item("l", "Lunch spot", { lat: 35.7125, lng: 139.777 }, "2026-10-17T12:00:00+09:00", "2026-10-17T13:00:00+09:00"),
+      item("m", "Museum", { lat: 35.7188, lng: 139.7766 }, "2026-10-17T14:00:00+09:00", "2026-10-17T16:00:00+09:00"),
+    ];
+    // Broke off at 09:00, before the 17th's own stops began.
+    const since = new Date("2026-10-17T09:00:00+09:00");
+    const route = routeForGroup(items, new Date("2026-10-17T12:30:00+09:00"), since);
+
+    expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["l", "m"]);
+    expect(route.nowLabel).toBe("At Lunch spot");
+    // Before that day starts, the plan stays where it began.
+    expect(routeForGroup(items, new Date("2026-10-17T11:00:00+09:00"), since).waypoints.map((w) => w.id)).toEqual(["pass"]);
+  });
+
   it("keeps an evening diversion on the day it was planned against, not the next morning's", () => {
     const items = [
       item("a", "Ueno Park", { lat: 35.7125, lng: 139.777 }, "2026-10-17T10:00:00+09:00", "2026-10-17T11:00:00+09:00"),
