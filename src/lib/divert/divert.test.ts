@@ -50,7 +50,14 @@ import {
   travellerWhereabouts,
 } from "./rejoin";
 import { anchorName, buildRoute, pickDay, routeForGroup, stopsFromItems } from "./route";
-import { findSpots, gazetteerPoint, listSpots, SPOT_RADIUS_M, withoutFreshStandIn } from "./spots";
+import {
+  findSpots,
+  gazetteerPoint,
+  listSpots,
+  selectSpot,
+  SPOT_RADIUS_M,
+  withoutFreshStandIn,
+} from "./spots";
 import type { DivertSession, DivertSpot, RejoinOption, RouteStop } from "./types";
 
 const TEAMLAB = { lat: 35.6605, lng: 139.7396 };
@@ -184,6 +191,22 @@ describe("divert spots", () => {
     expect(listSpots(found, ["rest"], [null, saved]).some((entry) => entry.id === saved.id)).toBe(false);
   });
 
+  it("selects a saved real spot again once its interest is back, not the nearest place", () => {
+    const origin = gazetteerPoint("Shibuya Crossing");
+    const categories: ("coffee" | "sights")[] = ["coffee", "sights"];
+    const found = findSpots(origin, categories);
+    const saved = found.find((entry) => entry.id === "streamer-shibuya")!;
+    expect(found[0].id).not.toBe(saved.id);
+
+    // Coffee unticked (nothing tapped any more) and ticked again.
+    const listed = listSpots(found, categories, [null, saved]);
+    expect(selectSpot(listed, categories, [null, saved])?.id).toBe(saved.id);
+    // A spot tapped since still wins.
+    expect(selectSpot(listed, categories, [found[0], saved])?.id).toBe(found[0].id);
+    // With the saved kind no longer wanted, the nearest wanted spot is used.
+    expect(selectSpot(listSpots(found, ["sights"], [null, saved]), ["sights"], [null, saved])?.category).toBe("sights");
+  });
+
   it("always includes the nearest of each category asked for", () => {
     const shibuya = { lat: 35.658, lng: 139.7016 };
     const found = findSpots(shibuya, ["coffee", "sights", "food", "shopping", "rest"], undefined, 2);
@@ -300,6 +323,20 @@ describe("group route: which day", () => {
     const route = routeForGroup(items, now, since);
     expect(route.simulated).toBe(false);
     expect(route.phase).toBe("finished");
+  });
+
+  it("keeps an evening diversion on the day it was planned against, not the next morning's", () => {
+    const items = [
+      item("a", "Ueno Park", { lat: 35.7125, lng: 139.777 }, "2026-10-17T10:00:00+09:00", "2026-10-17T11:00:00+09:00"),
+      item("b", "Ameyoko", { lat: 35.71, lng: 139.7745 }, "2026-10-17T14:00:00+09:00", "2026-10-17T18:00:00+09:00"),
+      item("c", "Fushimi Inari Taisha", { lat: 34.9671, lng: 135.7727 }, "2026-10-18T09:00:00+09:00", "2026-10-18T10:00:00+09:00"),
+      item("d", "Kiyomizu-dera", { lat: 34.9949, lng: 135.785 }, "2026-10-18T11:00:00+09:00", "2026-10-18T12:00:00+09:00"),
+    ];
+    const since = new Date("2026-10-17T22:30:00+09:00");
+    const route = routeForGroup(items, new Date("2026-10-18T09:05:00+09:00"), since);
+
+    expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["a", "b"]);
+    expect(route.simulated).toBe(true);
   });
 
   it("stays on the day a diversion planned before it began, once the day is over", () => {

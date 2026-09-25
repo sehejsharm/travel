@@ -10,7 +10,7 @@ import { distanceM } from "@/lib/divert/geometry";
 import { categoriesFor, DIVERT_INTERESTS, dwellFor, interestsFor } from "@/lib/divert/interests";
 import { respot, travellerWhereabouts } from "@/lib/divert/rejoin";
 import { anchorName } from "@/lib/divert/route";
-import { findSpots, listSpots, SPOT_RADIUS_M } from "@/lib/divert/spots";
+import { findSpots, listSpots, selectSpot, SPOT_RADIUS_M } from "@/lib/divert/spots";
 import type { DivertSession, DivertSpot, GroupRoute } from "@/lib/divert/types";
 import { startDivert, updateDivert } from "@/lib/store/state";
 import { DivertIconGlyph } from "./divert-icon";
@@ -61,8 +61,7 @@ export function DivertPreferencesView({
     categories,
     [chosen, session?.spot],
   );
-  const spot =
-    (chosen && categories.includes(chosen.category) ? chosen : undefined) ?? spots[0];
+  const spot = selectSpot(spots, categories, [chosen, session?.spot]);
 
   const dwell = dwellFor(interests);
   const group = trip.travelers.length >= 2;

@@ -144,11 +144,13 @@ function todayFor(stops: RouteStop[], now: Date): string {
 }
 
 /**
- * Which day's stops to plan around, most specific first: the day a running
- * diversion has run through, so the plan never jumps to another while it
- * lasts; a day under way; today, as the destination's calendar reads it; the
- * nearest day ahead with somewhere to go between; and once the trip is over,
- * the most recent day, for looking back.
+ * Which day's stops to plan around. A running diversion stays on the day it
+ * was planned against — whatever this showed at the moment it began — so the
+ * plan never moves to another day or city while it lasts; buildRoute then
+ * decides whether that day is live now. Otherwise, most specific first: a day
+ * under way; today, as the destination's calendar reads it; the nearest day
+ * ahead with somewhere to go between; and once the trip is over, the most
+ * recent day, for looking back.
  */
 export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[] {
   const byDay = new Map<string, RouteStop[]>();
@@ -163,12 +165,7 @@ export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[
   // window open, and must not hide the day that is actually happening now.
   const latestFirst = [...days].reverse();
 
-  if (since) {
-    const anchored = latestFirst.find(([, day]) =>
-      ranThrough(schedule(day), since.getTime(), now.getTime()),
-    );
-    if (anchored) return anchored[1];
-  }
+  if (since) return pickDay(stops, since);
 
   const liveNow = latestFirst.find(([, day]) => liveAt(schedule(day), now.getTime()));
   if (liveNow) return liveNow[1];

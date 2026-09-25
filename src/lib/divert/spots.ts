@@ -165,6 +165,23 @@ export function listSpots(
 }
 
 /**
+ * The spot a picker has selected: the one tapped, then the one a running
+ * diversion was saved with, while its kind is still wanted — and only then
+ * the nearest on the list. So putting interests back the way they were never
+ * quietly swaps the saved spot for a closer one.
+ */
+export function selectSpot(
+  listed: DivertSpot[],
+  categories: DivertCategory[],
+  pinned: (DivertSpot | null | undefined)[],
+): DivertSpot | undefined {
+  return (
+    pinned.find((entry): entry is DivertSpot => Boolean(entry) && categories.includes(entry!.category)) ??
+    listed[0]
+  );
+}
+
+/**
  * Spots for the categories asked for, nearest first, within a short walk of
  * where the group is. Every category gets at least one answer: when nothing
  * real is close, a stand-in is placed nearby and marked as such, so the flow
