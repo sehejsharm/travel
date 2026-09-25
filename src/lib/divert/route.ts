@@ -168,22 +168,19 @@ export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[
   if (since) {
     const planned = pickDay(stops, since);
     const plannedKey = localDateKey(planned[0].startsAt);
-    const sinceDate = todayFor(planned, since);
 
-    // Planned on an earlier date's day only because a long item from that
-    // date was still open: once the traveller's own day has started, it is
-    // where the group is, so it takes over — as it does with no diversion.
-    if (plannedKey < sinceDate) {
-      const started = latestFirst.find(
-        ([key, day]) =>
-          key > plannedKey &&
-          key <= sinceDate &&
-          ranThrough(schedule(day), since.getTime(), now.getTime()),
-      );
-      if (started) return started[1];
-    }
-
-    return planned;
+    // A later day that was already "today" by its own calendar when the
+    // diversion began, and has since started, is where the group actually
+    // is: the planned day was only live because a long item from an earlier
+    // date was still open. Judged in each day's own offset, so it holds when
+    // the long item and the day's stops were filed in different zones.
+    const started = latestFirst.find(
+      ([key, day]) =>
+        key > plannedKey &&
+        key <= todayFor(day, since) &&
+        ranThrough(schedule(day), since.getTime(), now.getTime()),
+    );
+    return started ? started[1] : planned;
   }
 
   const liveNow = latestFirst.find(([, day]) => liveAt(schedule(day), now.getTime()));

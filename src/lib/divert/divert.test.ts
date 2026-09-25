@@ -341,6 +341,18 @@ describe("group route: which day", () => {
     expect(routeForGroup(items, new Date("2026-10-17T11:00:00+09:00"), since).waypoints.map((w) => w.id)).toEqual(["pass"]);
   });
 
+  it("lets the traveller's day take over even when the long item was filed in another offset", () => {
+    const items = [
+      item("pz", "Conference hall", { lat: 35.63, lng: 139.79 }, "2026-10-16T00:30:00Z", "2026-10-18T09:00:00Z"),
+      item("l", "Lunch spot", { lat: 35.7125, lng: 139.777 }, "2026-10-17T12:00:00+09:00", "2026-10-17T13:00:00+09:00"),
+      item("m", "Museum", { lat: 35.7188, lng: 139.7766 }, "2026-10-17T14:00:00+09:00", "2026-10-17T16:00:00+09:00"),
+    ];
+    const since = new Date("2026-10-17T08:00:00+09:00");
+    const route = routeForGroup(items, new Date("2026-10-17T12:30:00+09:00"), since);
+
+    expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["l", "m"]);
+  });
+
   it("keeps an evening diversion on the day it was planned against, not the next morning's", () => {
     const items = [
       item("a", "Ueno Park", { lat: 35.7125, lng: 139.777 }, "2026-10-17T10:00:00+09:00", "2026-10-17T11:00:00+09:00"),
