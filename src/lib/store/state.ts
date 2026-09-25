@@ -2,6 +2,8 @@ import type { ChecklistEntry, ChecklistKind, GeneratedEntry } from "../checklist
 import { generatePacking, generateTasks, purposeTasks } from "../checklists";
 import type { Trip, TripItem, TripLeg, TripPurpose, Traveler } from "../domain/types";
 import type { AdviceResult } from "../advisor/types";
+import { fittingDivertSession, liveDivertSession } from "../divert/session";
+import type { DivertSession, RejoinOptionType } from "../divert/types";
 import type { ItemDraft } from "../extract/types";
 import { getCountry } from "../reference/countries";
 import { getPurpose } from "../trip-purpose";
@@ -23,6 +25,11 @@ export interface AppState {
   checklist: ChecklistEntry[];
   /** Suggestions already paid for, kept so they are not paid for twice. */
   advice?: CachedAdvice[];
+  /**
+   * Whoever holds this device, off on their own for a bit. One at a time,
+   * for one trip, and gone again the moment they rejoin.
+   */
+  divert?: DivertSession;
 }
 
 const STORAGE_KEY = "manifest.state.v2";
@@ -119,13 +126,20 @@ function read(): AppState {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppState>;
       if (Array.isArray(parsed.trips)) {
-        return withGeneratedChecklists({
-          trips: parsed.trips,
-          activeTripId: parsed.activeTripId ?? parsed.trips[0]?.id ?? "",
-          items: parsed.items ?? [],
-          checklist: parsed.checklist ?? [],
-          advice: parsed.advice ?? [],
-        });
+        const loaded = tidy(
+          withGeneratedChecklists({
+            trips: parsed.trips,
+            activeTripId: parsed.activeTripId ?? parsed.trips[0]?.id ?? "",
+            items: parsed.items ?? [],
+            checklist: parsed.checklist ?? [],
+            advice: parsed.advice ?? [],
+            divert: liveDivertSession(parsed.divert, new Date()),
+          }),
+        );
+        // A diversion that expired or no longer fits is removed from storage
+        // now, not whenever something else next happens to be saved.
+        if (parsed.divert !== undefined && loaded.divert === undefined) write(loaded);
+        return loaded;
       }
     }
 
@@ -160,8 +174,17 @@ function set(next: AppState): void {
   for (const listener of listeners) listener();
 }
 
+/**
+ * Store-wide invariants applied on every write. A diversion only survives
+ * while its trip still has a group that includes whoever broke off.
+ */
+function tidy(next: AppState): AppState {
+  if (next.divert === undefined) return next;
+  return { ...next, divert: fittingDivertSession(next.divert, next.trips) };
+}
+
 function mutate(update: (current: AppState) => AppState): void {
-  set(withGeneratedChecklists(update(getSnapshot())));
+  set(tidy(withGeneratedChecklists(update(getSnapshot()))));
 }
 
 /**
@@ -170,7 +193,7 @@ function mutate(update: (current: AppState) => AppState): void {
  * other writer and says so.
  */
 export function replaceState(next: AppState): void {
-  set(withGeneratedChecklists(next));
+  set(tidy(withGeneratedChecklists(next)));
 }
 
 /** Deletes every trace of this device's trips. */
@@ -303,6 +326,8 @@ export function deleteTrip(tripId: string): void {
   mutate((current) => {
     const trips = current.trips.filter((trip) => trip.id !== tripId);
     return {
+      // Keep what belongs to other trips — including a diversion on one of them.
+      ...current,
       trips,
       activeTripId: current.activeTripId === tripId ? (trips[0]?.id ?? "") : current.activeTripId,
       items: current.items.filter((item) => item.tripId !== tripId),
@@ -392,7 +417,10 @@ export const SAMPLE_TRIP_ID = SEED_TRIP.id;
 /** Adds the sample alongside whatever is already there — never replaces it. */
 export function loadSampleTrip(): string {
   const sample = sampleState();
+  // Everything else on the device stays: other trips' paid-for advice, and a
+  // diversion someone is out on.
   mutate((current) => ({
+    ...current,
     trips: [...current.trips.filter((trip) => trip.id !== SEED_TRIP.id), ...sample.trips],
     activeTripId: SEED_TRIP.id,
     items: [...current.items.filter((item) => item.tripId !== SEED_TRIP.id), ...sample.items],
@@ -566,4 +594,38 @@ export function importTrip(trip: Trip, items: TripItem[]): void {
     activeTripId: trip.id,
     items: [...current.items.filter((item) => item.tripId !== trip.id), ...items],
   }));
+}
+
+/* ----------------------------------------------------------------- divert */
+
+/** One person breaks off. Replaces any diversion already running, on any trip. */
+export function startDivert(session: Omit<DivertSession, "startedAt">, now = new Date()): void {
+  mutate((current) => ({
+    ...current,
+    divert: { ...session, startedAt: now.toISOString() },
+  }));
+}
+
+/**
+ * Changes to the running diversion: a different spot, a chosen way back.
+ * Once it has expired this clears it instead, so a stale screen cannot
+ * revive it and the record does not linger.
+ */
+export function updateDivert(
+  patch: Partial<Omit<DivertSession, "tripId" | "startedAt" | "day">>,
+  now = new Date(),
+): void {
+  mutate((current) => {
+    const session = liveDivertSession(current.divert, now);
+    return { ...current, divert: session ? { ...session, ...patch } : undefined };
+  });
+}
+
+export function chooseRejoin(type: RejoinOptionType): void {
+  updateDivert({ chosen: type });
+}
+
+/** Back with the group: the diversion is over and nothing of it is kept. */
+export function rejoinGroup(): void {
+  mutate((current) => ({ ...current, divert: undefined }));
 }

@@ -8,6 +8,7 @@ import { ItemEditor } from "@/components/item-editor";
 import { Timeline } from "@/components/timeline";
 import { DeferredPrompts } from "@/components/deferred-prompts";
 import { FirstRun } from "@/components/first-run";
+import { GroupStatusCard } from "@/components/divert/group-status-card";
 import { Onboarding } from "@/components/onboarding";
 import { ReviewPrompt } from "@/components/review-prompt";
 import { TripHero } from "@/components/trip-hero";
@@ -26,7 +27,7 @@ import { daysBetween, formatDay, formatTime, rollUpBudget } from "@/lib/rules";
 import { useTripView } from "@/lib/store/use-store";
 
 export default function TripScreen() {
-  const { trip, items, flags, checklist, hydrated, empty } = useTripView();
+  const { state, trip, items, flags, checklist, hydrated, empty } = useTripView();
   const [editing, setEditing] = useState<TripItem | null>(null);
 
   if (!hydrated) return <ScreenSkeleton />;
@@ -72,6 +73,9 @@ export default function TripScreen() {
           tone={critical > 0 ? "critical" : "ok"}
         />
       </div>
+
+      {/* Only a group, or someone already out, has anything to show here. */}
+      {(trip.travelers.length >= 2 || state.divert?.tripId === trip.id) && <GroupStatusCard />}
 
       {flags.length > 0 && (
         <Link href="/checks" className="press block">
