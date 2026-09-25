@@ -434,6 +434,38 @@ describe("group route: which day", () => {
     expect(route.offset).toBe("+09:00");
   });
 
+  it("takes tomorrow morning's single stop over a busier day after, when a diversion could run into it", () => {
+    const at = (id: string, date: string, start: string, end: string, lng: number) =>
+      item(id, `Stop ${id}`, { lat: 35.7, lng }, `${date}T${start}:00+09:00`, `${date}T${end}:00+09:00`);
+    const items = [
+      at("s1", "2026-10-18", "09:00", "11:00", 139.77),
+      at("s2", "2026-10-19", "09:00", "10:00", 139.78),
+      at("s3", "2026-10-19", "11:00", "12:00", 139.79),
+      at("s4", "2026-10-19", "14:00", "16:00", 139.8),
+    ];
+    // An evening with nothing on it, the night before.
+    const since = new Date("2026-10-17T22:00:00+09:00");
+
+    expect(pickDay(stopsFromItems(items), since).map((stop) => stop.id)).toEqual(["s1"]);
+    const route = routeForGroup(items, new Date("2026-10-18T09:30:00+09:00"), since);
+    expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["s1"]);
+    expect(route.simulated).toBe(false);
+  });
+
+  it("looks back at the last day once the trip is over, however few stops it had", () => {
+    const at = (id: string, date: string, start: string, end: string) =>
+      item(id, `Stop ${id}`, { lat: 35.7, lng: 139.77 }, `${date}T${start}:00+09:00`, `${date}T${end}:00+09:00`);
+    const items = [
+      at("a", "2026-10-16", "10:00", "12:00"),
+      at("b", "2026-10-16", "14:00", "16:00"),
+      at("c", "2026-10-17", "08:00", "10:00"),
+      at("d", "2026-10-17", "13:00", "15:00"),
+      at("e", "2026-10-18", "09:00", "10:00"),
+    ];
+
+    expect(pickDay(stopsFromItems(items), new Date("2026-10-20T12:00:00+09:00")).map((stop) => stop.id)).toEqual(["e"]);
+  });
+
   it("falls back to the nearest day ahead with somewhere to go between", () => {
     const route = routeForGroup(SEED_ITEMS, new Date("2026-09-20T11:00:00Z"));
 

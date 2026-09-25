@@ -4,6 +4,7 @@ import { estimateTravel, type TravelEstimate } from "../geo";
 import { formatTime, hasDate, localDateKey } from "../rules/shared";
 import { lerp } from "./geometry";
 import { DEMO_STOPS } from "./mock";
+import { DIVERT_EXPIRES_MS } from "./session";
 import type { GroupPhase, GroupRoute, GroupWaypoint, RouteStop } from "./types";
 
 /** With no end time filed, this is how long the group is assumed to stay. */
@@ -163,8 +164,10 @@ function todayFor(stops: RouteStop[], now: Date): string {
  * and spot always belong to the day on screen; buildRoute then decides
  * whether that day is live now. Otherwise, most specific first: a day under
  * way (the newest, if two overlap around midnight); today, as the
- * destination's calendar reads it; the nearest day ahead with somewhere to go
- * between; and once the trip is over, the most recent day, for looking back.
+ * destination's calendar reads it; the next day, if it starts within a
+ * diversion's lifetime, however few stops it has; the nearest day ahead with
+ * somewhere to go between; and once the trip is over, the most recent day,
+ * for looking back.
  */
 export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[] {
   if (since) return pickDay(stops, since);
@@ -188,10 +191,14 @@ export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[
   if (today) return today[1];
 
   const ahead = days.filter(([key, day]) => key > todayFor(day, now));
-  const pool = ahead.length > 0 ? ahead : [...days].reverse();
-  const chosen = pool.find(([, day]) => day.length >= 2) ?? pool[0];
+  if (ahead.length === 0) return days[days.length - 1][1];
 
-  return chosen[1];
+  // A day that starts before a diversion begun now could end is the one that
+  // matters, however few stops it has; further out, prefer a day with a route.
+  const next = ahead[0];
+  if (schedule(next[1]).arrive[0] - now.getTime() <= DIVERT_EXPIRES_MS) return next[1];
+
+  return (ahead.find(([, day]) => day.length >= 2) ?? next)[1];
 }
 
 /**
