@@ -272,6 +272,16 @@ describe("group route: which stops", () => {
 
     expect(stopsFromItems(items).map((stop) => stop.id)).toEqual(["timed"]);
   });
+
+  it("treats an item longer than a waking day as a span the group is within, not a stop", () => {
+    const items = [
+      item("pass", "Conference hall", { lat: 35.63, lng: 139.79 }, "2026-10-16T09:00:00+09:00", "2026-10-18T18:00:00+09:00"),
+      item("day-tour", "Nikko", { lat: 36.7581, lng: 139.5986 }, "2026-10-17T07:00:00+09:00", "2026-10-17T21:00:00+09:00"),
+      item("lunch", "Lunch spot", { lat: 35.7125, lng: 139.777 }, "2026-10-18T12:00:00+09:00", "2026-10-18T13:00:00+09:00"),
+    ];
+
+    expect(stopsFromItems(items).map((stop) => stop.id)).toEqual(["day-tour", "lunch"]);
+  });
 });
 
 describe("group route: which day", () => {
@@ -325,7 +335,7 @@ describe("group route: which day", () => {
     expect(route.phase).toBe("finished");
   });
 
-  it("lets the traveller's own day take over from a long item's once that day starts", () => {
+  it("plans around the day's own stops rather than a long item that spans it", () => {
     const items = [
       item("pass", "Conference hall", { lat: 35.63, lng: 139.79 }, "2026-10-16T09:00:00+09:00", "2026-10-18T18:00:00+09:00"),
       item("l", "Lunch spot", { lat: 35.7125, lng: 139.777 }, "2026-10-17T12:00:00+09:00", "2026-10-17T13:00:00+09:00"),
@@ -337,11 +347,13 @@ describe("group route: which day", () => {
 
     expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["l", "m"]);
     expect(route.nowLabel).toBe("At Lunch spot");
-    // Before that day starts, the plan stays where it began.
-    expect(routeForGroup(items, new Date("2026-10-17T11:00:00+09:00"), since).waypoints.map((w) => w.id)).toEqual(["pass"]);
+    // Before the day's first stop, the same day is shown, simulated.
+    const early = routeForGroup(items, new Date("2026-10-17T11:00:00+09:00"), since);
+    expect(early.waypoints.map((w) => w.id)).toEqual(["l", "m"]);
+    expect(early.simulated).toBe(true);
   });
 
-  it("lets the traveller's day take over even when the long item was filed in another offset", () => {
+  it("plans around the day's own stops even when a long item was filed in another offset", () => {
     const items = [
       item("pz", "Conference hall", { lat: 35.63, lng: 139.79 }, "2026-10-16T00:30:00Z", "2026-10-18T09:00:00Z"),
       item("l", "Lunch spot", { lat: 35.7125, lng: 139.777 }, "2026-10-17T12:00:00+09:00", "2026-10-17T13:00:00+09:00"),
@@ -351,6 +363,21 @@ describe("group route: which day", () => {
     const route = routeForGroup(items, new Date("2026-10-17T12:30:00+09:00"), since);
 
     expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["l", "m"]);
+  });
+
+  it("keeps an evening diversion in its own city when the next day is filed further east", () => {
+    const items = [
+      item("l1", "British Museum", { lat: 51.5194, lng: -0.127 }, "2026-10-16T14:00:00+01:00", "2026-10-16T15:00:00+01:00"),
+      item("l2", "Borough Market", { lat: 51.5055, lng: -0.091 }, "2026-10-16T17:00:00+01:00", "2026-10-16T19:00:00+01:00"),
+      item("p1", "Louvre", { lat: 48.8606, lng: 2.3376 }, "2026-10-17T09:00:00+02:00", "2026-10-17T10:00:00+02:00"),
+      item("p2", "Sainte-Chapelle", { lat: 48.8554, lng: 2.345 }, "2026-10-17T11:00:00+02:00", "2026-10-17T12:00:00+02:00"),
+    ];
+    // Half past eleven in London is already the 17th in Paris.
+    const since = new Date("2026-10-16T23:30:00+01:00");
+    const route = routeForGroup(items, new Date("2026-10-17T09:05:00+02:00"), since);
+
+    expect(route.waypoints.map((waypoint) => waypoint.id)).toEqual(["l1", "l2"]);
+    expect(route.simulated).toBe(true);
   });
 
   it("keeps an evening diversion on the day it was planned against, not the next morning's", () => {

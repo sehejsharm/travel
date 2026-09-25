@@ -10,6 +10,13 @@ import type { GroupPhase, GroupRoute, GroupWaypoint, RouteStop } from "./types";
 export const DEFAULT_DWELL_MIN = 60;
 /** The shortest stay assumed at a stop with no end, however tight the day. */
 const MIN_DWELL_MIN = 15;
+/**
+ * Longer than this and an item is a span the group is somewhere within — a
+ * conference pass, a festival, a multi-day tour — not a stop it moves between.
+ * Treating one as a stop would stretch its day's window across the next days
+ * and put the group at the conference hall while the timeline has them at lunch.
+ */
+const MAX_STOP_HOURS = 16;
 /** How far into the first stop the stand-in clock sits when the day is not live. */
 const SIMULATED_INTO_FIRST_STOP_MIN = 20;
 /** How long after the day's last stop "now" is still a useful clock for it. */
@@ -25,6 +32,10 @@ const NOT_STOPS = new Set(["flight", "lodging", "rail", "car"]);
  * after it says something really is happening at midnight. A midnight-to-
  * midnight range is a span of days, not a stop.
  */
+function isSpan(item: TripItem): boolean {
+  return hasDate(item.endsAt) && Date.parse(item.endsAt) - Date.parse(item.startsAt!) > MAX_STOP_HOURS * 3_600_000;
+}
+
 function hasTimeOfDay(item: TripItem): boolean {
   const start = formatTime(item.startsAt!);
   if (!start) return false;
@@ -37,8 +48,9 @@ function hasTimeOfDay(item: TripItem): boolean {
 
 /**
  * The stops a group actually moves between: timed with a readable date,
- * placed, and not a flight or a bed. Named after the place rather than the
- * item, because a meeting point is somewhere, not something.
+ * placed, shorter than a waking day, and not a flight or a bed. Named after
+ * the place rather than the item, because a meeting point is somewhere, not
+ * something.
  */
 export function stopsFromItems(items: TripItem[]): RouteStop[] {
   return items
@@ -47,6 +59,7 @@ export function stopsFromItems(items: TripItem[]): RouteStop[] {
         hasDate(item.startsAt) &&
         item.place?.point &&
         hasTimeOfDay(item) &&
+        !isSpan(item) &&
         !(item.bookingKind && NOT_STOPS.has(item.bookingKind)),
     )
     .sort((a, b) => Date.parse(a.startsAt!) - Date.parse(b.startsAt!))
@@ -146,13 +159,16 @@ function todayFor(stops: RouteStop[], now: Date): string {
 /**
  * Which day's stops to plan around. A running diversion stays on the day it
  * was planned against — whatever this showed at the moment it began — so the
- * plan never moves to another day or city while it lasts; buildRoute then
- * decides whether that day is live now. Otherwise, most specific first: a day
- * under way; today, as the destination's calendar reads it; the nearest day
- * ahead with somewhere to go between; and once the trip is over, the most
- * recent day, for looking back.
+ * plan never moves to another day or city while it lasts, and its start point
+ * and spot always belong to the day on screen; buildRoute then decides
+ * whether that day is live now. Otherwise, most specific first: a day under
+ * way (the newest, if two overlap around midnight); today, as the
+ * destination's calendar reads it; the nearest day ahead with somewhere to go
+ * between; and once the trip is over, the most recent day, for looking back.
  */
 export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[] {
+  if (since) return pickDay(stops, since);
+
   const byDay = new Map<string, RouteStop[]>();
   for (const stop of stops) {
     const day = localDateKey(stop.startsAt);
@@ -161,27 +177,9 @@ export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[
   if (byDay.size === 0) return [];
 
   const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
-  // Newest first: a long item filed as ending days later keeps its own day's
-  // window open, and must not hide the day that is actually happening now.
+  // Newest first, so a late night running past midnight gives way to the next
+  // day once that day's first stop has begun.
   const latestFirst = [...days].reverse();
-
-  if (since) {
-    const planned = pickDay(stops, since);
-    const plannedKey = localDateKey(planned[0].startsAt);
-
-    // A later day that was already "today" by its own calendar when the
-    // diversion began, and has since started, is where the group actually
-    // is: the planned day was only live because a long item from an earlier
-    // date was still open. Judged in each day's own offset, so it holds when
-    // the long item and the day's stops were filed in different zones.
-    const started = latestFirst.find(
-      ([key, day]) =>
-        key > plannedKey &&
-        key <= todayFor(day, since) &&
-        ranThrough(schedule(day), since.getTime(), now.getTime()),
-    );
-    return started ? started[1] : planned;
-  }
 
   const liveNow = latestFirst.find(([, day]) => liveAt(schedule(day), now.getTime()));
   if (liveNow) return liveNow[1];
