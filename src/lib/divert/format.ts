@@ -35,9 +35,21 @@ export function wallClock(clock: Date, offset: string, minutesAfter = 0): string
   return clockAt(new Date(clock.getTime() + minutesAfter * 60_000), offset);
 }
 
-/** A place name as it reads mid-sentence: "A coffee stand near you" becomes "a coffee stand near you". */
-export function inSentence(name: string): string {
-  return name.replace(/^(An?) /, (_, article: string) => `${article.toLowerCase()} `);
+/**
+ * A place name as it reads mid-sentence. Only names Manifest made up are
+ * touched — "A coffee stand near you" becomes "a coffee stand near you", "On
+ * the way to Ueno Park" becomes "on the way to Ueno Park" — while a filed
+ * name such as "An Bang Beach" is left exactly as the traveller wrote it.
+ */
+export function inSentence(name: string, generated: boolean): string {
+  if (!generated) return name;
+  return name.replace(/^(An?|On) /, (_, word: string) => `${word.toLowerCase()} `);
+}
+
+/** Ready to follow "rejoin": "at Ueno Park", "at a coffee stand near you", "on the way to Ueno Park". */
+export function atPlace(name: string, generated: boolean): string {
+  const spoken = inSentence(name, generated);
+  return generated && spoken.startsWith("on the way to ") ? spoken : `at ${spoken}`;
 }
 
 /**

@@ -139,6 +139,32 @@ export function withoutFreshStandIn(found: DivertSpot[], current?: DivertSpot | 
 }
 
 /**
+ * The spots a picker lists: what was found, less any fresh stand-in that
+ * would shadow a pinned one, with every pinned spot — the one tapped, the one
+ * a running diversion was saved with — kept on the list under its own name
+ * for as long as its kind is still wanted.
+ */
+export function listSpots(
+  found: DivertSpot[],
+  categories: DivertCategory[],
+  pinned: (DivertSpot | null | undefined)[],
+): DivertSpot[] {
+  const keep = pinned.filter(
+    (entry, index, all): entry is DivertSpot =>
+      Boolean(entry) &&
+      categories.includes(entry!.category) &&
+      all.findIndex((other) => other?.id === entry!.id) === index,
+  );
+  const filtered = keep.reduce((list, entry) => withoutFreshStandIn(list, entry), found);
+  const missing = keep.filter((entry) => !filtered.some((candidate) => candidate.id === entry.id));
+
+  return [
+    ...missing,
+    ...filtered.map((candidate) => keep.find((entry) => entry.id === candidate.id) ?? candidate),
+  ];
+}
+
+/**
  * Spots for the categories asked for, nearest first, within a short walk of
  * where the group is. Every category gets at least one answer: when nothing
  * real is close, a stand-in is placed nearby and marked as such, so the flow

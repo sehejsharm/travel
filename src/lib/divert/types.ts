@@ -108,6 +108,8 @@ export interface RejoinOption {
   type: RejoinOptionType;
   location: GeoPoint;
   meetingPointName: string;
+  /** True when Manifest made the name up (a street meeting, a stand-in) rather than it being filed. */
+  meetingPointGenerated: boolean;
   /** Minutes after the clock until the solo traveller is at the meeting point. */
   userETA: number;
   /** Minutes after the clock until the group is. */

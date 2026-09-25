@@ -5,12 +5,12 @@ import { useState, type CSSProperties } from "react";
 import { PrimaryButton } from "@/components/form";
 import { Card, Chip, ScreenHeader, SectionTitle } from "@/components/ui";
 import type { GeoPoint, Trip } from "@/lib/domain/types";
-import { formatDistance, formatMinutes } from "@/lib/divert/format";
+import { formatDistance, formatMinutes, inSentence } from "@/lib/divert/format";
 import { distanceM } from "@/lib/divert/geometry";
 import { categoriesFor, DIVERT_INTERESTS, dwellFor, interestsFor } from "@/lib/divert/interests";
 import { respot, travellerWhereabouts } from "@/lib/divert/rejoin";
 import { anchorName } from "@/lib/divert/route";
-import { findSpots, SPOT_RADIUS_M, withoutFreshStandIn } from "@/lib/divert/spots";
+import { findSpots, listSpots, SPOT_RADIUS_M } from "@/lib/divert/spots";
 import type { DivertSession, DivertSpot, GroupRoute } from "@/lib/divert/types";
 import { startDivert, updateDivert } from "@/lib/store/state";
 import { DivertIconGlyph } from "./divert-icon";
@@ -53,18 +53,14 @@ export function DivertPreferencesView({
 
   const interests = interestsFor(picked);
   const categories = categoriesFor(interests);
-  const found = withoutFreshStandIn(
+  // The spot tapped and, when changing a running diversion, the one it was
+  // saved with both stay listed under their own names; neither is ever
+  // shadowed by a fresh stand-in of its kind.
+  const spots = listSpots(
     categories.length > 0 ? findSpots(origin.position, categories, origin.anchor) : [],
-    chosen,
+    categories,
+    [chosen, session?.spot],
   );
-  // A spot already chosen stays on the list while its kind is still wanted,
-  // even if it is not among the nearest from here, and always under the name
-  // it was saved with.
-  const keepChosen =
-    chosen && categories.includes(chosen.category) && !found.some((spot) => spot.id === chosen.id);
-  const spots = keepChosen
-    ? [chosen, ...found]
-    : found.map((candidate) => (chosen && candidate.id === chosen.id ? chosen : candidate));
   const spot =
     (chosen && categories.includes(chosen.category) ? chosen : undefined) ?? spots[0];
 
@@ -283,7 +279,7 @@ export function DivertPreferencesView({
           {route.demo
             ? "Sample only: put timed, placed stops on your timeline to break off for real"
             : spot
-              ? `${editing ? "" : "Starts your diversion: "}${formatMinutes(dwell)} at ${spot.name}, then back to the others`
+              ? `${editing ? "" : "Starts your diversion: "}${formatMinutes(dwell)} at ${inSentence(spot.name, Boolean(spot.synthetic))}, then back to the others`
               : "Pick what you are after and a spot appears"}
         </p>
       </div>

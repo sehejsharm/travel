@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { Card, Chip } from "@/components/ui";
 import {
+  atPlace,
   formatDistance,
   formatEta,
   formatMinutes,
@@ -79,7 +80,7 @@ export function RejoinOptionCard({
 
   // A stand-in is a made-up point, so Maps gets a search for the kind of
   // place rather than a pin on coordinates nobody checked.
-  const place = inSentence(option.meetingPointName);
+  const place = inSentence(option.meetingPointName, option.meetingPointGenerated);
   const mapsUrl = standIn
     ? openInMapsUrl({ name: standInSearch(option.meetingPointName) })
     : openInMapsUrl({ name: option.meetingPointName, point: option.location });
@@ -90,7 +91,7 @@ export function RejoinOptionCard({
     : missed
       ? `try for ${place}, though the group will have left`
       : catchUp
-        ? `rejoin at ${place}`
+        ? `rejoin ${atPlace(option.meetingPointName, option.meetingPointGenerated)}`
         : `the group joins you at ${place}`;
 
   return (

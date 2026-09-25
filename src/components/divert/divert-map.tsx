@@ -168,6 +168,15 @@ export function DivertMap({
   const remaining = route.waypoints.slice(route.nextStop).map((waypoint) => project(waypoint.point));
   const next = route.waypoints[route.nextStop];
   const catchUp = option.type === "CATCH_UP";
+  const missed = catchUp && !option.feasible;
+  const gone = missed && option.groupLeaveMin !== undefined && option.groupLeaveMin <= 0;
+  const meeting = gone
+    ? "the group's last stop, where they were"
+    : missed
+      ? "the group's last stop, which they will have left"
+      : catchUp
+        ? "where you rejoin them"
+        : "where they join you";
 
   // The group's line: what is left of its day for a catch-up, or the turn
   // it makes toward the spot and then back onto the route for a detour.
@@ -194,9 +203,7 @@ export function DivertMap({
     <svg
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       role="img"
-      aria-label={`Map: the group, your spot at ${inSentence(spot.name)}, and ${
-        catchUp ? "where you rejoin them" : "where they join you"
-      }, ${inSentence(option.meetingPointName)}`}
+      aria-label={`Map: the group, your spot at ${inSentence(spot.name, Boolean(spot.synthetic))}, and ${meeting}, ${inSentence(option.meetingPointName, option.meetingPointGenerated)}`}
       className="block h-auto w-full bg-surface-2"
     >
       <path d={path(stops)} fill="none" stroke="var(--line-strong)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />

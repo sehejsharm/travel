@@ -4,7 +4,7 @@ import type { DivertSession, UserGroupStatus } from "./types";
 
 export * from "./types";
 export { categoriesFor, DIVERT_INTERESTS, dwellFor, interestsFor } from "./interests";
-export { findSpots, gazetteerPoint, SPOT_RADIUS_M, withoutFreshStandIn } from "./spots";
+export { findSpots, gazetteerPoint, listSpots, SPOT_RADIUS_M, withoutFreshStandIn } from "./spots";
 export { distanceM, lerp, offsetPoint } from "./geometry";
 export {
   anchorName,
@@ -28,6 +28,7 @@ export {
   formatDistance,
   formatEta,
   formatMinutes,
+  atPlace,
   inSentence,
   MODE_LABELS,
   NEAR_ENOUGH_M,

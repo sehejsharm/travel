@@ -21,6 +21,7 @@ import {
   updateDivert,
 } from "../store/state";
 import {
+  atPlace,
   formatDistance,
   formatEta,
   formatMinutes,
@@ -49,7 +50,7 @@ import {
   travellerWhereabouts,
 } from "./rejoin";
 import { anchorName, buildRoute, pickDay, routeForGroup, stopsFromItems } from "./route";
-import { findSpots, gazetteerPoint, SPOT_RADIUS_M, withoutFreshStandIn } from "./spots";
+import { findSpots, gazetteerPoint, listSpots, SPOT_RADIUS_M, withoutFreshStandIn } from "./spots";
 import type { DivertSession, DivertSpot, RejoinOption, RouteStop } from "./types";
 
 const TEAMLAB = { lat: 35.6605, lng: 139.7396 };
@@ -158,6 +159,29 @@ describe("divert spots", () => {
     expect(kept.some((entry) => entry.category === "rest")).toBe(true);
     // A real spot never filters anything.
     expect(withoutFreshStandIn(found, FUGLEN)).toEqual(found);
+  });
+
+  it("keeps a saved stand-in listed under its own name after another spot is tapped", () => {
+    // Nothing bundled near Sapporo, so every spot is a stand-in.
+    const sapporo = { lat: 43.0621, lng: 141.3544 };
+    const [saved] = findSpots(sapporo, ["coffee"], "Odori Park");
+    const found = findSpots(saved.point, ["coffee", "rest"], "you");
+    const rest = found.find((entry) => entry.category === "rest")!;
+
+    // Just opened: the saved spot is the choice.
+    const opened = listSpots(found, ["coffee", "rest"], [saved, saved]);
+    expect(opened.filter((entry) => entry.category === "coffee")).toEqual([saved]);
+
+    // Tapped the rest stand-in to compare: the saved coffee stand-in is still there, by name.
+    const compared = listSpots(found, ["coffee", "rest"], [rest, saved]);
+    expect(compared.filter((entry) => entry.category === "coffee")).toEqual([saved]);
+    expect(compared.some((entry) => entry.id === rest.id)).toBe(true);
+
+    // Coffee unticked and ticked again, nothing tapped: the saved one leads the list.
+    expect(listSpots(found, ["coffee", "rest"], [null, saved])[0]).toEqual(saved);
+
+    // Coffee no longer wanted: the saved one drops out rather than being forced back in.
+    expect(listSpots(found, ["rest"], [null, saved]).some((entry) => entry.id === saved.id)).toBe(false);
   });
 
   it("always includes the nearest of each category asked for", () => {
@@ -516,6 +540,16 @@ describe("rejoin planning", () => {
     expect(catchUp.userETA).toBeGreaterThan(catchUp.groupLeaveMin!);
   });
 
+  it("marks which meeting names Manifest made up", () => {
+    const route = buildRoute(DEMO_STOPS, new Date("2026-10-18T09:20:00+09:00"))!;
+    const [atStop, toReal] = planRejoin(route, FUGLEN, 20);
+    expect(atStop.meetingPointGenerated).toBe(false);
+    expect(toReal.meetingPointGenerated).toBe(false);
+
+    const [, toStandIn] = planRejoin(route, spot({ id: "stand-in-coffee@1,1", name: "A coffee stand near you", synthetic: true }), 20);
+    expect(toStandIn.meetingPointGenerated).toBe(true);
+  });
+
   it("intercepts on the street when that is quicker than the next stop", () => {
     const stops: RouteStop[] = [
       { id: "a", name: "A", point: SOUTH, startsAt: "2026-10-18T10:00:00+09:00", endsAt: "2026-10-18T10:10:00+09:00" },
@@ -529,6 +563,7 @@ describe("rejoin planning", () => {
 
     expect(catchUp.feasible).toBe(true);
     expect(catchUp.meetingPointName).toBe("On the way to B");
+    expect(catchUp.meetingPointGenerated).toBe(true);
     expect(catchUp.location.lat).toBeGreaterThan(onTheWay.point.lat);
     expect(catchUp.location.lat).toBeLessThan(NORTH.lat);
     expect(Math.max(catchUp.userETA, catchUp.groupETA)).toBeLessThan(route.waypoints[1].arriveMin);
@@ -730,6 +765,7 @@ describe("leading with an option", () => {
     type: "CATCH_UP",
     location: SOUTH,
     meetingPointName: "Somewhere",
+    meetingPointGenerated: false,
     userETA: 30,
     groupETA: 20,
     userDistanceM: 500,
@@ -945,10 +981,20 @@ describe("divert state", () => {
 });
 
 describe("divert formatting", () => {
-  it("reads a place name naturally mid-sentence, and searches Maps sensibly for a stand-in", () => {
-    expect(inSentence("A coffee stand near you")).toBe("a coffee stand near you");
-    expect(inSentence("An izakaya near Ueno")).toBe("an izakaya near Ueno");
-    expect(inSentence("Ameyoko")).toBe("Ameyoko");
+  it("reads a made-up name naturally mid-sentence, and leaves a filed name exactly as written", () => {
+    expect(inSentence("A coffee stand near you", true)).toBe("a coffee stand near you");
+    expect(inSentence("An izakaya near Ueno", true)).toBe("an izakaya near Ueno");
+    expect(inSentence("On the way to Ueno Park", true)).toBe("on the way to Ueno Park");
+    expect(inSentence("An Bang Beach", false)).toBe("An Bang Beach");
+    expect(inSentence("A Brasileira", false)).toBe("A Brasileira");
+
+    expect(atPlace("Ameyoko", false)).toBe("at Ameyoko");
+    expect(atPlace("An Bang Beach", false)).toBe("at An Bang Beach");
+    expect(atPlace("A coffee stand near you", true)).toBe("at a coffee stand near you");
+    expect(atPlace("On the way to Ueno Park", true)).toBe("on the way to Ueno Park");
+  });
+
+  it("searches Maps sensibly for a stand-in", () => {
     expect(standInSearch("A coffee stand near you")).toBe("coffee stand near me");
     expect(standInSearch("A bench in the shade near the group")).toBe("bench in the shade near me");
     expect(standInSearch("A viewpoint near Senso-ji")).toBe("viewpoint near Senso-ji");
