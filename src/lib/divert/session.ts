@@ -1,4 +1,4 @@
-import type { GeoPoint } from "../domain/types";
+import type { GeoPoint, Trip } from "../domain/types";
 import type { DivertSession } from "./types";
 
 /**
@@ -51,4 +51,24 @@ export function isDivertExpired(session: DivertSession, now: Date): boolean {
 /** The stored session if it is well formed and still current, otherwise nothing. */
 export function liveDivertSession(value: unknown, now: Date): DivertSession | undefined {
   return isDivertSession(value) && !isDivertExpired(value, now) ? value : undefined;
+}
+
+/**
+ * The stored session if it is well formed and still has a group to come back
+ * to: its trip exists, has at least two people on it, and still lists whoever
+ * broke off. The store applies this on every write, so deleting the trip,
+ * removing the traveller or restoring an older copy of the trip all end a
+ * diversion that no longer makes sense, without each of them having to know.
+ * Expiry is checked on load and on use instead, where "now" is the real now.
+ */
+export function fittingDivertSession(value: unknown, trips: Trip[]): DivertSession | undefined {
+  if (!isDivertSession(value)) return undefined;
+
+  const trip = trips.find((candidate) => candidate.id === value.tripId);
+  if (!trip || trip.travelers.length < 2) return undefined;
+  if (value.travelerId && !trip.travelers.some((traveler) => traveler.id === value.travelerId)) {
+    return undefined;
+  }
+
+  return value;
 }

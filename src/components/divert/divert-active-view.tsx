@@ -8,9 +8,9 @@ import { divertedName } from "@/lib/divert";
 import { formatDistance, formatMinutes, wallClock } from "@/lib/divert/format";
 import { distanceM } from "@/lib/divert/geometry";
 import { categoriesFor } from "@/lib/divert/interests";
-import { respot, travellerPosition } from "@/lib/divert/rejoin";
+import { respot, travellerWhereabouts } from "@/lib/divert/rejoin";
 import { findSpots } from "@/lib/divert/spots";
-import type { DivertPlan, DivertSession } from "@/lib/divert/types";
+import type { DivertInterest, DivertPlan, DivertSession, GroupRoute } from "@/lib/divert/types";
 import { chooseRejoin, updateDivert } from "@/lib/store/state";
 import { DivertPreferencesView } from "./divert-preferences-view";
 import { GroupNowCard } from "./group-now-card";
@@ -51,10 +51,6 @@ export function DivertActiveView({
   }
 
   const who = divertedName(trip.travelers, session);
-  const here = travellerPosition(route, session);
-  const alternatives = findSpots(here, categoriesFor(interests), spot.name).filter(
-    (candidate) => candidate.id !== spot.id,
-  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -94,27 +90,8 @@ export function DivertActiveView({
         </div>
       </section>
 
-      {alternatives.length > 0 && (
-        <section>
-          <SectionTitle>Somewhere else instead</SectionTitle>
-          <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
-            {alternatives.map((candidate) => (
-              <button
-                key={candidate.id}
-                type="button"
-                onClick={() => updateDivert(respot(route, session, candidate))}
-                className="press shrink-0 rounded-xl border border-line bg-surface px-3.5 py-2 text-left"
-              >
-                <span className="block text-sm font-medium">{candidate.name}</span>
-                <span className="block font-mono text-[10px] text-ink-faint tabular">
-                  {formatDistance(distanceM(here, candidate.point))}
-                  {candidate.synthetic && " · stand-in"}
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Keyed on the spot, so the list is measured afresh only when it changes. */}
+      <Alternatives key={spot.id} route={route} session={session} interests={interests} />
 
       <div className="flex flex-col gap-2">
         <PrimaryButton onClick={onRejoin}>Rejoin group</PrimaryButton>
@@ -123,5 +100,50 @@ export function DivertActiveView({
         </GhostButton>
       </div>
     </div>
+  );
+}
+
+/**
+ * Other places to go instead. Measured once from where the traveller is when
+ * it appears, so a live walk-out does not reorder the chips under a finger —
+ * a tap here changes the running diversion straight away. The new walk
+ * itself still starts from where they really are at the moment they tap.
+ */
+function Alternatives({
+  route,
+  session,
+  interests,
+}: {
+  route: GroupRoute;
+  session: DivertSession;
+  interests: DivertInterest[];
+}) {
+  const [where] = useState(() => travellerWhereabouts(route, session));
+  const alternatives = findSpots(where.position, categoriesFor(interests), where.anchor).filter(
+    (candidate) => candidate.id !== session.spot.id,
+  );
+
+  if (alternatives.length === 0) return null;
+
+  return (
+    <section>
+      <SectionTitle>Somewhere else instead</SectionTitle>
+      <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
+        {alternatives.map((candidate) => (
+          <button
+            key={candidate.id}
+            type="button"
+            onClick={() => updateDivert(respot(route, session, candidate))}
+            className="press shrink-0 rounded-xl border border-line bg-surface px-3.5 py-2 text-left"
+          >
+            <span className="block text-sm font-medium">{candidate.name}</span>
+            <span className="block font-mono text-[10px] text-ink-faint tabular">
+              {formatDistance(distanceM(where.position, candidate.point))}
+              {candidate.synthetic && " · stand-in"}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

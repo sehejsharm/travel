@@ -21,6 +21,7 @@ export {
   quickestRejoin,
   respot,
   travellerPosition,
+  travellerWhereabouts,
   type TravellerProgress,
 } from "./rejoin";
 export {
@@ -32,7 +33,13 @@ export {
   wallClock,
 } from "./format";
 export { DEMO_GROUP, DEMO_STOPS } from "./mock";
-export { DIVERT_EXPIRES_MS, isDivertExpired, isDivertSession, liveDivertSession } from "./session";
+export {
+  DIVERT_EXPIRES_MS,
+  fittingDivertSession,
+  isDivertExpired,
+  isDivertSession,
+  liveDivertSession,
+} from "./session";
 
 /**
  * The stored session, if it belongs to this trip, is well formed and is still

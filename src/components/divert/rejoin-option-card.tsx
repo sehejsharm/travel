@@ -69,6 +69,8 @@ export function RejoinOptionCard({
   const { route, spot } = plan;
   const catchUp = option.type === "CATCH_UP";
   const missed = catchUp && !option.feasible;
+  // Past rather than future: the group had already left before now.
+  const gone = missed && option.groupLeaveMin !== undefined && option.groupLeaveMin <= 0;
   const standIn = !catchUp && spot.synthetic;
   const time = (minutes: number) => wallClock(route.clock, route.offset, minutes);
   const together = Math.max(option.userETA, option.groupETA);
@@ -97,9 +99,11 @@ export function RejoinOptionCard({
           {option.meetingPointName}
         </h3>
         <p className="mt-1 text-sm text-ink-soft">
-          {missed
-            ? "The group's last stop, though they will have moved on before you get there."
-            : catchUp
+          {gone
+            ? "The group's last stop, though they had already moved on."
+            : missed
+              ? "The group's last stop, though they will have moved on before you get there."
+              : catchUp
               ? "The nearest point on the group's route you can get to before they move on."
               : "The group comes to you instead, once they are done where they are."}
         </p>
@@ -113,14 +117,25 @@ export function RejoinOptionCard({
             at={time(option.userETA)}
             simulated={route.simulated}
           />
-          <Leg
-            label={missed ? "The group, before it leaves" : "The group"}
-            eta={option.groupETA}
-            distance={option.groupDistanceM}
-            mode={option.groupMode}
-            at={time(option.groupETA)}
-            simulated={route.simulated}
-          />
+          {gone ? (
+            <div className="rounded-xl bg-surface-2 px-3 py-2.5">
+              <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
+                The group left
+              </dt>
+              <dd className="mt-1 font-display text-lg font-semibold tracking-tight tabular">
+                at {time(option.groupLeaveMin!)}
+              </dd>
+            </div>
+          ) : (
+            <Leg
+              label={missed ? "The group, before it leaves" : "The group"}
+              eta={option.groupETA}
+              distance={option.groupDistanceM}
+              mode={option.groupMode}
+              at={time(option.groupETA)}
+              simulated={route.simulated}
+            />
+          )}
         </dl>
 
         <p className="mt-3 text-sm leading-relaxed">{option.note}</p>
@@ -150,6 +165,7 @@ export function RejoinOptionCard({
           type="button"
           onClick={onChoose}
           aria-pressed={chosen}
+          aria-label={`Go with this: ${catchUp ? "rejoin at" : "the group joins you at"} ${option.meetingPointName}`}
           className={`press flex-1 rounded-xl px-4 py-2.5 text-sm font-medium ${
             chosen
               ? "border border-accent bg-accent-soft text-accent-strong"

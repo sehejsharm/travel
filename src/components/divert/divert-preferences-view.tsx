@@ -8,7 +8,7 @@ import type { GeoPoint, Trip } from "@/lib/domain/types";
 import { formatDistance, formatMinutes } from "@/lib/divert/format";
 import { distanceM } from "@/lib/divert/geometry";
 import { categoriesFor, DIVERT_INTERESTS, dwellFor, interestsFor } from "@/lib/divert/interests";
-import { respot, travellerPosition } from "@/lib/divert/rejoin";
+import { respot, travellerWhereabouts } from "@/lib/divert/rejoin";
 import { anchorName } from "@/lib/divert/route";
 import { findSpots, SPOT_RADIUS_M } from "@/lib/divert/spots";
 import type { DivertSession, DivertSpot, GroupRoute } from "@/lib/divert/types";
@@ -44,9 +44,7 @@ export function DivertPreferencesView({
   // on every tick, so a live group walking on does not reshuffle the list
   // under a finger or quietly swap the spot that was tapped.
   const originNow = (): Origin =>
-    session
-      ? { position: travellerPosition(route, session), anchor: session.spot.name }
-      : { position: route.position, anchor: anchorName(route) };
+    session ? travellerWhereabouts(route, session) : { position: route.position, anchor: anchorName(route) };
 
   const [picked, setPicked] = useState<string[]>(session?.interestIds ?? []);
   const [chosen, setChosen] = useState<DivertSpot | null>(session?.spot ?? null);
@@ -74,10 +72,18 @@ export function DivertPreferencesView({
   function toggle(id: string) {
     const next = picked.includes(id) ? picked.filter((entry) => entry !== id) : [...picked, id];
     const nextCategories = categoriesFor(interestsFor(next));
+    const nextOrigin = originNow();
 
     setPicked(next);
-    setOrigin(originNow());
-    if (chosen && !nextCategories.includes(chosen.category)) setChosen(null);
+    setOrigin(nextOrigin);
+    // A spot kept from before must still be the kind wanted, and still near.
+    if (
+      chosen &&
+      (!nextCategories.includes(chosen.category) ||
+        distanceM(nextOrigin.position, chosen.point) > SPOT_RADIUS_M)
+    ) {
+      setChosen(null);
+    }
   }
 
   function go() {

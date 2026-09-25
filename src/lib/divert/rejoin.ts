@@ -77,10 +77,13 @@ export function planRejoin(
 
 /**
  * How far into the diversion the traveller is, by the route's clock. A
- * simulated clock is not now, so nothing has elapsed on it.
+ * simulated clock is not now, so nothing has elapsed on it. Nor does time
+ * before the group's day began count: a diversion planned the evening before
+ * sets off, from where the plan put it, when the day starts.
  */
 export function progressOf(route: GroupRoute, session: DivertSession): TravellerProgress {
-  const setOff = Date.parse(session.fromAt ?? session.startedAt);
+  const firstArrival = route.clock.getTime() + route.waypoints[0].arriveMin * 60_000;
+  const setOff = Math.max(Date.parse(session.fromAt ?? session.startedAt), firstArrival);
   const elapsedMin =
     route.simulated || Number.isNaN(setOff)
       ? 0
@@ -103,13 +106,30 @@ export function buildPlan(route: GroupRoute, session: DivertSession): DivertPlan
   };
 }
 
-/** Where the traveller probably is now: partway out, or at the spot. */
-export function travellerPosition(route: GroupRoute, session: DivertSession): GeoPoint {
+/**
+ * Where the traveller probably is now — partway out, or at the spot — and
+ * what to call it when naming a stand-in nearby. Only a real spot they have
+ * reached is a name worth borrowing; anywhere else is simply "near you",
+ * which also keeps stand-in names from nesting inside each other.
+ */
+export function travellerWhereabouts(
+  route: GroupRoute,
+  session: DivertSession,
+): { position: GeoPoint; anchor: string } {
   const { elapsedMin, origin } = progressOf(route, session);
   const from = origin ?? route.position;
   const walk = estimateTravel(from, session.spot.point).minutes;
+  const arrived = elapsedMin >= walk;
 
-  return elapsedMin >= walk ? session.spot.point : lerp(from, session.spot.point, elapsedMin / walk);
+  return {
+    position: arrived ? session.spot.point : lerp(from, session.spot.point, elapsedMin / walk),
+    anchor: arrived && !session.spot.synthetic ? session.spot.name : "you",
+  };
+}
+
+/** Where the traveller probably is now: partway out, or at the spot. */
+export function travellerPosition(route: GroupRoute, session: DivertSession): GeoPoint {
+  return travellerWhereabouts(route, session).position;
 }
 
 /**
@@ -250,7 +270,8 @@ function catchUp(route: GroupRoute, spot: DivertSpot, readyMin: number): RejoinO
         groupArrive: Math.max(0, groupPass),
         groupLeave: groupPass + INTERCEPT_SLACK_MIN,
         groupDistanceM: Math.max(0, (along.get(i) ?? 0) + fraction * legLength),
-        groupMode: "walk",
+        // Everything the group covers to get here, not just this last walk.
+        groupMode: dominantMode(tally(modes.get(i) ?? {}, "walk", fraction * legLength)),
         userArrive: readyMin + walk.minutes,
         userDistanceM: distanceM(spot.point, point),
         userMode: walk.mode,
@@ -406,13 +427,18 @@ function groupDetour(route: GroupRoute, spot: DivertSpot, traveller: Traveller):
 
   const userETA = Math.round(traveller.toSpotMin);
   const groupETA = Math.round(groupArrive);
+  // Positive when the group gets to the spot before the traveller does, which
+  // can happen once they have moved on from where they first set off.
+  const early = userETA - groupETA;
   const spare = groupETA - Math.round(traveller.readyMin);
   const timing =
-    spare > 0
-      ? ` You would have ${formatMinutes(spare)} spare after you are done.`
-      : spare < 0
-        ? " They would arrive while you are still at it, and can join in."
-        : "";
+    early > 0
+      ? ` They would get there ${formatMinutes(early)} before you and wait.`
+      : spare > 0
+        ? ` You would have ${formatMinutes(spare)} spare after you are done.`
+        : spare < 0
+          ? " They would arrive while you are still at it, and can join in."
+          : "";
 
   return {
     type: "GROUP_DETOUR",
@@ -422,7 +448,7 @@ function groupDetour(route: GroupRoute, spot: DivertSpot, traveller: Traveller):
     groupETA,
     userDistanceM: traveller.toSpotM,
     groupDistanceM: distanceM(route.position, spot.point),
-    waitMinutes: Math.max(0, spare),
+    waitMinutes: early > 0 ? early : Math.max(0, spare),
     detourMinutes,
     feasible,
     note: note + timing,

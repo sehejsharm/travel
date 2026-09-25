@@ -2,7 +2,7 @@ import type { ChecklistEntry, ChecklistKind, GeneratedEntry } from "../checklist
 import { generatePacking, generateTasks, purposeTasks } from "../checklists";
 import type { Trip, TripItem, TripLeg, TripPurpose, Traveler } from "../domain/types";
 import type { AdviceResult } from "../advisor/types";
-import { liveDivertSession } from "../divert/session";
+import { fittingDivertSession, liveDivertSession } from "../divert/session";
 import type { DivertSession, RejoinOptionType } from "../divert/types";
 import type { ItemDraft } from "../extract/types";
 import { getCountry } from "../reference/countries";
@@ -126,15 +126,20 @@ function read(): AppState {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppState>;
       if (Array.isArray(parsed.trips)) {
-        return withGeneratedChecklists({
-          trips: parsed.trips,
-          activeTripId: parsed.activeTripId ?? parsed.trips[0]?.id ?? "",
-          items: parsed.items ?? [],
-          checklist: parsed.checklist ?? [],
-          advice: parsed.advice ?? [],
-          // A malformed or expired diversion is dropped here, so the next write clears it.
-          divert: liveDivertSession(parsed.divert, new Date()),
-        });
+        const loaded = tidy(
+          withGeneratedChecklists({
+            trips: parsed.trips,
+            activeTripId: parsed.activeTripId ?? parsed.trips[0]?.id ?? "",
+            items: parsed.items ?? [],
+            checklist: parsed.checklist ?? [],
+            advice: parsed.advice ?? [],
+            divert: liveDivertSession(parsed.divert, new Date()),
+          }),
+        );
+        // A diversion that expired or no longer fits is removed from storage
+        // now, not whenever something else next happens to be saved.
+        if (parsed.divert !== undefined && loaded.divert === undefined) write(loaded);
+        return loaded;
       }
     }
 
@@ -169,8 +174,17 @@ function set(next: AppState): void {
   for (const listener of listeners) listener();
 }
 
+/**
+ * Store-wide invariants applied on every write. A diversion only survives
+ * while its trip still has a group that includes whoever broke off.
+ */
+function tidy(next: AppState): AppState {
+  if (next.divert === undefined) return next;
+  return { ...next, divert: fittingDivertSession(next.divert, next.trips) };
+}
+
 function mutate(update: (current: AppState) => AppState): void {
-  set(withGeneratedChecklists(update(getSnapshot())));
+  set(tidy(withGeneratedChecklists(update(getSnapshot()))));
 }
 
 /**
@@ -179,7 +193,7 @@ function mutate(update: (current: AppState) => AppState): void {
  * other writer and says so.
  */
 export function replaceState(next: AppState): void {
-  set(withGeneratedChecklists(next));
+  set(tidy(withGeneratedChecklists(next)));
 }
 
 /** Deletes every trace of this device's trips. */
@@ -317,7 +331,6 @@ export function deleteTrip(tripId: string): void {
       items: current.items.filter((item) => item.tripId !== tripId),
       checklist: current.checklist.filter((entry) => entry.tripId !== tripId),
       advice: (current.advice ?? []).filter((entry) => entry.tripId !== tripId),
-      divert: current.divert?.tripId === tripId ? undefined : current.divert,
     };
   });
 }
@@ -433,22 +446,9 @@ export function updateTraveler(
 }
 
 export function removeTraveler(tripId: string, travelerId: string): void {
-  mutate((current) => {
-    const trips = current.trips.map((trip) =>
-      trip.id === tripId
-        ? { ...trip, travelers: trip.travelers.filter((traveler) => traveler.id !== travelerId) }
-        : trip,
-    );
-    const remaining = trips.find((trip) => trip.id === tripId)?.travelers.length ?? 0;
-
-    // A diversion by someone no longer on the trip, or from a group of one,
-    // has nothing left to rejoin.
-    const orphaned =
-      current.divert?.tripId === tripId &&
-      (current.divert.travelerId === travelerId || remaining < 2);
-
-    return { ...current, trips, divert: orphaned ? undefined : current.divert };
-  });
+  updateTripTravelers(tripId, (travelers) =>
+    travelers.filter((traveler) => traveler.id !== travelerId),
+  );
 }
 
 function updateTripTravelers(
@@ -606,7 +606,8 @@ export function startDivert(session: Omit<DivertSession, "startedAt">, now = new
 
 /**
  * Changes to the running diversion: a different spot, a chosen way back.
- * Does nothing once it has expired, so a stale screen cannot revive it.
+ * Once it has expired this clears it instead, so a stale screen cannot
+ * revive it and the record does not linger.
  */
 export function updateDivert(
   patch: Partial<Omit<DivertSession, "tripId" | "startedAt">>,
@@ -614,7 +615,7 @@ export function updateDivert(
 ): void {
   mutate((current) => {
     const session = liveDivertSession(current.divert, now);
-    return session ? { ...current, divert: { ...session, ...patch } } : current;
+    return { ...current, divert: session ? { ...session, ...patch } : undefined };
   });
 }
 

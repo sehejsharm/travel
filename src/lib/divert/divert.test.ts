@@ -38,6 +38,7 @@ import {
   quickestRejoin,
   respot,
   travellerPosition,
+  travellerWhereabouts,
 } from "./rejoin";
 import { anchorName, buildRoute, pickDay, routeForGroup, stopsFromItems } from "./route";
 import { findSpots, gazetteerPoint, SPOT_RADIUS_M } from "./spots";
@@ -124,11 +125,19 @@ describe("divert spots", () => {
 
     expect(found).toHaveLength(2);
     expect(found.every((entry) => entry.synthetic)).toBe(true);
-    expect(found.map((entry) => entry.id).sort()).toEqual(["stand-in-coffee", "stand-in-food"]);
+    expect(found.map((entry) => entry.id.split("@")[0]).sort()).toEqual(["stand-in-coffee", "stand-in-food"]);
     expect(found.every((entry) => entry.name.endsWith("near Hallgrímskirkja"))).toBe(true);
     expect(found.every((entry) => distanceM(REYKJAVIK, entry.point) < 700)).toBe(true);
     // Deterministic, so a stored one can be found again.
     expect(findSpots(REYKJAVIK, ["coffee", "food"], "Hallgrímskirkja")).toEqual(found);
+  });
+
+  it("gives stand-ins placed from different spots different ids", () => {
+    const [here] = findSpots(REYKJAVIK, ["coffee"]);
+    const [there] = findSpots({ lat: 64.15, lng: -21.95 }, ["coffee"]);
+
+    expect(here.id).not.toBe(there.id);
+    expect(findSpots(REYKJAVIK, ["coffee"])[0].id).toBe(here.id);
   });
 
   it("always includes the nearest of each category asked for", () => {
@@ -184,6 +193,18 @@ describe("group route: which stops", () => {
 
     expect(stopsFromItems(items).map((stop) => stop.id)).toEqual(["midnight-show", "sky"]);
   });
+
+  it("treats a bare date, and a midnight-to-midnight span, as days rather than stops", () => {
+    const at = { lat: 35.7148, lng: 139.7967 };
+    const items = [
+      item("bare", "Senso-ji", at, "2026-10-16"),
+      item("bare-with-end", "Senso-ji", at, "2026-10-16", "2026-10-16T18:00:00+09:00"),
+      item("span", "Festival grounds", at, "2026-10-16T00:00:00+09:00", "2026-10-18T00:00:00+09:00"),
+      item("timed", "Ueno Park", { lat: 35.7125, lng: 139.777 }, "2026-10-16T10:00:00+09:00"),
+    ];
+
+    expect(stopsFromItems(items).map((stop) => stop.id)).toEqual(["timed"]);
+  });
 });
 
 describe("group route: which day", () => {
@@ -209,6 +230,29 @@ describe("group route: which day", () => {
     const picked = pickDay(stops, new Date("2026-10-18T00:10:00+09:00"));
 
     expect(picked[0].startsAt.slice(0, 10)).toBe("2026-10-17");
+  });
+
+  it("lets the day actually happening win over a long item filed as ending days later", () => {
+    const items = [
+      item("pass", "Conference hall", { lat: 35.63, lng: 139.79 }, "2026-10-16T09:00:00+09:00", "2026-10-18T18:00:00+09:00"),
+      item("l", "Lunch spot", { lat: 35.7125, lng: 139.777 }, "2026-10-17T12:00:00+09:00", "2026-10-17T13:00:00+09:00"),
+      item("m", "Museum", { lat: 35.7188, lng: 139.7766 }, "2026-10-17T14:00:00+09:00", "2026-10-17T16:00:00+09:00"),
+    ];
+    const picked = pickDay(stopsFromItems(items), new Date("2026-10-17T14:00:00+09:00"));
+
+    expect(picked.map((stop) => stop.id)).toEqual(["l", "m"]);
+  });
+
+  it("stays on the day a diversion planned before it began, once the day is over", () => {
+    const items = [
+      item("a", "Ueno Park", { lat: 35.7125, lng: 139.777 }, "2026-10-18T10:00:00+09:00", "2026-10-18T11:00:00+09:00"),
+      item("b", "Ameyoko", { lat: 35.71, lng: 139.7745 }, "2026-10-18T11:30:00+09:00", "2026-10-18T12:00:00+09:00"),
+    ];
+    const since = new Date("2026-10-18T08:00:00+09:00");
+    const route = routeForGroup(items, new Date("2026-10-18T13:00:00+09:00"), since);
+
+    expect(route.simulated).toBe(false);
+    expect(route.phase).toBe("finished");
   });
 
   it("stays on the day a running diversion began in once that day ends", () => {
@@ -311,6 +355,19 @@ describe("group route: where the group is", () => {
     expect(Math.round(b.arriveMin - a.departMin)).toBe(b.travelMin);
     // With room to spare, the assumed hour stands.
     expect(Math.round(b.departMin - b.arriveMin)).toBe(60);
+  });
+
+  it("still gives a late group a short visit rather than none at all", () => {
+    // B is reached well after C's filed start could still be made from it.
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: { lat: 35.7148, lng: 139.7967 }, startsAt: "2026-10-18T09:00:00+09:00", endsAt: "2026-10-18T10:00:00+09:00" },
+      { id: "b", name: "B", point: { lat: 35.658, lng: 139.7016 }, startsAt: "2026-10-18T10:05:00+09:00" },
+      { id: "c", name: "C", point: { lat: 35.6595, lng: 139.7005 }, startsAt: "2026-10-18T10:20:00+09:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-09-01T00:00:00Z"))!;
+    const b = route.waypoints[1];
+
+    expect(Math.round(b.departMin - b.arriveMin)).toBe(15);
   });
 
   it("reads an end before the start as a typo and assumes the usual stay", () => {
@@ -442,6 +499,21 @@ describe("rejoin planning", () => {
     expect(catchUp.location.lat).toBeGreaterThanOrEqual(route.position.lat);
   });
 
+  it("names a street meeting by how most of the group's way there is travelled", () => {
+    const stops: RouteStop[] = [
+      { id: "a", name: "A", point: { lat: 35.7148, lng: 139.7967 }, startsAt: "2026-10-18T09:00:00+09:00", endsAt: "2026-10-18T09:30:00+09:00" },
+      { id: "b", name: "B", point: { lat: 35.7135, lng: 139.788 }, startsAt: "2026-10-18T09:50:00+09:00", endsAt: "2026-10-18T10:00:00+09:00" },
+      { id: "c", name: "C", point: { lat: 35.658, lng: 139.7016 }, startsAt: "2026-10-18T11:00:00+09:00", endsAt: "2026-10-18T11:10:00+09:00" },
+      { id: "d", name: "D", point: { lat: 35.6655, lng: 139.6975 }, startsAt: "2026-10-18T11:30:00+09:00", endsAt: "2026-10-18T13:00:00+09:00" },
+    ];
+    const route = buildRoute(stops, new Date("2026-10-18T09:10:00+09:00"))!;
+    // A spot beside the C to D walk, and a stay that misses C but catches them on the street.
+    const [catchUp] = planRejoin(route, spot({ point: { lat: 35.6618, lng: 139.7001 } }), 70);
+
+    expect(catchUp.meetingPointName).toBe("On the way to D");
+    expect(catchUp.groupMode).toBe("transit");
+  });
+
   it("names the group's leg by how most of it is travelled", () => {
     // A short walk, a long hop across town, then a short walk.
     const stops: RouteStop[] = [
@@ -468,6 +540,18 @@ describe("rejoin planning", () => {
     expect(detour.detourMinutes).toBe(0);
     expect(detour.feasible).toBe(true);
     expect(detour.note).toContain("No cost to the day");
+  });
+
+  it("says so when the group would reach the spot first and wait", () => {
+    // The group is walking right past the café; the traveller set off from
+    // well beyond it, on the far side.
+    const route = buildRoute(DEMO_STOPS, new Date("2026-10-18T10:20:00+09:00"))!;
+    const origin = { lat: 35.7148, lng: 139.8065 };
+    const [, detour] = planRejoin(route, FUGLEN, 20, { elapsedMin: 0, origin });
+
+    expect(detour.groupETA).toBeLessThan(detour.userETA);
+    expect(detour.note).toContain("before you and wait");
+    expect(detour.waitMinutes).toBe(detour.userETA - detour.groupETA);
   });
 
   it("says the group would miss its next stop when the detour runs past its end", () => {
@@ -551,6 +635,11 @@ describe("a diversion under way", () => {
     expect(detourLater.userDistanceM).toBe(0);
   });
 
+  it("counts time only from when the group's day begins", () => {
+    const planned = session({ startedAt: "2026-10-18T07:30:00+09:00" });
+    expect(progressOf(liveAt("09:05"), planned).elapsedMin).toBeCloseTo(5, 5);
+  });
+
   it("counts nothing as elapsed on a simulated clock", () => {
     const route = buildRoute(DEMO_STOPS, new Date("2026-09-01T00:00:00Z"))!;
     expect(route.simulated).toBe(true);
@@ -568,6 +657,15 @@ describe("a diversion under way", () => {
 
     const moved = session({ ...patch, spot: patch.spot });
     expect(progressOf(route, moved).elapsedMin).toBe(0);
+  });
+
+  it("names a stand-in after a real spot the traveller has reached, and otherwise after them", () => {
+    expect(travellerWhereabouts(liveAt("10:00"), session()).anchor).toBe("Fuglen Asakusa");
+    expect(travellerWhereabouts(liveAt("09:31"), session()).anchor).toBe("you");
+
+    const standIn = session({ spot: spot({ id: "stand-in-coffee@1,1", name: "A coffee stand near you", synthetic: true }) });
+    const named = findSpots(travellerWhereabouts(liveAt("10:00"), standIn).position, ["rest"], travellerWhereabouts(liveAt("10:00"), standIn).anchor);
+    expect(named.every((entry) => !entry.name.includes("near A "))).toBe(true);
   });
 
   it("puts a traveller who is still walking out partway along", () => {
@@ -664,7 +762,7 @@ describe("divert state", () => {
     expect(divertedName(travelers(japan), { travelerId: "someone-else" })).toBeUndefined();
   });
 
-  it("expires a diversion left running overnight, and will not revive it", () => {
+  it("expires a diversion left running overnight, and clears it rather than reviving it", () => {
     const japan = trip("Japan");
     const lastNight = new Date(NOW.getTime() - DIVERT_EXPIRES_MS - 60_000);
     startDivert({ tripId: japan, interestIds: ["coffee"], spot: spot() }, lastNight);
@@ -673,7 +771,7 @@ describe("divert state", () => {
     expect(groupStatus(getSnapshot(), japan, NOW)).toBe("IN_GROUP");
 
     updateDivert({ chosen: "CATCH_UP" }, NOW);
-    expect(getSnapshot().divert?.chosen).toBeUndefined();
+    expect(getSnapshot().divert).toBeUndefined();
   });
 
   it("deleting the trip ends its diversion", () => {
@@ -742,6 +840,34 @@ describe("divert state", () => {
     expect(getSnapshot().divert?.tripId).toBe(japan);
 
     restore(parsed, "replace");
+    expect(getSnapshot().divert).toBeUndefined();
+  });
+
+  it("ends the diversion when a merge restore brings back a copy of the trip without them", () => {
+    const japan = trip("Japan");
+    const older = parseBackup(JSON.stringify(buildBackup()));
+    if ("error" in older) throw new Error(older.error);
+
+    addTraveler(japan, { name: "Ria", passportCountry: "IN", passportExpiry: "" });
+    const ria = travelers(japan).find((traveler) => traveler.name === "Ria")!;
+    startDivert({ tripId: japan, travelerId: ria.id, interestIds: ["coffee"], spot: spot() }, NOW);
+
+    restore(older, "merge");
+    expect(getSnapshot().divert).toBeUndefined();
+  });
+
+  it("ends the diversion when a merge restore leaves the trip with a group of one", () => {
+    const japan = trip("Japan");
+    const [sehej, aanya] = travelers(japan);
+    removeTraveler(japan, aanya.id);
+    const older = parseBackup(JSON.stringify(buildBackup()));
+    if ("error" in older) throw new Error(older.error);
+
+    addTraveler(japan, { name: "Aanya", passportCountry: "IN", passportExpiry: "" });
+    startDivert({ tripId: japan, travelerId: sehej.id, interestIds: ["coffee"], spot: spot() }, NOW);
+    expect(getSnapshot().divert).toBeDefined();
+
+    restore(older, "merge");
     expect(getSnapshot().divert).toBeUndefined();
   });
 

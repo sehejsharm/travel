@@ -111,8 +111,9 @@ export default function PrivacyPolicy() {
         <p>
           The small map on the Divert screen is different: it is drawn on your device from places
           you filed, loads nothing, and contacts no one. Breaking off from your group stores who
-          broke off, the spot they chose and when, in this browser only, and that record is deleted
-          when they rejoin, after twelve hours, or when you delete the trip.
+          broke off, the spot they chose and when, in this browser only. That record is deleted when
+          they rejoin, when you delete the trip or remove them from it, or the first time the app
+          opens more than twelve hours after they broke off.
         </p>
       </Section>
 

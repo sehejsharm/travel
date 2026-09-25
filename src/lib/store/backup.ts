@@ -98,8 +98,9 @@ export function restore(backup: Backup, mode: RestoreMode): void {
     checklist: mergeById(current.checklist, backup.state.checklist),
     advice: [...(current.advice ?? []), ...(backup.state.advice ?? [])],
     activeTripId: backup.state.activeTripId || current.activeTripId,
-    // Merging keeps what is on the device, including someone out on their own.
-    divert: trips.some((trip) => trip.id === current.divert?.tripId) ? current.divert : undefined,
+    // Merging keeps what is on the device, including someone out on their own,
+    // for as long as the merged trip still has them in a group (see tidy()).
+    divert: current.divert,
   };
 
   replaceState(merged);

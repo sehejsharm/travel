@@ -28,6 +28,8 @@ export function GroupStatusCard() {
     const who = divertedName(trip.travelers, session);
     const together = Math.max(option.userETA, option.groupETA);
     const standIn = option.type === "GROUP_DETOUR" && plan.spot.synthetic;
+    // A catch-up that does not work is not a rejoin; its note says what happens instead.
+    const missed = option.type === "CATCH_UP" && !option.feasible;
 
     return (
       <Card className="raised border-accent p-4">
@@ -42,11 +44,17 @@ export function GroupStatusCard() {
               {plan.spot.name}
             </h3>
             <p className="mt-0.5 text-sm text-ink-soft">
-              {option.type === "CATCH_UP" ? "Rejoin at" : "The group joins you at"}{" "}
-              {option.meetingPointName},{" "}
-              {route.simulated
-                ? `at ${wallClock(route.clock, route.offset, together)} (simulated)`
-                : formatEta(together)}
+              {missed ? (
+                option.note
+              ) : (
+                <>
+                  {option.type === "CATCH_UP" ? "Rejoin at" : "The group joins you at"}{" "}
+                  {option.meetingPointName},{" "}
+                  {route.simulated
+                    ? `at ${wallClock(route.clock, route.offset, together)} (simulated)`
+                    : formatEta(together)}
+                </>
+              )}
             </p>
             {route.demo && (
               <p className="mt-1 font-mono text-[11px] text-ink-faint">

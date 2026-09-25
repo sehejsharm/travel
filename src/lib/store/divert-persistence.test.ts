@@ -48,13 +48,22 @@ function stored(divert: unknown) {
 describe("a diversion across a reload", () => {
   it("survives a reload while it is current", async () => {
     const first = await freshStore();
-    first.startDivert({ tripId: "t1", interestIds: ["coffee"], spot: SPOT }, new Date());
+    first.createTrip({
+      name: "Tokyo",
+      homeCountry: "IN",
+      destinationCountries: ["JP"],
+      startDate: "2026-10-14",
+      endDate: "2026-10-22",
+      travelers: [{ name: "Sehej" }, { name: "Aanya" }],
+    });
+    const tripId = first.getSnapshot().activeTripId;
+    first.startDivert({ tripId, interestIds: ["coffee"], spot: SPOT }, new Date());
 
     const second = await freshStore();
-    expect(second.getSnapshot().divert).toMatchObject({ tripId: "t1", spot: { name: "Fuglen Asakusa" } });
+    expect(second.getSnapshot().divert).toMatchObject({ tripId, spot: { name: "Fuglen Asakusa" } });
   });
 
-  it("is dropped on load once it has expired, and the drop is written back", async () => {
+  it("is dropped on load once it has expired, and removed from storage straight away", async () => {
     stored({
       tripId: "t1",
       interestIds: ["coffee"],
@@ -64,8 +73,25 @@ describe("a diversion across a reload", () => {
 
     const store = await freshStore();
     expect(store.getSnapshot().divert).toBeUndefined();
+    // Nothing else has been saved, and the record is still gone from disk.
+    expect(JSON.parse(storage.get(KEY)!).divert).toBeUndefined();
+  });
 
-    store.rejoinGroup();
+  it("is dropped on load when its trip no longer has a group", async () => {
+    storage.set(
+      KEY,
+      JSON.stringify({
+        trips: [{ id: "t1", name: "Solo", homeCountry: "IN", startDate: "2026-10-14", endDate: "2026-10-22", travelers: [{ id: "a", name: "A", passportCountry: "IN", passportExpiry: "" }] }],
+        activeTripId: "t1",
+        items: [],
+        checklist: [],
+        advice: [],
+        divert: { tripId: "t1", interestIds: ["coffee"], spot: SPOT, startedAt: new Date().toISOString() },
+      }),
+    );
+
+    const store = await freshStore();
+    expect(store.getSnapshot().divert).toBeUndefined();
     expect(JSON.parse(storage.get(KEY)!).divert).toBeUndefined();
   });
 

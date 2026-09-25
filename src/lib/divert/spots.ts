@@ -110,12 +110,15 @@ function standIn(category: DivertCategory, near: GeoPoint, anchorName?: string):
   const bearing = (index * 137 + 40) % 360;
   const metres = 250 + index * 90;
   const { noun, detail } = STAND_INS[category];
+  const point = offsetPoint(near, bearing, metres);
 
   return {
-    id: `stand-in-${category}`,
+    // From where it is, so two stand-ins placed from different spots never
+    // share an id and a saved one can be told apart from a fresh one.
+    id: `stand-in-${category}@${point.lat.toFixed(5)},${point.lng.toFixed(5)}`,
     name: `A ${noun} near ${anchorName ?? "the group"}`,
     category,
-    point: offsetPoint(near, bearing, metres),
+    point,
     detail,
     synthetic: true,
   };

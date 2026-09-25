@@ -1,13 +1,15 @@
 import { dateAt, offsetOf } from "../datetime";
 import type { TripItem } from "../domain/types";
 import { estimateTravel, type TravelEstimate } from "../geo";
-import { hasDate, localDateKey } from "../rules/shared";
+import { formatTime, hasDate, localDateKey } from "../rules/shared";
 import { lerp } from "./geometry";
 import { DEMO_STOPS } from "./mock";
 import type { GroupPhase, GroupRoute, GroupWaypoint, RouteStop } from "./types";
 
 /** With no end time filed, this is how long the group is assumed to stay. */
 export const DEFAULT_DWELL_MIN = 60;
+/** The shortest stay assumed at a stop with no end, however tight the day. */
+const MIN_DWELL_MIN = 15;
 /** How far into the first stop the stand-in clock sits when the day is not live. */
 const SIMULATED_INTO_FIRST_STOP_MIN = 20;
 /** How long after the day's last stop "now" is still a useful clock for it. */
@@ -17,12 +19,20 @@ const LIVE_SLACK_MIN = 30;
 const NOT_STOPS = new Set(["flight", "lodging", "rail", "car"]);
 
 /**
- * Extraction files a date with no time as local midnight. That names a day,
- * not a moment the group is somewhere, so it is not a stop — unless an end
- * time says it really is something happening at midnight.
+ * Whether an item's start is a moment rather than a day. A bare date
+ * ("2026-10-18") names a day. So does local midnight, which is how the
+ * pattern pass files a date with no time — unless an end with a clock time
+ * after it says something really is happening at midnight. A midnight-to-
+ * midnight range is a span of days, not a stop.
  */
 function hasTimeOfDay(item: TripItem): boolean {
-  return item.startsAt!.slice(11, 16) !== "00:00" || hasDate(item.endsAt);
+  const start = formatTime(item.startsAt!);
+  if (!start) return false;
+  if (start !== "00:00") return true;
+  if (!hasDate(item.endsAt)) return false;
+
+  const end = formatTime(item.endsAt);
+  return end !== "" && end !== "00:00" && Date.parse(item.endsAt) > Date.parse(item.startsAt!);
 }
 
 /**
@@ -62,8 +72,9 @@ interface Schedule {
  * When the group is actually at each stop. Filed times are honoured where
  * they are consistent: where the next stop starts before the group could get
  * there, it arrives when it arrives. A stop with no end is assumed to take an
- * hour, but never so long that the group misses the next stop's filed start,
- * and an end before the start is a typo, as the item editor treats it.
+ * hour, cut short so the group can still make the next stop's filed start,
+ * but never to less than a quarter of an hour — a late group still visits.
+ * An end before the start is a typo, as the item editor treats it.
  */
 function schedule(stops: RouteStop[]): Schedule {
   const legs = stops.map((stop, i) =>
@@ -87,7 +98,7 @@ function schedule(stops: RouteStop[]): Schedule {
       const next = stops[i + 1];
       if (next) {
         const latest = Date.parse(next.startsAt) - legs[i + 1]!.minutes * 60_000;
-        leave = Math.max(earliest, Math.min(leave, latest));
+        leave = Math.min(leave, Math.max(latest, earliest + MIN_DWELL_MIN * 60_000));
       }
     }
 
@@ -99,14 +110,30 @@ function schedule(stops: RouteStop[]): Schedule {
 }
 
 /**
- * Whether a moment falls inside a day's live window: from the first arrival
- * to a little after the last departure. Before the first stop the group is
- * somewhere the timeline does not say, so that is not live.
+ * A day's live window: from the first arrival to a little after the last
+ * departure. Before the first stop the group is somewhere the timeline does
+ * not say, so that is not live.
  */
+function liveWindow(sched: Schedule): { first: number; end: number } {
+  return {
+    first: sched.arrive[0],
+    end: sched.depart[sched.depart.length - 1] + LIVE_SLACK_MIN * 60_000,
+  };
+}
+
 function liveAt(sched: Schedule, at: number): boolean {
-  const first = sched.arrive[0];
-  const last = sched.depart[sched.depart.length - 1];
-  return at >= first && at <= last + LIVE_SLACK_MIN * 60_000;
+  const { first, end } = liveWindow(sched);
+  return at >= first && at <= end;
+}
+
+/**
+ * Whether a diversion that began at `since` has run through part of this
+ * day's live window by `now` — begun before the day or during it, it stays
+ * anchored to this day until it ends, so the plan never snaps to another.
+ */
+function ranThrough(sched: Schedule, since: number, now: number): boolean {
+  const { first, end } = liveWindow(sched);
+  return since <= end && now >= first && now >= since;
 }
 
 /** "Today" for a day's stops, in the offset they were filed in. */
@@ -130,13 +157,18 @@ export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[
   if (byDay.size === 0) return [];
 
   const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
+  // Newest first: a long item filed as ending days later keeps its own day's
+  // window open, and must not hide the day that is actually happening now.
+  const latestFirst = [...days].reverse();
 
-  const liveNow = days.find(([, day]) => liveAt(schedule(day), now.getTime()));
+  const liveNow = latestFirst.find(([, day]) => liveAt(schedule(day), now.getTime()));
   if (liveNow) return liveNow[1];
 
   if (since) {
-    const started = days.find(([, day]) => liveAt(schedule(day), since.getTime()));
-    if (started) return started[1];
+    const anchored = latestFirst.find(([, day]) =>
+      ranThrough(schedule(day), since.getTime(), now.getTime()),
+    );
+    if (anchored) return anchored[1];
   }
 
   const today = days.find(([key, day]) => key === todayFor(day, now));
@@ -151,8 +183,8 @@ export function pickDay(stops: RouteStop[], now: Date, since?: Date): RouteStop[
 
 /**
  * Turns a day's stops into a timeline the group can be placed on. The clock
- * is now while the day is live — or while a diversion that began during it is
- * still running — and otherwise sits partway into the first stop, so the
+ * is now while the day is live — or while a diversion that has run into it
+ * is still going — and otherwise sits partway into the first stop, so the
  * group is somewhere rather than nowhere yet. The bundled sample is never
  * live: its date is fixed, and it is nobody's actual day.
  */
@@ -165,11 +197,9 @@ export function buildRoute(
 
   const sched = schedule(stops);
   const { arrive, depart, legs } = sched;
-  const startedInDay =
-    options.since !== undefined &&
-    liveAt(sched, options.since.getTime()) &&
-    now.getTime() >= options.since.getTime();
-  const live = !options.demo && (liveAt(sched, now.getTime()) || startedInDay);
+  const anchored =
+    options.since !== undefined && ranThrough(sched, options.since.getTime(), now.getTime());
+  const live = !options.demo && (liveAt(sched, now.getTime()) || anchored);
 
   const clockMs = live
     ? now.getTime()
