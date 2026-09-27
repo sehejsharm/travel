@@ -1,14 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { addHours, fromLocalInput, offsetOf, toLocalInput } from "@/lib/datetime";
 import type { BookingKind, ItemCategory, Trip, TripItem } from "@/lib/domain/types";
-import { getCountry } from "@/lib/reference/countries";
-import { CURRENCY_SYMBOLS } from "@/lib/reference/fx";
-import { groundPlace, suggestPlaces } from "@/lib/reference/places";
-import { mapEmbedUrl, openInMapsUrl } from "@/lib/maps";
+import { endsBeforeStart, offsetForCountry, readCost } from "@/lib/item-form";
+import { groundPlace } from "@/lib/reference/places";
 import { removeItem, unscheduleItem, updateItem } from "@/lib/store/state";
-import { Field, GhostButton, PrimaryButton, Segmented, Select, TextArea, TextInput } from "./form";
+import { Field, GhostButton, PrimaryButton, Segmented, Select, TextInput } from "./form";
+import {
+  ConfirmationField,
+  CostFields,
+  FieldGroup,
+  NotesField,
+  PlaceField,
+  RefundField,
+  TravellerField,
+  WhenFields,
+} from "./item-fields";
 import { Sheet } from "./sheet";
 
 const CATEGORIES: { value: ItemCategory; label: string }[] = [
@@ -19,7 +27,6 @@ const CATEGORIES: { value: ItemCategory; label: string }[] = [
 ];
 
 const BOOKING_KINDS: BookingKind[] = ["flight", "lodging", "rail", "car", "tour", "other"];
-const CURRENCIES = Object.keys(CURRENCY_SYMBOLS);
 
 interface Draft {
   title: string;
@@ -94,35 +101,23 @@ function ItemEditorForm({
     if (known) return known;
 
     const grounded = groundPlace(draft.placeName);
-    const country = getCountry(grounded?.countryCode ?? item.place?.countryCode);
-    if (!country) return "";
-
-    const sign = country.utcOffset < 0 ? "-" : "+";
-    const abs = Math.abs(country.utcOffset);
-    const hours = String(Math.floor(abs)).padStart(2, "0");
-    const minutes = String(Math.round((abs - Math.floor(abs)) * 60)).padStart(2, "0");
-    return `${sign}${hours}:${minutes}`;
+    return offsetForCountry(grounded?.countryCode ?? item.place?.countryCode);
   }
 
   function save() {
     const startOffset = offsetFor(item.startsAt);
     const startsAt = fromLocalInput(draft.startsAt, startOffset);
     // An end before the start is a typo, not an intention.
-    const endsAt =
-      draft.endsAt && (!startsAt || draft.endsAt >= draft.startsAt)
-        ? fromLocalInput(draft.endsAt, offsetFor(item.endsAt) || startOffset)
-        : undefined;
+    const typedEnd = fromLocalInput(draft.endsAt, offsetFor(item.endsAt) || startOffset);
+    const endsAt = endsBeforeStart(startsAt, typedEnd) ? undefined : typedEnd;
 
     const grounded = draft.placeName ? groundPlace(draft.placeName) : undefined;
     const place = draft.placeName
       ? grounded ?? { ...item.place, name: draft.placeName }
       : undefined;
 
-    const amount = Number(draft.costAmount);
-    const cost =
-      draft.costAmount && Number.isFinite(amount) && draft.costCurrency
-        ? { amount, currency: draft.costCurrency }
-        : undefined;
+    // A price that is not a number, or has no currency, is left off.
+    const { cost } = readCost(draft.costAmount, draft.costCurrency);
 
     updateItem(item.id, {
       title: draft.title.trim() || item.title,
@@ -148,12 +143,8 @@ function ItemEditorForm({
     set("endsAt", toLocalInput(addHours(`${startsAt}:00`, 2)));
   }
 
-  const grounded = draft.placeName ? groundPlace(draft.placeName) : undefined;
-  // Only worth suggesting while the typed name has not already landed on a pin.
-  const suggestions = useMemo(
-    () => (grounded?.point ? [] : suggestPlaces(draft.placeName)),
-    [draft.placeName, grounded?.point],
-  );
+  // A time filed on another clock (a flight landing elsewhere) can read earlier than it left.
+  const sameZone = !item.endsAt || offsetOf(item.startsAt) === offsetOf(item.endsAt);
 
   return (
     <Sheet
@@ -172,7 +163,7 @@ function ItemEditorForm({
           <TextInput value={draft.title} onChange={(event) => set("title", event.target.value)} />
         </Field>
 
-        <Field label="Category">
+        <Field label="Category" group>
           <Segmented
             label="Category"
             value={draft.category}
@@ -197,12 +188,14 @@ function ItemEditorForm({
           </Field>
         )}
 
-        <div className="rounded-2xl border border-line bg-surface p-3.5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-              When
-            </p>
-            {!draft.startsAt && (
+        <WhenFields
+          start={draft.startsAt}
+          end={draft.endsAt}
+          onStart={(value) => set("startsAt", value)}
+          onEnd={(value) => set("endsAt", value)}
+          sameZone={sameZone}
+          action={
+            !draft.startsAt && (
               <button
                 type="button"
                 onClick={scheduleForFirstDay}
@@ -210,177 +203,54 @@ function ItemEditorForm({
               >
                 put on day one
               </button>
-            )}
-          </div>
+            )
+          }
+          footer={
+            draft.startsAt && (
+              <button
+                type="button"
+                onClick={() => {
+                  set("startsAt", "");
+                  set("endsAt", "");
+                }}
+                className="press mt-2 font-mono text-[10px] text-ink-faint underline"
+              >
+                clear — send back to ideas
+              </button>
+            )
+          }
+        />
 
-          <div className="mt-2.5 grid gap-3 sm:grid-cols-2">
-            <Field label="Starts">
-              <TextInput
-                type="datetime-local"
-                value={draft.startsAt}
-                onChange={(event) => set("startsAt", event.target.value)}
-              />
-            </Field>
-            <Field label="Ends">
-              <TextInput
-                type="datetime-local"
-                value={draft.endsAt}
-                min={draft.startsAt || undefined}
-                onChange={(event) => set("endsAt", event.target.value)}
-              />
-            </Field>
-          </div>
+        <FieldGroup>
+          <PlaceField value={draft.placeName} onChange={(value) => set("placeName", value)} />
+        </FieldGroup>
 
-          {draft.startsAt && (
-            <button
-              type="button"
-              onClick={() => {
-                set("startsAt", "");
-                set("endsAt", "");
-              }}
-              className="press mt-2 font-mono text-[10px] text-ink-faint underline"
-            >
-              clear — send back to ideas
-            </button>
-          )}
-        </div>
+        <CostFields
+          amount={draft.costAmount}
+          currency={draft.costCurrency}
+          status={draft.costStatus}
+          onAmount={(value) => set("costAmount", value)}
+          onCurrency={(value) => set("costCurrency", value)}
+          onStatus={(value) => set("costStatus", value)}
+        />
 
-        <div className="rounded-2xl border border-line bg-surface p-3.5">
-          <Field
-            label="Place"
-            hint={
-              draft.placeName && !grounded
-                ? "No coordinates for this name, so it sits out the distance checks"
-                : undefined
-            }
-          >
-            <TextInput
-              value={draft.placeName}
-              placeholder="Senso-ji, Shibuya Sky, Kyoto…"
-              autoComplete="off"
-              onChange={(event) => set("placeName", event.target.value)}
-            />
-          </Field>
+        <ConfirmationField
+          value={draft.confirmationCode}
+          onChange={(value) => set("confirmationCode", value)}
+        />
 
-          {suggestions.length > 0 && (
-            <ul className="mt-2 flex flex-wrap gap-1.5">
-              {suggestions.map((suggestion) => (
-                <li key={`${suggestion.name}-${suggestion.detail}`}>
-                  <button
-                    type="button"
-                    onClick={() => set("placeName", suggestion.name)}
-                    className="press rounded-full border border-line px-2.5 py-1 font-mono text-[10px] text-ink-soft hover:border-accent hover:text-accent-strong"
-                  >
-                    {suggestion.name}
-                    <span className="text-ink-faint"> · {suggestion.detail}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <TravellerField
+          value={draft.travelerName}
+          travelers={trip.travelers}
+          onChange={(value) => set("travelerName", value)}
+        />
 
-          {grounded && (
-            <div className="mt-3 overflow-hidden rounded-xl border border-line">
-              <iframe
-                key={grounded.name}
-                src={mapEmbedUrl(grounded)}
-                title={`Map of ${grounded.name}`}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                className="h-40 w-full border-0"
-              />
-              <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2">
-                <span className="min-w-0 truncate font-mono text-[10px] text-ink-faint">
-                  Pinned to {grounded.name}
-                  {grounded.city && grounded.city !== grounded.name ? `, ${grounded.city}` : ""}
-                </span>
-                <a
-                  href={openInMapsUrl(grounded)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="press shrink-0 font-mono text-[10px] text-accent-strong underline"
-                >
-                  Open in Maps ↗
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
+        <RefundField
+          value={draft.refundableUntil}
+          onChange={(value) => set("refundableUntil", value)}
+        />
 
-        <div className="grid grid-cols-[1fr_auto] gap-3">
-          <Field label="Cost">
-            <TextInput
-              inputMode="decimal"
-              value={draft.costAmount}
-              placeholder="0"
-              onChange={(event) => set("costAmount", event.target.value)}
-            />
-          </Field>
-          <Field label="Currency">
-            <Select
-              value={draft.costCurrency}
-              onChange={(event) => set("costCurrency", event.target.value)}
-            >
-              <option value="">—</option>
-              {CURRENCIES.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-
-        {draft.costAmount && (
-          <Field label="Price status">
-            <Segmented
-              label="Price status"
-              value={draft.costStatus}
-              options={[
-                { value: "estimated", label: "Estimated" },
-                { value: "actual", label: "Booked" },
-              ]}
-              onChange={(value) => set("costStatus", value)}
-            />
-          </Field>
-        )}
-
-        <Field label="Confirmation">
-          <TextInput
-            value={draft.confirmationCode}
-            placeholder="PNR or booking reference"
-            onChange={(event) => set("confirmationCode", event.target.value.toUpperCase())}
-          />
-        </Field>
-
-        <Field label="Traveller on the booking">
-          <TextInput
-            value={draft.travelerName}
-            list="traveller-names"
-            onChange={(event) => set("travelerName", event.target.value)}
-          />
-          <datalist id="traveller-names">
-            {trip.travelers.map((traveler) => (
-              <option key={traveler.id} value={traveler.name} />
-            ))}
-          </datalist>
-        </Field>
-
-        <Field label="Free cancellation until">
-          <TextInput
-            type="datetime-local"
-            value={draft.refundableUntil}
-            onChange={(event) => set("refundableUntil", event.target.value)}
-          />
-        </Field>
-
-        <Field label="Notes">
-          <TextArea
-            rows={2}
-            value={draft.notes}
-            onChange={(event) => set("notes", event.target.value)}
-          />
-        </Field>
+        <NotesField value={draft.notes} onChange={(value) => set("notes", value)} />
 
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           {item.startsAt && (

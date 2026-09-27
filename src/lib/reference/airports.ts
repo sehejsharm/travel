@@ -1,4 +1,4 @@
-import type { GeoPoint } from "../domain/types";
+import type { GeoPoint, PlaceRef } from "../domain/types";
 
 export interface Airport {
   iata: string;
@@ -211,4 +211,41 @@ export const AIRPORTS: Record<string, Airport> = Object.fromEntries(
 export function getAirport(code?: string): Airport | undefined {
   if (!code) return undefined;
   return AIRPORTS[code.trim().toUpperCase()];
+}
+
+/**
+ * An airport as a filed place. The extractor and a typed-in flight both build
+ * endpoints through this, so the layover and customs checks, which read the
+ * IATA code, see the same thing however the flight arrived.
+ */
+export function airportPlace(code?: string): PlaceRef | undefined {
+  const airport = getAirport(code);
+  if (!airport) return undefined;
+  return {
+    name: airport.name,
+    city: airport.city,
+    countryCode: airport.countryCode,
+    point: airport.point,
+    airport: airport.iata,
+  };
+}
+
+/**
+ * The airport someone means by what they typed: a code ("hnd"), a picked
+ * suggestion ("Tokyo Haneda (HND)"), an airport's name, or a city with only
+ * one airport. A city with two ("Tokyo") is left for the person to settle.
+ */
+export function findAirport(text: string): Airport | undefined {
+  const needle = text.trim().toLowerCase();
+  if (!needle) return undefined;
+
+  const bracketed = getAirport(needle.match(/\(([a-z]{3})\)\s*$/)?.[1]);
+  if (bracketed) return bracketed;
+  if (/^[a-z]{3}$/.test(needle) && getAirport(needle)) return getAirport(needle);
+
+  const named = AIRPORT_LIST.find((airport) => airport.name.toLowerCase() === needle);
+  if (named) return named;
+
+  const inCity = AIRPORT_LIST.filter((airport) => airport.city.toLowerCase() === needle);
+  return inCity.length === 1 ? inCity[0] : undefined;
 }

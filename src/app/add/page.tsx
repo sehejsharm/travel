@@ -1,16 +1,25 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "@/components/filing";
+import { Segmented } from "@/components/form";
+import { ManualAddTripItem } from "@/components/manual-add-trip-item";
 import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
+import { setAddMode, useAddDraft, type AddMode } from "@/lib/add-draft";
 import { prepareImage, requestExtraction, sourceForText, type CaptureImage } from "@/lib/capture";
 import { SOURCE_LABELS, type TripItem } from "@/lib/domain/types";
-import type { ExtractionResult, ItemDraft } from "@/lib/extract/types";
+import type { ExtractionResult } from "@/lib/extract/types";
+import { fileDraft } from "@/lib/filing";
 import { formatMoney } from "@/lib/reference/fx";
-import { addItem, startTripFromDraft, updateItem } from "@/lib/store/state";
+import { updateItem } from "@/lib/store/state";
 import { findDuplicates, mergeInto, type DuplicateMatch } from "@/lib/dedupe";
 import { useTripView } from "@/lib/store/use-store";
+
+const MODES: { value: AddMode; label: string }[] = [
+  { value: "drop", label: "Drop it in" },
+  { value: "type", label: "Type it in" },
+];
 
 const EXAMPLES: { label: string; text: string }[] = [
   {
@@ -57,6 +66,11 @@ function AddScreenInner() {
   const [text, setText] = useState(() =>
     [shared.get("title"), shared.get("text"), shared.get("url")].filter(Boolean).join("\n"),
   );
+  // Which way in was last used is remembered, except that something shared
+  // to the app is always shown ready to read.
+  const stored = useAddDraft().mode;
+  const [arrivedWithShare, setArrivedWithShare] = useState(() => text.trim().length > 0);
+  const mode: AddMode = arrivedWithShare ? "drop" : stored;
   const [image, setImage] = useState<CaptureImage | null>(null);
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [filed, setFiled] = useState<string | null>(null);
@@ -68,7 +82,10 @@ function AddScreenInner() {
   const cameraInput = useRef<HTMLInputElement>(null);
 
   // Pasting a screenshot straight onto the screen is the fastest path there is.
+  // Not while typing an item in, where a paste belongs to the field.
   useEffect(() => {
+    if (mode !== "drop") return;
+
     async function onPaste(event: ClipboardEvent) {
       const file = [...(event.clipboardData?.items ?? [])]
         .find((item) => item.type.startsWith("image/"))
@@ -81,7 +98,7 @@ function AddScreenInner() {
 
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, []);
+  }, [mode]);
 
   if (!hydrated) return <ScreenSkeleton variant="list" />;
 
@@ -143,12 +160,9 @@ function AddScreenInner() {
     }
 
     // With no trip yet, the thing you just filed becomes the start of one.
-    const target = trip ?? { id: startTripFromDraft(result.draft), travelers: [] };
-
-    addItem(target.id, result.draft, {
+    fileDraft(trip, result.draft, {
       confidence: result.confidence,
       extractionMethod: result.method,
-      addedBy: target.travelers[0]?.id,
     });
     clear(result.draft.title);
   }
@@ -169,6 +183,29 @@ function AddScreenInner() {
 
   const ready = image !== null || text.trim().length > 0;
 
+  function chooseMode(next: AddMode) {
+    setArrivedWithShare(false);
+    setAddMode(next);
+  }
+
+  const modePicker = (
+    <Segmented label="How to add it" value={mode} options={MODES} onChange={chooseMode} />
+  );
+
+  if (mode === "type") {
+    return (
+      <div className="flex flex-col gap-5">
+        <ScreenHeader
+          eyebrow="Add"
+          title="Type it in"
+          meta="A booking with no email to paste, or anything quicker to enter yourself. It is filed and checked exactly like something read."
+        />
+        {modePicker}
+        <ManualAddTripItem trip={trip} items={items} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader
@@ -176,6 +213,8 @@ function AddScreenInner() {
         title="Drop anything in"
         meta="A screenshot, a Reel link, a booking email, or a scribbled note. It gets read, filed and checked."
       />
+
+      {modePicker}
 
       <input
         ref={fileInput}
@@ -321,14 +360,7 @@ function AddScreenInner() {
       <div aria-live="polite" className="flex flex-col gap-3">
         {error && <Card className="border-critical p-4 text-sm text-critical">{error}</Card>}
 
-        {filed && (
-          <Card className="animate-pop border-teal p-4 text-sm">
-            Filed <span className="font-medium">{filed}</span>.{" "}
-            <Link href="/cabinet" className="text-accent-strong underline">
-              See it in the cabinet
-            </Link>
-          </Card>
-        )}
+        {filed && <FiledNotice label={filed} />}
 
         {result && duplicates.length === 0 && (
           <Preview result={result} onFile={() => file()} startsTrip={!trip} />
@@ -414,12 +446,14 @@ function Preview({
 
   return (
     <Card className="animate-pop p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold tracking-tight">Preview</h2>
-        <Chip tone={result.method === "llm" ? "accent" : "neutral"}>
-          {result.method === "llm" ? "model pass" : "pattern pass"}
-        </Chip>
-      </div>
+      <DraftHeading
+        title="Preview"
+        chip={
+          <Chip tone={result.method === "llm" ? "accent" : "neutral"}>
+            {result.method === "llm" ? "model pass" : "pattern pass"}
+          </Chip>
+        }
+      />
 
       <div className="mt-3">
         <div className="flex justify-between font-mono text-[11px] text-ink-soft">
@@ -474,81 +508,7 @@ function Preview({
         {startsTrip ? "Start a new trip from this" : "File it"}
       </button>
 
-      {startsTrip && (
-        <p className="mt-2 text-center font-mono text-[10px] leading-relaxed text-ink-faint">
-          You have no trip open. This builds one around what was found — you can rename it and
-          fill in the dates after.
-        </p>
-      )}
-    </Card>
-  );
-}
-
-/**
- * Shown instead of the file button when something very like this is already
- * in the cabinet. Neither answer is presumed: merging fills the gaps in what
- * is filed, keeping both leaves the cabinet exactly as the traveller expects.
- */
-function DuplicateChoice({
-  draft,
-  matches,
-  onMerge,
-  onKeepBoth,
-  onCancel,
-}: {
-  draft: ItemDraft;
-  matches: DuplicateMatch[];
-  onMerge: (item: TripItem) => void;
-  onKeepBoth: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <Card className="animate-rise border-accent p-4">
-      <p className="text-sm font-medium">
-        You may already have {matches.length === 1 ? "this" : "one of these"}
-      </p>
-      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-        “{draft.title}” looks like something already filed. Merging keeps what you have and fills
-        in anything it was missing.
-      </p>
-
-      <ul className="mt-3 flex flex-col gap-2">
-        {matches.map((match) => (
-          <li
-            key={match.item.id}
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface-2 p-3"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{match.item.title}</span>
-              <span className="block font-mono text-[10px] text-ink-faint">{match.reason}</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => onMerge(match.item)}
-              className="press shrink-0 rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-accent-ink"
-            >
-              Merge into this
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-3 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onKeepBoth}
-          className="press rounded-lg border border-line px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-ink-soft"
-        >
-          Keep both
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="press font-mono text-[10px] text-ink-faint underline"
-        >
-          back
-        </button>
-      </div>
+      {startsTrip && <StartsTripNote what="what was found" />}
     </Card>
   );
 }

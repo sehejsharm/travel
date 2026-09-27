@@ -279,6 +279,25 @@ export function suggestPlaces(text: string, limit = 8): PlaceSuggestion[] {
     .map(({ name, detail }) => ({ name, detail }));
 }
 
+/**
+ * Type-ahead for a flight's ends, which are airports and nothing else. Nothing
+ * is offered for an empty box: a list of arbitrary airports is noise.
+ */
+export function suggestAirports(text: string, limit = 6): PlaceSuggestion[] {
+  const needle = normalize(text);
+  if (!needle) return [];
+
+  return AIRPORT_LIST.map((airport) => ({
+    name: `${airport.name} (${airport.iata})`,
+    detail: `${airport.city}, ${airport.countryCode}`,
+    rank: rankOf(needle, airport.name, [airport.iata.toLowerCase(), normalize(airport.city)]),
+  }))
+    .filter((candidate) => candidate.rank > 0)
+    .sort((a, b) => b.rank - a.rank || a.name.length - b.name.length)
+    .slice(0, limit)
+    .map(({ name, detail }) => ({ name, detail }));
+}
+
 function rankOf(needle: string, name: string, aliases: string[] = []): number {
   if (!needle) return 1;
   for (const candidate of [normalize(name), ...aliases]) {
