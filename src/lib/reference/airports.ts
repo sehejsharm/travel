@@ -230,22 +230,52 @@ export function airportPlace(code?: string): PlaceRef | undefined {
   };
 }
 
+/** Lower case, accents and punctuation gone: "Malé" and "male", "DEL - Delhi" and "del delhi". */
+function fold(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const byName = AIRPORT_LIST.map((airport) => ({ airport, name: fold(airport.name) })).sort(
+  (a, b) => b.name.length - a.name.length,
+);
+
 /**
- * The airport someone means by what they typed: a code ("hnd"), a picked
- * suggestion ("Tokyo Haneda (HND)"), an airport's name, or a city with only
- * one airport. A city with two ("Tokyo") is left for the person to settle.
+ * The airport someone means by what they typed into a flight's From or To:
+ * a code ("hnd"), a picked suggestion ("Tokyo Haneda (HND)"), an airport's
+ * name with or without "Airport" after it, a code beside a city ("Delhi DEL"),
+ * or a city with only one airport. A city with two ("Tokyo") is left for the
+ * person to settle, as is text naming two different codes.
  */
 export function findAirport(text: string): Airport | undefined {
-  const needle = text.trim().toLowerCase();
-  if (!needle) return undefined;
-
-  const bracketed = getAirport(needle.match(/\(([a-z]{3})\)\s*$/)?.[1]);
+  const bracketed = getAirport(text.match(/\(([A-Za-z]{3})\)\s*$/)?.[1]);
   if (bracketed) return bracketed;
-  if (/^[a-z]{3}$/.test(needle) && getAirport(needle)) return getAirport(needle);
 
-  const named = AIRPORT_LIST.find((airport) => airport.name.toLowerCase() === needle);
-  if (named) return named;
+  const needle = fold(text);
+  if (!needle) return undefined;
+  const padded = ` ${needle} `;
 
-  const inCity = AIRPORT_LIST.filter((airport) => airport.city.toLowerCase() === needle);
-  return inCity.length === 1 ? inCity[0] : undefined;
+  // Exact answers first: the whole text is a code, a name or a one-airport city.
+  const whole = /^[a-z]{3}$/.test(needle) ? getAirport(needle) : undefined;
+  if (whole) return whole;
+  const named = byName.find((entry) => entry.name === needle);
+  if (named) return named.airport;
+  const inCity = AIRPORT_LIST.filter((airport) => fold(airport.city) === needle);
+  if (inCity.length === 1) return inCity[0];
+
+  // Then the loose forms: a name inside the text (longest first), then a code on its own.
+  const contained = byName.find((entry) => padded.includes(` ${entry.name} `));
+  if (contained) return contained.airport;
+
+  const codes = new Set(needle.split(" ").filter((word) => word.length === 3 && getAirport(word)));
+  if (codes.size === 1) return getAirport([...codes][0]);
+
+  // Last, a one-airport city named with other words: "Dubai airport".
+  const cities = AIRPORT_LIST.filter((airport) => padded.includes(` ${fold(airport.city)} `));
+  const distinct = new Set(cities.map((airport) => fold(airport.city)));
+  return cities.length === 1 && distinct.size === 1 ? cities[0] : undefined;
 }

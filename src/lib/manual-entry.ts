@@ -177,6 +177,7 @@ function routeOf(values: ManualValues, from?: PlaceRef, to?: PlaceRef): string {
 /**
  * A flight leads with its number ("AI142 DEL → HND"), as the extractor writes
  * it — the baggage check reads the carrier from those first two characters.
+ * So an airline name never leads: "Air France" would read as Air India (AI).
  */
 function titleOf(values: ManualValues, from?: PlaceRef, to?: PlaceRef): string {
   if (!isTransport(values.kind)) return values.name.trim();
@@ -190,9 +191,9 @@ function titleOf(values: ManualValues, from?: PlaceRef, to?: PlaceRef): string {
   }
 
   const number = values.flightNumber.toUpperCase().replace(/[\s-]+/g, "");
-  const lead = number || provider || (route ? "Flight" : "");
-  const title = [lead, route].filter(Boolean).join(" ");
-  return number && provider ? `${title} · ${provider}` : title;
+  if (!number && !provider && !route) return "";
+  const title = [number || "Flight", route].filter(Boolean).join(" ");
+  return provider ? `${title} · ${provider}` : title;
 }
 
 /** The cost status a price is filed with when none was picked. */
@@ -206,27 +207,49 @@ export interface ManualResult {
   errors: ManualErrors;
 }
 
+/**
+ * Where a stay or an activity is. The place typed wins; left blank, the name
+ * is grounded instead ("Park Hyatt Tokyo" is in Tokyo), as the extractor
+ * grounds a booking's whole text — but only when that lands on a real pin,
+ * never the name itself standing in for a place.
+ */
+export function placeOfSpot(values: Pick<ManualValues, "name" | "place">): PlaceRef | undefined {
+  if (values.place.trim()) return resolvePlace(values.place);
+  const fromName = values.name.trim() ? groundPlace(values.name) : undefined;
+  return fromName?.point ? fromName : undefined;
+}
+
+/**
+ * The offsets a journey's two times are filed with. Each end is on its own
+ * country's clock, as the extractor has a flight; an end whose country is not
+ * known borrows the other end's, so the two times are never read on different
+ * clocks — one with an offset and one in the device's zone.
+ */
+export function journeyOffsets(from?: PlaceRef, to?: PlaceRef): { start: string; end: string } {
+  const start = offsetForCountry(from?.countryCode);
+  const end = offsetForCountry(to?.countryCode);
+  return { start: start || end, end: end || start };
+}
+
 export function buildManualDraft(values: ManualValues): ManualResult {
   const errors: ManualErrors = {};
   const transport = isTransport(values.kind);
 
-  const place = resolvePlace(transport ? values.from : values.place, values.kind === "flight");
+  const place = transport ? resolvePlace(values.from, values.kind === "flight") : placeOfSpot(values);
   const arrivalPlace = transport ? resolvePlace(values.to, values.kind === "flight") : undefined;
 
   const title = titleOf(values, place, arrivalPlace);
   if (!title) errors.title = TITLE_MISSING[values.kind];
 
-  // A flight's end is on the clock of where it lands, as the extractor has it.
-  const startsAt = fromLocalInput(values.startsAt, offsetForCountry(place?.countryCode));
-  const endsAt = fromLocalInput(
-    values.endsAt,
-    offsetForCountry((arrivalPlace ?? place)?.countryCode),
-  );
+  const offsets = journeyOffsets(place, arrivalPlace);
+  const startsAt = fromLocalInput(values.startsAt, offsets.start);
+  const endsAt = fromLocalInput(values.endsAt, offsets.end);
   if (endsAt && !startsAt) errors.startsAt = "Add when it starts as well";
   else if (endsBeforeStart(startsAt, endsAt)) errors.endsAt = END_BEFORE_START[values.kind];
 
   const reading = readCost(values.costAmount, values.costCurrency);
   if (reading.problem === "amount") errors.costAmount = "Not an amount";
+  else if (reading.cost && reading.cost.amount < 0) errors.costAmount = "A price cannot be negative";
   if (reading.problem === "currency") errors.costCurrency = "Pick one";
 
   if (Object.keys(errors).length > 0) return { errors };

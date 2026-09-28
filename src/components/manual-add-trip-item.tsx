@@ -6,14 +6,15 @@ import { findDuplicates, mergeInto, type DuplicateMatch } from "@/lib/dedupe";
 import { SOURCE_LABELS, type PlaceRef, type Trip, type TripItem } from "@/lib/domain/types";
 import type { ItemDraft } from "@/lib/extract/types";
 import { fileDraft } from "@/lib/filing";
-import { offsetForCountry } from "@/lib/item-form";
 import {
   buildManualDraft,
   defaultCostStatus,
   isBlank,
   isTransport,
+  journeyOffsets,
   MANUAL_KINDS,
   MANUAL_META,
+  placeOfSpot,
   resolvePlace,
   TRANSIT_KINDS,
   type ManualErrorKey,
@@ -119,6 +120,11 @@ const resolveAirport = (text: string) => resolvePlace(text, true);
 const isAirport = (place: PlaceRef) => Boolean(place.airport);
 const suggestWhenTyped = (text: string) => (text.trim() ? suggestPlaces(text) : []);
 
+/** Focus by id once the render in progress has landed. */
+function focusSoon(id: string): void {
+  requestAnimationFrame(() => document.getElementById(id)?.focus());
+}
+
 function filled(values: ManualValues, section: Section): boolean {
   switch (section) {
     case "cost":
@@ -147,6 +153,11 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
     null,
   );
   const [filedLabel, setFiledLabel] = useState<string | null>(null);
+  // Held here rather than inside the section, so an error in it can open it
+  // without remounting the field being typed in.
+  const [moreOpen, setMoreOpen] = useState(() =>
+    COPY[values.kind].more.some((section) => filled(values, section)),
+  );
 
   const { kind } = values;
   const copy = COPY[kind];
@@ -156,10 +167,12 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
   const blank = isBlank(values);
 
   // A flight's two ends can be on different clocks, so its arrival is not held to its departure's.
-  const from = transport ? resolvePlace(values.from, kind === "flight") : undefined;
-  const to = transport ? resolvePlace(values.to, kind === "flight") : undefined;
-  const sameZone =
-    !transport || offsetForCountry(from?.countryCode) === offsetForCountry((to ?? from)?.countryCode);
+  const offsets = transport
+    ? journeyOffsets(resolvePlace(values.from, kind === "flight"), resolvePlace(values.to, kind === "flight"))
+    : undefined;
+  const sameZone = !offsets || offsets.start === offsets.end;
+  // A stay or activity with no place typed is pinned by its name, and says so.
+  const pinnedByName = !transport && !values.place.trim() ? placeOfSpot(values) : undefined;
 
   function set(patch: Partial<ManualValues>) {
     editManual(patch);
@@ -175,8 +188,9 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
     if (!result.draft) {
       setAttempted(true);
       const first = ERROR_ORDER.find((key) => result.errors[key]);
-      // After the render that shows the errors, and opens "More details" if one is in there.
-      if (first) requestAnimationFrame(() => document.getElementById(fieldId(first, kind))?.focus());
+      if (first && inMore(first)) setMoreOpen(true);
+      // After the render that shows the errors, and has opened "More details" if one is in there.
+      if (first) focusSoon(fieldId(first, kind));
       return;
     }
 
@@ -203,6 +217,7 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
     done(`${into.title} (merged)`);
   }
 
+  // The filed notice takes focus itself; see FiledNotice.
   function done(label: string) {
     clearManual();
     setAttempted(false);
@@ -215,9 +230,17 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
     setAttempted(false);
     setPending(null);
     setFiledLabel(null);
+    // Clear disables itself, so the cursor goes where the next item starts.
+    focusSoon(fieldId("title", kind));
   }
 
-  const moreErrors = copy.more.includes("cost") && Boolean(errors.costAmount || errors.costCurrency);
+  function inMore(key: ManualErrorKey): boolean {
+    return copy.more.includes("cost") && (key === "costAmount" || key === "costCurrency");
+  }
+
+  const moreError = (["costAmount", "costCurrency"] as const).find(
+    (key) => inMore(key) && errors[key],
+  );
   const moreFilled = copy.more.filter((section) => filled(values, section));
 
   function section(name: Section): ReactNode {
@@ -389,6 +412,7 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
                 placeholder={copy.place.placeholder}
                 resolve={resolvePlace}
                 suggest={suggestWhenTyped}
+                fallback={pinnedByName}
               />
             </FieldGroup>
           )}
@@ -410,12 +434,16 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
           {copy.primary.map(section)}
 
           <Disclosure
-            // Opened when something in it needs fixing, so the error is never hidden.
-            key={`${kind}-${moreErrors}`}
             label="More details"
+            open={moreOpen}
+            onOpenChange={setMoreOpen}
             hint={copy.more.map((name) => SECTION_LABELS[name]).join(", ")}
-            summary={moreFilled.map((name) => SECTION_LABELS[name]).join(", ")}
-            defaultOpen={moreErrors || moreFilled.length > 0}
+            // Closed, it still says when something inside needs fixing.
+            summary={
+              moreError && !moreOpen
+                ? `Cost: ${errors[moreError]}`
+                : moreFilled.map((name) => SECTION_LABELS[name]).join(", ")
+            }
           >
             <div className="flex flex-col gap-4">{copy.more.map(section)}</div>
           </Disclosure>
@@ -425,7 +453,7 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
           <GhostButton onClick={clear} disabled={blank}>
             Clear
           </GhostButton>
-          <PrimaryButton onClick={submit}>
+          <PrimaryButton id="manual-submit" onClick={submit} disabled={blank}>
             {trip ? "Add to trip" : "Start a new trip from this"}
           </PrimaryButton>
         </div>
@@ -446,7 +474,10 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
             matches={pending.matches}
             onMerge={merge}
             onKeepBoth={() => file(pending.draft)}
-            onCancel={() => setPending(null)}
+            onCancel={() => {
+              setPending(null);
+              focusSoon("manual-submit");
+            }}
           />
         )}
         {filedLabel && <FiledNotice label={filedLabel} />}

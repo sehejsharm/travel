@@ -13,6 +13,8 @@ export function Disclosure({
   hint,
   summary,
   defaultOpen = false,
+  open: controlled,
+  onOpenChange,
   children,
 }: {
   label: string;
@@ -20,9 +22,21 @@ export function Disclosure({
   /** Shown on the closed row once the section has something in it. */
   summary?: string;
   defaultOpen?: boolean;
+  /**
+   * Pass to hold the open state outside, when something else must be able to
+   * open it — a form opening the section an error is in — without remounting
+   * the fields inside, and the one being typed in with them.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [uncontrolled, setUncontrolled] = useState(defaultOpen);
+  const open = controlled ?? uncontrolled;
+  const setOpen = (next: boolean) => {
+    if (controlled === undefined) setUncontrolled(next);
+    onOpenChange?.(next);
+  };
 
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-surface">

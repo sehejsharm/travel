@@ -42,16 +42,31 @@ export interface CostReading {
   problem?: "amount" | "currency";
 }
 
-// "52,400" and "1,299.50" are how prices are written on a booking.
-const THOUSANDS = /^\d{1,3}(,\d{3})+(\.\d+)?$/;
+// How prices are written on bookings and typed on phone keypads: "52,400" and
+// "1,299.50", but also "12,50" and "1.234,50" where a comma is the decimal
+// point. Three digits after a lone comma are thousands, fewer are cents.
+const COMMA_THOUSANDS = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/;
+const DOT_THOUSANDS_COMMA_DECIMAL = /^-?\d{1,3}(\.\d{3})+,\d{1,2}$/;
+const COMMA_DECIMAL = /^-?\d+,\d{1,2}$/;
 
-/** A typed price, which needs a real amount and a currency to mean anything. */
+function readAmount(text: string): number {
+  if (COMMA_THOUSANDS.test(text)) return Number(text.replace(/,/g, ""));
+  if (DOT_THOUSANDS_COMMA_DECIMAL.test(text)) return Number(text.replace(/\./g, "").replace(",", "."));
+  if (COMMA_DECIMAL.test(text)) return Number(text.replace(",", "."));
+  return Number(text);
+}
+
+/**
+ * A typed price, which needs a real amount and a currency to mean anything.
+ * A negative amount is read as written: the editor keeps one it was given,
+ * and typing an item in refuses it itself.
+ */
 export function readCost(amountText: string, currency: string): CostReading {
   const text = amountText.replace(/\s/g, "");
   if (!text) return {};
 
-  const amount = Number(THOUSANDS.test(text) ? text.replace(/,/g, "") : text);
-  if (!Number.isFinite(amount) || amount < 0) return { problem: "amount" };
+  const amount = readAmount(text);
+  if (!Number.isFinite(amount)) return { problem: "amount" };
   if (!currency) return { problem: "currency" };
 
   return { cost: { amount, currency } };

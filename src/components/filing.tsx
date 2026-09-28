@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import type { TripItem } from "@/lib/domain/types";
 import type { ItemDraft } from "@/lib/extract/types";
 import type { DuplicateMatch } from "@/lib/dedupe";
@@ -22,14 +22,35 @@ export function DraftHeading({ title, chip }: { title: string; chip?: ReactNode 
   );
 }
 
+/** Where focus goes once something appears in place of the button that was pressed. */
+function useFocusOnMount<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    ref.current?.focus({ preventScroll: true });
+    ref.current?.scrollIntoView({ block: "nearest" });
+  }, []);
+  return ref;
+}
+
+/**
+ * Takes focus when it appears: the button that filed the item has just gone
+ * or disabled itself, and the way on to the cabinet is here.
+ */
 export function FiledNotice({ label }: { label: string }) {
+  const ref = useFocusOnMount<HTMLDivElement>();
   return (
-    <Card className="animate-pop border-teal p-4 text-sm">
-      Filed <span className="font-medium">{label}</span>.{" "}
-      <Link href="/cabinet" className="text-accent-strong underline">
-        See it in the cabinet
-      </Link>
-    </Card>
+    <div
+      ref={ref}
+      tabIndex={-1}
+      className="rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
+      <Card className="animate-pop border-teal p-4 text-sm">
+        Filed <span className="font-medium">{label}</span>.{" "}
+        <Link href="/cabinet" className="text-accent-strong underline">
+          See it in the cabinet
+        </Link>
+      </Card>
+    </div>
   );
 }
 
@@ -51,9 +72,12 @@ export function DuplicateChoice({
   onKeepBoth: () => void;
   onCancel: () => void;
 }) {
+  // The button that raised this has gone, so the question takes the focus.
+  const heading = useFocusOnMount<HTMLParagraphElement>();
+
   return (
     <Card className="animate-rise border-accent p-4">
-      <p className="text-sm font-medium">
+      <p ref={heading} tabIndex={-1} className="text-sm font-medium outline-none">
         You may already have {matches.length === 1 ? "this" : "one of these"}
       </p>
       <p className="mt-1 text-xs leading-relaxed text-ink-soft">

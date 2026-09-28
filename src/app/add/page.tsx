@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "@/components/filing";
 import { ManualAddTripItem } from "@/components/manual-add-trip-item";
@@ -55,6 +55,7 @@ export default function AddScreen() {
 
 function AddScreenInner() {
   const { trip, items, hydrated } = useTripView();
+  const router = useRouter();
   const shared = useSearchParams();
   // Arriving from the OS share sheet, the content is already in the URL.
   const [text, setText] = useState(() =>
@@ -66,6 +67,14 @@ function AddScreenInner() {
   const [arrivedWithShare, setArrivedWithShare] = useState(() => text.trim().length > 0);
   const mode: AddMode = arrivedWithShare ? "drop" : stored;
   const typing = mode === "type";
+
+  // Once the shared content is in the box, it leaves the address: a reload
+  // should come back to the screen as it was left, not re-offer a link that
+  // has since been filed.
+  const hasShare = shared.has("title") || shared.has("text") || shared.has("url");
+  useEffect(() => {
+    if (hasShare) router.replace("/add", { scroll: false });
+  }, [hasShare, router]);
   const [image, setImage] = useState<CaptureImage | null>(null);
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [filed, setFiled] = useState<string | null>(null);

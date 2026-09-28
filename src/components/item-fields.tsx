@@ -118,6 +118,7 @@ export function PlaceField({
   suggest = suggestPlaces,
   pinned = (place) => Boolean(place.point),
   map = true,
+  fallback,
   id,
   error,
 }: {
@@ -131,6 +132,8 @@ export function PlaceField({
   /** Whether the place found is settled enough to stop suggesting. */
   pinned?: (place: PlaceRef) => boolean;
   map?: boolean;
+  /** Where the item is pinned while this is left blank, found some other way. */
+  fallback?: PlaceRef;
   id?: string;
   error?: string;
 }) {
@@ -213,6 +216,14 @@ export function PlaceField({
 
       {grounded && !map && (
         <p className="mt-2 truncate font-mono text-[10px] text-ink-faint">Pinned to {pinLabel}</p>
+      )}
+
+      {!value && fallback?.point && (
+        <p className="mt-2 truncate font-mono text-[10px] text-ink-faint">
+          Pinned to {fallback.name}
+          {fallback.city && fallback.city !== fallback.name ? `, ${fallback.city}` : ""} from the
+          name — type a place to change it
+        </p>
       )}
     </div>
   );
