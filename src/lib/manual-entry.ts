@@ -2,7 +2,8 @@ import type { BookingKind, CostStatus, ItemCategory, PlaceRef, Trip } from "./do
 import type { ItemDraft } from "./extract/types";
 import { fromLocalInput } from "./datetime";
 import { endsBeforeStart, offsetForCountry, readCost } from "./item-form";
-import { airportPlace, findAirport } from "./reference/airports";
+import { airportCodesIn, airportPlace, findAirport } from "./reference/airports";
+import { CITIES } from "./reference/cities";
 import { groundPlace } from "./reference/places";
 
 /**
@@ -131,25 +132,39 @@ export function toManualValues(value: unknown): ManualValues {
  * ends are airports first, built as the extractor builds them; anything else
  * is grounded like a place typed into the editor.
  *
- * A flight's end that names no single airport is never pinned to one anyway:
- * the gazetteer would find "DEL" in "DEL/DXB" and pin an airport with no code,
- * which the layover and transit checks cannot see. It stays a city, or a name.
+ * A flight's end that names no single airport is never pinned to an airport
+ * without its code — the layover and transit checks could not see it — but it
+ * keeps the city and country it is plainly in, so its time is on the right
+ * clock: "NRT/HND" is Tokyo, "Frankfurt Hahn" is in Germany.
  */
 export function resolvePlace(text: string, airports = false): PlaceRef | undefined {
   const name = text.trim();
   if (!name) return undefined;
+  if (!airports) return groundPlace(name) ?? { name };
 
-  if (airports) {
-    const airport = findAirport(name);
-    if (airport) return airportPlace(airport.iata);
+  const airport = findAirport(name);
+  if (airport) return airportPlace(airport.iata);
+
+  const named = airportCodesIn(name);
+  if (named.length > 1) {
+    const [first] = named;
+    const oneCountry = named.every((entry) => entry.countryCode === first.countryCode);
+    const oneCity = oneCountry && named.every((entry) => entry.city === first.city);
+    return oneCountry ? cityPlace(name, oneCity ? first.city : undefined, first.countryCode) : { name };
   }
+
   const grounded = groundPlace(name);
-  if (airports && grounded && AIRPORT_PIN.test(grounded.name)) return { name };
+  if (grounded?.name.match(/\([A-Z]{3}\)$/)) {
+    return cityPlace(name, grounded.city, grounded.countryCode);
+  }
   return grounded ?? { name };
 }
 
-// How the gazetteer names an airport it pins: "Indira Gandhi International (DEL)".
-const AIRPORT_PIN = /\([A-Z]{3}\)$/;
+/** A place known to its city and country, pinned on the city itself when the city is known. */
+function cityPlace(name: string, city: string | undefined, countryCode: string | undefined): PlaceRef {
+  const known = city ? CITIES.find((entry) => entry.name === city) : undefined;
+  return { name, city, countryCode, point: known?.point };
+}
 
 const TRANSIT_NOUNS: Record<TransitKind, string> = { rail: "Train", car: "Car", other: "Transfer" };
 
@@ -222,15 +237,33 @@ export interface ManualResult {
   errors: ManualErrors;
 }
 
-/** Where the trip is on a date: the leg that covers it, or its one destination. */
-export type TripClock = Pick<Trip, "destinationCountries" | "legs">;
+/** What the trip says about where it is: its legs, its destinations and its dates. */
+export type TripClock = Partial<
+  Pick<Trip, "destinationCountries" | "legs" | "startDate" | "endDate" | "datesTbd">
+>;
 
-function tripCountryOn(trip: TripClock | undefined, date: string): string | undefined {
-  if (!trip) return undefined;
-  const leg = date
-    ? trip.legs?.find((entry) => entry.startDate <= date && date <= entry.endDate)
-    : undefined;
-  if (leg) return leg.countryCode;
+/**
+ * Where the trip is on a date: the leg that covers it, or its one
+ * destination — and nowhere, before or after the trip. Legs share their
+ * travel day, so an arrival on it belongs to the leg starting that day and a
+ * departure to the leg ending it: check-in in Tokyo, check-out in Bangkok.
+ */
+function tripCountryOn(
+  trip: TripClock | undefined,
+  date: string,
+  side: "arriving" | "leaving",
+): string | undefined {
+  if (!trip || !date) return undefined;
+  const dated = !trip.datesTbd && trip.startDate && trip.endDate;
+  if (dated && (date < trip.startDate! || date > trip.endDate!)) return undefined;
+
+  const covering = (trip.legs ?? []).filter((leg) => leg.startDate <= date && date <= leg.endDate);
+  if (covering.length > 0) {
+    const onTheDay = covering.find((leg) =>
+      side === "arriving" ? leg.startDate === date : leg.endDate === date,
+    );
+    return (onTheDay ?? covering[0]).countryCode;
+  }
   const countries = trip.destinationCountries ?? [];
   return countries.length === 1 ? countries[0] : undefined;
 }
@@ -247,13 +280,15 @@ export function itemOffsets(
   from: PlaceRef | undefined,
   to: PlaceRef | undefined,
   trip?: TripClock,
-  date = "",
+  dates: { start?: string; end?: string } = {},
 ): { start: string; end: string } {
   const start = offsetForCountry(from?.countryCode);
   const end = offsetForCountry(to?.countryCode);
   if (start || end) return { start: start || end, end: end || start };
-  const fallback = offsetForCountry(tripCountryOn(trip, date));
-  return { start: fallback, end: fallback };
+  return {
+    start: offsetForCountry(tripCountryOn(trip, dates.start ?? "", "arriving")),
+    end: offsetForCountry(tripCountryOn(trip, dates.end || dates.start || "", "leaving")),
+  };
 }
 
 // "AI 142", "6E204", "EK-511", "BA 1A": a carrier code, then the number.
@@ -275,7 +310,10 @@ export function buildManualDraft(values: ManualValues, trip?: TripClock): Manual
     errors.flightNumber = "A flight number looks like AI 142";
   }
 
-  const offsets = itemOffsets(place, arrivalPlace, trip, values.startsAt.slice(0, 10));
+  const offsets = itemOffsets(place, arrivalPlace, trip, {
+    start: values.startsAt.slice(0, 10),
+    end: values.endsAt.slice(0, 10),
+  });
   const startsAt = fromLocalInput(values.startsAt, offsets.start);
   const endsAt = fromLocalInput(values.endsAt, offsets.end);
   if (endsAt && !startsAt) errors.startsAt = "Add when it starts as well";

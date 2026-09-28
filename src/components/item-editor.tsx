@@ -111,10 +111,16 @@ function ItemEditorForm({
     const typedEnd = fromLocalInput(draft.endsAt, offsetFor(item.endsAt) || startOffset);
     const endsAt = endsBeforeStart(startsAt, typedEnd) ? undefined : typedEnd;
 
-    const grounded = draft.placeName ? groundPlace(draft.placeName) : undefined;
-    const place = draft.placeName
-      ? grounded ?? { ...item.place, name: draft.placeName }
-      : undefined;
+    // A place left as it was is kept exactly as filed: grounding its name
+    // again would lose what only the filing knew, like a flight's airport
+    // code. A renamed one is grounded afresh and keeps no stale pin; spaces
+    // alone are no place.
+    const placeName = draft.placeName.trim();
+    const place = !placeName
+      ? undefined
+      : placeName === item.place?.name
+        ? item.place
+        : (groundPlace(placeName) ?? { name: placeName });
 
     // A price that is not a number, or has no currency, is left off.
     const { cost } = readCost(draft.costAmount, draft.costCurrency);

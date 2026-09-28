@@ -38,7 +38,7 @@ function useFocusOnMount<F extends HTMLElement, S extends HTMLElement = F>() {
 
 // Clear of the sticky header and, on a phone, the tab bar fixed along the bottom.
 const CLEAR_OF_BARS = {
-  scrollMarginTop: "4.5rem",
+  scrollMarginTop: "calc(4.5rem + env(safe-area-inset-top, 0px))",
   scrollMarginBottom: "calc(5.5rem + env(safe-area-inset-bottom, 0px))",
 };
 

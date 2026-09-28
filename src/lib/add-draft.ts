@@ -19,6 +19,8 @@ export interface AddDraft {
   mode: AddMode;
   /** The box of things to be read: a pasted email, a shared link, a note. */
   text: string;
+  /** The last share taken into the box, so its address no longer overrides it. */
+  sharedFrom?: string;
   manual: ManualValues;
 }
 
@@ -51,19 +53,25 @@ function load(): AddDraft {
   current = {
     mode: record.mode === "type" ? "type" : "drop",
     text: typeof record.text === "string" ? record.text : "",
+    sharedFrom: typeof record.sharedFrom === "string" ? record.sharedFrom : undefined,
     manual: toManualValues(record.manual),
   };
   return current;
 }
 
-function save(next: AddDraft): void {
+/** Returns whether it will survive a reload, not just this visit. */
+function save(next: AddDraft): boolean {
   current = next;
+  let kept = false;
   try {
-    storage()?.setItem(KEY, JSON.stringify(next));
+    const store = storage();
+    store?.setItem(KEY, JSON.stringify(next));
+    kept = store !== undefined;
   } catch {
     // Private windows and full storage still keep it for as long as the app is open.
   }
   for (const listener of listeners) listener();
+  return kept;
 }
 
 export function getAddDraft(): AddDraft {
@@ -94,9 +102,13 @@ export function editReadText(text: string): void {
   if (draft.text !== text) save({ ...draft, text });
 }
 
-/** Something shared to the app: it is to be read, whatever way in was last used. */
-export function takeShare(text: string): void {
-  save({ ...load(), mode: "drop", text });
+/**
+ * Something shared to the app: it is to be read, whatever way in was last
+ * used. Returns whether it is safely kept, so the address it came in on is
+ * only cleared once a reload would still find it.
+ */
+export function takeShare(text: string): boolean {
+  return save({ ...load(), mode: "drop", text, sharedFrom: text });
 }
 
 /** Empties the typed item, keeping the kind that was picked. */

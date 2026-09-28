@@ -153,7 +153,7 @@ export function PlaceField({
         label={label}
         error={error}
         hint={
-          value && !grounded
+          value.trim() && !grounded
             ? "No coordinates for this name, so it sits out the distance checks"
             : undefined
         }

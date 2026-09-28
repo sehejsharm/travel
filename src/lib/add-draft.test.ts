@@ -64,6 +64,9 @@ describe("the Add screen's unfinished work", () => {
       manual: { name: "Tea ceremony" },
     });
 
+    // Taken in: the address no longer speaks for the box.
+    expect(second.getAddDraft().sharedFrom).toBe("https://www.instagram.com/reel/C9xArashiyama/");
+
     second.editReadText("");
     expect((await fresh()).getAddDraft().text).toBe("");
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "@/components/filing";
 import { ManualAddTripItem } from "@/components/manual-add-trip-item";
@@ -55,7 +55,6 @@ export default function AddScreen() {
 
 function AddScreenInner() {
   const { trip, items, hydrated } = useTripView();
-  const router = useRouter();
   const shared = useSearchParams();
   // Arriving from the OS share sheet, the content is in the URL. It is taken
   // into the kept draft — ready to read, whatever way in was last used — and
@@ -64,16 +63,23 @@ function AddScreenInner() {
   const sharedText = [shared.get("title"), shared.get("text"), shared.get("url")]
     .filter(Boolean)
     .join("\n");
+  const shareInAddress = shared.has("title") || shared.has("text") || shared.has("url");
   useEffect(() => {
-    if (!sharedText) return;
-    takeShare(sharedText);
-    router.replace("/add", { scroll: false });
-  }, [sharedText, router]);
+    if (!shareInAddress) return;
+    const kept = sharedText ? takeShare(sharedText) : true;
+    // Native, not a router navigation: the address changes at once, with no
+    // request in between for the box to be stuck showing the share, and Next
+    // keeps useSearchParams in step with it.
+    if (kept) window.history.replaceState(null, "", "/add");
+  }, [shareInAddress, sharedText]);
 
+  // Until the share is taken in, the address speaks for it; after, the draft
+  // does, even if storage refused it and the address had to stay.
   const draft = useAddDraft();
-  const text = sharedText || draft.text;
+  const shareWaiting = sharedText !== "" && draft.sharedFrom !== sharedText;
+  const text = shareWaiting ? sharedText : draft.text;
   const setText = editReadText;
-  const mode: AddMode = sharedText ? "drop" : draft.mode;
+  const mode: AddMode = shareWaiting ? "drop" : draft.mode;
   const typing = mode === "type";
   const [image, setImage] = useState<CaptureImage | null>(null);
   const [result, setResult] = useState<ExtractionResult | null>(null);

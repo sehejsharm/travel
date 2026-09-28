@@ -132,6 +132,26 @@ describe("a typed flight", () => {
     expect(draft?.place).toEqual({ name: "DEL/DXB" });
   });
 
+  it("keeps the city and country of an end it cannot settle on one airport", () => {
+    // Both Tokyo airports: Tokyo, on Japan's clock, but no code claimed.
+    const tokyo = resolvePlace("NRT/HND", true);
+    expect(tokyo).toMatchObject({ name: "NRT/HND", city: "Tokyo", countryCode: "JP" });
+    expect(tokyo?.airport).toBeUndefined();
+
+    // An airport off the list, beside a city on it: that city's country, not its airport.
+    const hahn = resolvePlace("Frankfurt Hahn", true);
+    expect(hahn).toMatchObject({ name: "Frankfurt Hahn", countryCode: "DE" });
+    expect(hahn?.airport).toBeUndefined();
+
+    // So a same-day flight east across the date line still files, on the right clocks.
+    const { draft, errors } = buildManualDraft(
+      values({ kind: "flight", flightNumber: "JL 62", from: "NRT/HND", to: "Los Angeles LAX", startsAt: "2026-10-20T17:00", endsAt: "2026-10-20T10:00" }),
+    );
+    expect(errors).toEqual({});
+    expect(draft?.startsAt).toBe("2026-10-20T17:00:00+09:00");
+    expect(draft?.endsAt).toBe("2026-10-20T10:00:00-05:00");
+  });
+
   it("needs something to call it", () => {
     const { draft, errors } = buildManualDraft(values({ kind: "flight", startsAt: "2026-10-14T19:55" }));
     expect(draft).toBeUndefined();
@@ -188,6 +208,28 @@ describe("clocks and places the extractor would have found", () => {
     };
     const bangkok = values({ kind: "activity", name: "Muay Thai", startsAt: "2026-10-22T19:00" });
     expect(buildManualDraft(bangkok, legs).draft?.startsAt).toBe("2026-10-22T19:00:00+07:00");
+
+    // Legs share their travel day: a check-in that day is at the new leg,
+    // a check-out that day is still at the old one.
+    const touching = {
+      destinationCountries: ["TH", "JP"],
+      legs: [
+        { id: "a", countryCode: "TH", startDate: "2026-10-01", endDate: "2026-10-05" },
+        { id: "b", countryCode: "JP", startDate: "2026-10-05", endDate: "2026-10-10" },
+      ],
+    };
+    expect(
+      buildManualDraft(values({ kind: "lodging", name: "Park Hyatt Tokyo", startsAt: "2026-10-05T15:00", endsAt: "2026-10-08T11:00" }), touching).draft,
+    ).toMatchObject({ startsAt: "2026-10-05T15:00:00+09:00", endsAt: "2026-10-08T11:00:00+09:00" });
+    expect(
+      buildManualDraft(values({ kind: "lodging", name: "Mandarin Oriental", startsAt: "2026-10-02T15:00", endsAt: "2026-10-05T11:00" }), touching).draft,
+    ).toMatchObject({ startsAt: "2026-10-02T15:00:00+07:00", endsAt: "2026-10-05T11:00:00+07:00" });
+
+    // Outside the trip's dates, the trip says nothing about where it is.
+    const dated = { destinationCountries: ["JP"], startDate: "2026-10-01", endDate: "2026-10-10" };
+    expect(
+      buildManualDraft(values({ kind: "lodging", name: "Hilton SFO", startsAt: "2026-09-30T20:00", endsAt: "2026-09-30T23:00" }), dated).draft?.startsAt,
+    ).toBe("2026-09-30T20:00:00");
 
     // Two countries and no legs: no guess.
     expect(buildManualDraft(bangkok, { destinationCountries: ["JP", "TH"] }).draft?.startsAt).toBe(
@@ -394,6 +436,35 @@ describe("rules shared with the editor", () => {
 });
 
 describe("airports typed by hand", () => {
+  // Each row: what a traveller types into a flight's From or To, and the
+  // airport it should settle on (undefined: left for them to pick).
+  const TABLE: [string, string | undefined][] = [
+    ["Los Angeles LAX", "LAX"],
+    ["LAX Los Angeles", "LAX"],
+    ["Los Angeles International Airport, USA", "LAX"],
+    ["Los Angeles International Airport, CA", "LAX"],
+    ["Dubai International Airport, UAE", "DXB"],
+    ["Frankfurt, Germany", "FRA"],
+    ["Istanbul Airport, Turkey", "IST"],
+    ["Istanbul New Airport", "IST"],
+    ["Hyderabad, India", "HYD"],
+    ["Paris Charles de Gaulle Terminal 2E", "CDG"],
+    ["Indira Gandhi International Airport, New Delhi", "DEL"],
+    ["Hamad International Airport, Doha, Qatar", "DOH"],
+    ["Daniel K. Inouye International Airport, Honolulu, HI", "HNL"],
+    ["Aeropuerto de Málaga-Costa del Sol", "AGP"],
+    ["Zagreb Franjo Tuđman Airport", "ZAG"],
+    ["delhi del", "DEL"],
+    // Lower case is a word, not a code: "Los" is not Lagos, "del" is not Delhi.
+    ["Los Angeles, California", undefined],
+    ["Frankfurt/Main", undefined],
+    ["NRT/HND", undefined],
+  ];
+
+  it.each(TABLE)("%s → %s", (typed, iata) => {
+    expect(findAirport(typed)?.iata).toBe(iata);
+  });
+
   it("are found in the loose ways people type them", () => {
     const code = (text: string) => findAirport(text)?.iata;
     expect(code("Dubai International Airport")).toBe("DXB");
