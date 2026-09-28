@@ -314,15 +314,38 @@ export function countryWords(countryCode: string): string[] {
   ];
 }
 
-/** Whether every word is filler, or one of `known`: nothing left pointing somewhere else. */
-export function onlyExplained(typed: string[], known: Iterable<string>): boolean {
+/**
+ * Whether every word is filler, or one of `known`: nothing left pointing
+ * somewhere else. A joining word ("de", "la", "or") is filler only when more
+ * of the name follows it — "Aeropuerto de Málaga", "Narita or Haneda" — so a
+ * state after a city stays a state: "Athens, LA", "Rome, OR", "Logan, LA, USA".
+ */
+export function onlyExplained(
+  typed: string[],
+  known: Iterable<string>,
+  names: Iterable<string> = known,
+  joiners: Iterable<string> = [],
+): boolean {
   const allowed = new Set(known);
-  return typed.every(
-    (word, index) =>
-      isNoise(word) ||
-      allowed.has(word) ||
-      (CONNECTORS.has(word) && index < typed.length - 1),
-  );
+  const nameWords = new Set(names);
+  const joining = new Set([...CONNECTORS, ...joiners]);
+  return typed.every((word, index) => {
+    if (isNoise(word)) return true;
+    if (joining.has(word)) {
+      const next = typed.slice(index + 1).find((later) => !isNoise(later));
+      if (next !== undefined && nameWords.has(next)) return true;
+    }
+    return allowed.has(word);
+  });
+}
+
+/** A phrase without joining words hanging off either end: "palma de" is "palma". */
+function trimJoins(phrase: string[]): string[] {
+  let start = 0;
+  let end = phrase.length;
+  while (start < end && CONNECTORS.has(phrase[start])) start++;
+  while (end > start && CONNECTORS.has(phrase[end - 1])) end--;
+  return phrase.slice(start, end);
 }
 
 interface Entry {
@@ -344,7 +367,7 @@ const ENTRIES: Entry[] = AIRPORT_LIST.map((airport) => {
     airport,
     code,
     name,
-    distinctive: name.filter((word) => !city.includes(word)),
+    distinctive: trimJoins(name.filter((word) => !city.includes(word))),
     city,
     explains: [
       code,
@@ -387,7 +410,10 @@ export function findAirport(text: string): Airport | undefined {
   };
 
   const settled = ENTRIES.map((entry) => ({ entry, strength: strength(entry) }))
-    .filter(({ entry, strength }) => strength > 0 && onlyExplained(typed, entry.explains))
+    .filter(
+      ({ entry, strength }) =>
+        strength > 0 && onlyExplained(typed, entry.explains, [...entry.name, ...entry.city]),
+    )
     .sort((a, b) => b.strength - a.strength);
 
   if (settled.length === 0) return undefined;
@@ -404,6 +430,8 @@ interface CityGroup {
   cityWords: string[];
   entries: Entry[];
   explains: string[];
+  /** Words of its name, its airports' names and codes: what a joining word may join. */
+  names: string[];
 }
 
 const CITY_GROUPS: CityGroup[] = [
@@ -414,10 +442,12 @@ const CITY_GROUPS: CityGroup[] = [
       countryCode: entry.airport.countryCode,
       cityWords: entry.city,
       entries: [],
-      explains: [...JOINERS],
+      explains: [],
+      names: [],
     };
     group.entries.push(entry);
     group.explains.push(...entry.explains);
+    group.names.push(...entry.name, ...entry.city, entry.code);
     return groups.set(key, group);
   }, new Map<string, CityGroup>()).values(),
 ];
@@ -441,7 +471,7 @@ export function findAirportCity(text: string): { city: string; countryCode: stri
           typed.includes(entry.code) ||
           (entry.distinctive.length > 0 && hasWords(said, entry.distinctive.join(" "))),
       );
-    return named && onlyExplained(typed, group.explains);
+    return named && onlyExplained(typed, group.explains, group.names, JOINERS);
   });
   return found.length === 1 ? { city: found[0].city, countryCode: found[0].countryCode } : undefined;
 }

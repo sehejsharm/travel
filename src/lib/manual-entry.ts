@@ -205,21 +205,13 @@ export type TripClock = Partial<
 
 /**
  * Where the trip is on a date: the leg that covers it, or its one
- * destination. Legs share their travel day, so an arrival on it belongs to
- * the leg starting that day and a departure to the leg ending it: check-in in
- * Tokyo, check-out in Bangkok.
+ * destination. Legs share their travel day, and whatever starts on it is
+ * taken to be at the leg starting that day: check in in Tokyo, not Bangkok.
  */
-function tripCountryOn(
-  trip: TripClock,
-  date: string,
-  side: "arriving" | "leaving",
-): string | undefined {
+function tripCountryOn(trip: TripClock, date: string): string | undefined {
   const covering = (trip.legs ?? []).filter((leg) => leg.startDate <= date && date <= leg.endDate);
   if (covering.length > 0) {
-    const onTheDay = covering.find((leg) =>
-      side === "arriving" ? leg.startDate === date : leg.endDate === date,
-    );
-    return (onTheDay ?? covering[0]).countryCode;
+    return (covering.find((leg) => leg.startDate === date) ?? covering[0]).countryCode;
   }
   const countries = trip.destinationCountries ?? [];
   return countries.length === 1 ? countries[0] : undefined;
@@ -232,9 +224,9 @@ function tripCountryOn(
  * clocks — one with an offset and one in the device's zone.
  *
  * With neither place known — a stay typed with no place, a train between two
- * places the gazetteer lacks — the trip says where it is that day, as long as
- * the whole item falls within the trip. Only a stay may span two clocks (in
- * on one leg's last day, out on the next leg's); anything else keeps one.
+ * places the gazetteer lacks — the trip says where it is on the day it
+ * starts, as long as the whole item falls within the trip, and both ends take
+ * that one clock: a stay is in one place, however many legs its nights touch.
  * The place is never guessed from the name: "Museo del Prado" is not in Delhi.
  */
 export function itemOffsets(
@@ -242,7 +234,6 @@ export function itemOffsets(
   to: PlaceRef | undefined,
   trip?: TripClock,
   dates: { start?: string; end?: string } = {},
-  kind?: ManualKind,
 ): { start: string; end: string } {
   const start = offsetForCountry(from?.countryCode);
   const end = offsetForCountry(to?.countryCode);
@@ -255,14 +246,8 @@ export function itemOffsets(
     return { start: "", end: "" };
   }
 
-  const first = days[0];
-  const arriving = offsetForCountry(tripCountryOn(trip, first, "arriving"));
-  // Only a stay over more than one day can straddle two legs.
-  const leaving =
-    kind === "lodging" && dates.end && dates.end > first
-      ? offsetForCountry(tripCountryOn(trip, dates.end, "leaving"))
-      : arriving;
-  return { start: arriving || leaving, end: leaving || arriving };
+  const clock = offsetForCountry(tripCountryOn(trip, days[0]));
+  return { start: clock, end: clock };
 }
 
 // "AI 142", "6E204", "EK-511", "BA 1A": a carrier code, then the number.
@@ -284,13 +269,10 @@ export function buildManualDraft(values: ManualValues, trip?: TripClock): Manual
     errors.flightNumber = "A flight number looks like AI 142";
   }
 
-  const offsets = itemOffsets(
-    place,
-    arrivalPlace,
-    trip,
-    { start: values.startsAt.slice(0, 10), end: values.endsAt.slice(0, 10) },
-    values.kind,
-  );
+  const offsets = itemOffsets(place, arrivalPlace, trip, {
+    start: values.startsAt.slice(0, 10),
+    end: values.endsAt.slice(0, 10),
+  });
   const startsAt = fromLocalInput(values.startsAt, offsets.start);
   const endsAt = fromLocalInput(values.endsAt, offsets.end);
   if (endsAt && !startsAt) errors.startsAt = "Add when it starts as well";

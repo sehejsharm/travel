@@ -237,6 +237,19 @@ describe("clocks and places the extractor would have found", () => {
       draft: { startsAt: "2026-10-05T19:00:00+01:00", endsAt: "2026-10-05T22:00:00+01:00" },
     });
 
+    // A stay is in one place: the night between two legs that do not share a
+    // day is on the clock of the day it starts.
+    const apart = {
+      destinationCountries: ["JP", "FR"],
+      legs: [
+        { id: "a", countryCode: "JP", startDate: "2026-10-01", endDate: "2026-10-04" },
+        { id: "b", countryCode: "FR", startDate: "2026-10-05", endDate: "2026-10-10" },
+      ],
+    };
+    expect(
+      buildManualDraft(values({ kind: "lodging", name: "Airport hotel", startsAt: "2026-10-04T22:00", endsAt: "2026-10-05T09:00" }), apart).draft,
+    ).toMatchObject({ startsAt: "2026-10-04T22:00:00+09:00", endsAt: "2026-10-05T09:00:00+09:00" });
+
     // A day room on the travel day is one stay in one place: one clock.
     expect(
       buildManualDraft(values({ kind: "lodging", name: "Day room", startsAt: "2026-10-05T10:00", endsAt: "2026-10-05T16:00" }), westward),
@@ -494,6 +507,11 @@ describe("airports typed by hand", () => {
     ["Los Angeles, California", "LAX"],
     ["Toronto Pearson, Ontario", "YYZ"],
     ["Hong Kong, China", "HKG"],
+    // Initials however dotted, and a name's short form.
+    ["O.R. Tambo", "JNB"],
+    ["London Heathrow, U. K.", "LHR"],
+    ["Palma", "PMI"],
+    ["Palma, Spain", "PMI"],
     // Left for the traveller: two airports at once, an airport not on the
     // list, a word pointing at another country, a word that only looks like a code.
     ["Charles de Gaulle or Orly", undefined],
@@ -505,9 +523,11 @@ describe("airports typed by hand", () => {
     ["Boston Logan, MA", "BOS"],
     ["Logan, UT", undefined],
     ["Las Vegas, NM", undefined],
-    // A trailing ", LA" or ", DE" is a US state, not a joining word.
+    // A state after a city stays a state, not a joining word, whatever follows it.
     ["Athens, LA", undefined],
     ["Manchester, DE", undefined],
+    ["Logan, LA, USA", undefined],
+    ["Athens, LA 71003", undefined],
     // Two airports named with their codes: neither is picked.
     ["Charles de Gaulle (CDG) or Orly (ORY)", undefined],
     ["Museo del Prado", undefined],
@@ -577,6 +597,8 @@ describe("airports typed by hand", () => {
     expect(resolvePlace("Tokyo Narita or Haneda", true)).toMatchObject({ city: "Tokyo", countryCode: "JP" });
     expect(resolvePlace("Narita or Haneda", true)).toMatchObject({ city: "Tokyo", countryCode: "JP" });
     expect(resolvePlace("Charles de Gaulle or Orly", true)).toMatchObject({ city: "Paris", countryCode: "FR" });
+    // "OR" after a city is Oregon, not "or": no foreign country.
+    expect(resolvePlace("Rome, OR", true)?.countryCode).toBeUndefined();
     expect(resolvePlace("   ")).toBeUndefined();
   });
 });

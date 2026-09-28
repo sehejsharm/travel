@@ -151,7 +151,15 @@ function ItemEditorForm({
   function placeFor(text: string): PlaceRef | undefined {
     const name = text.trim();
     if (!name) return undefined;
-    if (item.place && name === item.place.name.trim()) return item.place;
+    if (item.place && name === item.place.name.trim()) {
+      // Filed without its code ("Tokyo Haneda (HND)" from a screenshot), a
+      // flight's end that plainly names one airport is settled on it.
+      if (isFlight && !item.place.airport) {
+        const settled = resolvePlace(name, true);
+        if (settled?.airport) return settled;
+      }
+      return item.place;
+    }
     return resolvePlace(name, isFlight);
   }
 
