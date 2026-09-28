@@ -79,7 +79,7 @@ export function DeferredPrompts({ trip, items }: { trip: Trip; items: TripItem[]
         <div className="mt-2.5 flex items-center gap-3">
           <Link
             href={prompt.href}
-            className="press rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-accent-ink"
+            className="press shine rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-accent-ink"
           >
             {prompt.cta}
           </Link>

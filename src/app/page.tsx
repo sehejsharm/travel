@@ -164,7 +164,7 @@ export default function TripScreen() {
             action={
               <Link
                 href="/add"
-                className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
+                className="press shine mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
               >
                 Add something
               </Link>

@@ -137,7 +137,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                     : "text-ink-soft hover:bg-surface-2 hover:text-ink"
                 }`}
               >
-                {tab.icon}
+                {/* tab-icon is shared with the mobile nav: [aria-current="page"]
+                    .tab-icon pops on arrival regardless of which layout renders it. */}
+                <span className="tab-icon flex">{tab.icon}</span>
                 {tab.label}
               </Link>
             );

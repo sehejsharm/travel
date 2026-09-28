@@ -83,7 +83,7 @@ export function Onboarding() {
           <button
             type="button"
             onClick={() => (last ? finish() : setStep(step + 1))}
-            className="press ml-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink"
+            className="press shine ml-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink"
           >
             {last ? "Start my trip" : "Next"}
           </button>
