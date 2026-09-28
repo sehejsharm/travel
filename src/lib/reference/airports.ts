@@ -238,9 +238,17 @@ const NOISE = new Set([
   "international", "intl", "int", "apt", "terminal", "the", "new", "of",
 ]);
 // Joining words of a name in another language ("Aeropuerto de…", "Charles de
-// Gaulle"). They stay in names, and are filler only between other words: a
-// final ", LA" or ", DE" is a US state. Not "del", which is also Delhi's code.
+// Gaulle"). They stay in names, and count as filler only straight after an
+// airport word ("Aeropuerto de Málaga"); anywhere else they must belong to
+// the airport, so "La Palma" is not Palma de Mallorca and ", LA" or ", DE"
+// after a city is a US state. Not "del", which is also Delhi's code.
 const CONNECTORS = new Set(["de", "da", "do", "di", "du", "des", "la", "le", "el"]);
+const AIRPORT_WORDS = new Set(["airport", "aeropuerto", "aeroport", "aeroporto", "flughafen"]);
+
+// Names a listed airport goes by that are neither its name nor its city.
+const ALSO_KNOWN_AS: Record<string, string[]> = {
+  SCL: ["santiago de chile"],
+};
 
 const isNoise = (word: string) => NOISE.has(word) || /^t?\d+[a-z]?$/.test(word);
 
@@ -316,9 +324,10 @@ export function countryWords(countryCode: string): string[] {
 
 /**
  * Whether every word is filler, or one of `known`: nothing left pointing
- * somewhere else. A joining word ("de", "la", "or") is filler only when more
- * of the name follows it — "Aeropuerto de Málaga", "Narita or Haneda" — so a
- * state after a city stays a state: "Athens, LA", "Rome, OR", "Logan, LA, USA".
+ * somewhere else. A joining word of a name is filler only straight after an
+ * airport word; one between two airports ("or", "and") only when more of a
+ * name follows it — "Narita or Haneda". So a state after a city stays a
+ * state: "Athens, LA", "Rome, OR", "Logan, LA, USA".
  */
 export function onlyExplained(
   typed: string[],
@@ -328,14 +337,15 @@ export function onlyExplained(
 ): boolean {
   const allowed = new Set(known);
   const nameWords = new Set(names);
-  const joining = new Set([...CONNECTORS, ...joiners]);
+  const between = new Set(joiners);
   return typed.every((word, index) => {
-    if (isNoise(word)) return true;
-    if (joining.has(word)) {
+    if (isNoise(word) || allowed.has(word)) return true;
+    if (CONNECTORS.has(word) && AIRPORT_WORDS.has(typed[index - 1])) return true;
+    if (between.has(word)) {
       const next = typed.slice(index + 1).find((later) => !isNoise(later));
-      if (next !== undefined && nameWords.has(next)) return true;
+      return next !== undefined && nameWords.has(next);
     }
-    return allowed.has(word);
+    return false;
   });
 }
 
@@ -351,6 +361,8 @@ function trimJoins(phrase: string[]): string[] {
 interface Entry {
   airport: Airport;
   code: string;
+  /** Other names it goes by, as runs of words. */
+  aliases: string[][];
   /** Its name without "International" and the like: "Dubai International" is ["dubai"]. */
   name: string[];
   /** What only its name says, beyond its city: ["haneda"] for Tokyo Haneda; none for "Istanbul". */
@@ -363,9 +375,11 @@ const ENTRIES: Entry[] = AIRPORT_LIST.map((airport) => {
   const city = words(airport.city);
   const name = words(airport.name).filter((word) => !isNoise(word));
   const code = airport.iata.toLowerCase();
+  const aliases = (ALSO_KNOWN_AS[airport.iata] ?? []).map(words);
   return {
     airport,
     code,
+    aliases,
     name,
     distinctive: trimJoins(name.filter((word) => !city.includes(word))),
     city,
@@ -373,6 +387,7 @@ const ENTRIES: Entry[] = AIRPORT_LIST.map((airport) => {
       code,
       ...name,
       ...city,
+      ...aliases.flat(),
       ...countryWords(airport.countryCode),
       ...airportRegionWords(airport),
     ],
@@ -401,7 +416,8 @@ export function findAirport(text: string): Airport | undefined {
   const strength = (entry: Entry): number => {
     const found = [
       typed.includes(entry.code),
-      entry.distinctive.length > 0 && hasWords(said, entry.distinctive.join(" ")),
+      (entry.distinctive.length > 0 && hasWords(said, entry.distinctive.join(" "))) ||
+        entry.aliases.some((alias) => hasWords(said, alias.join(" "))),
       entry.name.length > 0 && hasWords(said, entry.name.join(" ")),
       hasWords(said, entry.city.join(" ")),
     ];

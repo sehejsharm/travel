@@ -10,18 +10,21 @@ const PLAIN: Record<string, string> = {
 };
 
 export function fold(value: string): string {
-  const spaced = value
-    .toLowerCase()
-    .replace(/[đðłøæœßıþ]/g, (letter) => PLAIN[letter] ?? letter)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    // An apostrophe joins: "O'Hare" is "ohare", "Int'l" is "intl".
-    .replace(/['`\u00b4\u2018\u2019\u02bb\u02bc]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-  // Initials run together however they were dotted or spaced: "U.K.", "U. K."
-  // and "UK" are "uk"; "O.R. Tambo" and "O. R. Tambo" are "or tambo".
-  return spaced.replace(/\b[a-z](?: [a-z]\b)+/g, (run) => run.replace(/ /g, ""));
+  return (
+    value
+      .toLowerCase()
+      .replace(/[đðłøæœßıþ]/g, (letter) => PLAIN[letter] ?? letter)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      // An apostrophe joins: "O'Hare" is "ohare", "Int'l" is "intl".
+      .replace(/['`\u00b4\u2018\u2019\u02bb\u02bc]/g, "")
+      // Dotted initials run together, spaced or not: "U.S.A." and "U. S. A."
+      // are "usa", "O.R. Tambo" and "O. R. Tambo" are "or tambo". A comma
+      // still parts them: "N.Y., U.S.A." is "ny usa".
+      .replace(/(?:\b[a-z]\. ?){2,}/g, (run) => run.replace(/[. ]/g, "") + " ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+  );
 }
 
 /** Whether `phrase` appears in `text` as whole words: "agra" is not in "sagrada familia". */

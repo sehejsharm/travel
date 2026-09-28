@@ -246,7 +246,10 @@ export function itemOffsets(
     return { start: "", end: "" };
   }
 
-  const clock = offsetForCountry(tripCountryOn(trip, days[0]));
+  // A day no leg covers says nothing; the other end's day may.
+  const clock = offsetForCountry(
+    tripCountryOn(trip, days[0]) ?? tripCountryOn(trip, days[days.length - 1]),
+  );
   return { start: clock, end: clock };
 }
 

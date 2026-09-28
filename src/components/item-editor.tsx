@@ -152,11 +152,14 @@ function ItemEditorForm({
     const name = text.trim();
     if (!name) return undefined;
     if (item.place && name === item.place.name.trim()) {
-      // Filed without its code ("Tokyo Haneda (HND)" from a screenshot), a
-      // flight's end that plainly names one airport is settled on it.
-      if (isFlight && !item.place.airport) {
+      // Filed as an airport pin without its code field ("Tokyo Haneda (HND)",
+      // as a screenshot is read), a flight's end is settled on the airport its
+      // own bracketed code names. A place filed only as a city ("Milan") is
+      // left as it is: which of its airports was meant is not known.
+      const bracketed = name.match(/\(([A-Z]{3})\)$/)?.[1];
+      if (isFlight && !item.place.airport && bracketed) {
         const settled = resolvePlace(name, true);
-        if (settled?.airport) return settled;
+        if (settled?.airport === bracketed) return settled;
       }
       return item.place;
     }

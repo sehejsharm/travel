@@ -250,6 +250,20 @@ describe("clocks and places the extractor would have found", () => {
       buildManualDraft(values({ kind: "lodging", name: "Airport hotel", startsAt: "2026-10-04T22:00", endsAt: "2026-10-05T09:00" }), apart).draft,
     ).toMatchObject({ startsAt: "2026-10-04T22:00:00+09:00", endsAt: "2026-10-05T09:00:00+09:00" });
 
+    // A stay checking in on a day no leg covers takes its check-out day's clock.
+    const gap = {
+      startDate: "2026-10-01",
+      endDate: "2026-10-10",
+      destinationCountries: ["JP", "FR"],
+      legs: [
+        { id: "a", countryCode: "JP", startDate: "2026-10-01", endDate: "2026-10-03" },
+        { id: "b", countryCode: "FR", startDate: "2026-10-06", endDate: "2026-10-10" },
+      ],
+    };
+    expect(
+      buildManualDraft(values({ kind: "lodging", name: "Paris hotel", startsAt: "2026-10-05T22:00", endsAt: "2026-10-10T11:00" }), gap).draft,
+    ).toMatchObject({ startsAt: "2026-10-05T22:00:00+01:00", endsAt: "2026-10-10T11:00:00+01:00" });
+
     // A day room on the travel day is one stay in one place: one clock.
     expect(
       buildManualDraft(values({ kind: "lodging", name: "Day room", startsAt: "2026-10-05T10:00", endsAt: "2026-10-05T16:00" }), westward),
@@ -512,6 +526,11 @@ describe("airports typed by hand", () => {
     ["London Heathrow, U. K.", "LHR"],
     ["Palma", "PMI"],
     ["Palma, Spain", "PMI"],
+    ["Santiago de Chile (SCL)", "SCL"],
+    ["Santiago de Chile", "SCL"],
+    ["Aeropuerto de Madrid", "MAD"],
+    ["JFK, N.Y., U.S.A.", "JFK"],
+    ["Sydney, N.S.W., A.U.", "SYD"],
     // Left for the traveller: two airports at once, an airport not on the
     // list, a word pointing at another country, a word that only looks like a code.
     ["Charles de Gaulle or Orly", undefined],
@@ -528,6 +547,9 @@ describe("airports typed by hand", () => {
     ["Manchester, DE", undefined],
     ["Logan, LA, USA", undefined],
     ["Athens, LA 71003", undefined],
+    // La Palma in the Canaries is not Palma de Mallorca, and is not on the list.
+    ["La Palma", undefined],
+    ["Aeropuerto de La Palma", undefined],
     // Two airports named with their codes: neither is picked.
     ["Charles de Gaulle (CDG) or Orly (ORY)", undefined],
     ["Museo del Prado", undefined],
