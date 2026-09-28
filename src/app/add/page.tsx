@@ -5,7 +5,7 @@ import { Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "@/components/filing";
 import { ManualAddTripItem } from "@/components/manual-add-trip-item";
 import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
-import { setAddMode, useAddDraft, type AddMode } from "@/lib/add-draft";
+import { editReadText, setAddMode, takeShare, useAddDraft, type AddMode } from "@/lib/add-draft";
 import { prepareImage, requestExtraction, sourceForText, type CaptureImage } from "@/lib/capture";
 import { SOURCE_LABELS, type TripItem } from "@/lib/domain/types";
 import type { ExtractionResult } from "@/lib/extract/types";
@@ -57,24 +57,24 @@ function AddScreenInner() {
   const { trip, items, hydrated } = useTripView();
   const router = useRouter();
   const shared = useSearchParams();
-  // Arriving from the OS share sheet, the content is already in the URL.
-  const [text, setText] = useState(() =>
-    [shared.get("title"), shared.get("text"), shared.get("url")].filter(Boolean).join("\n"),
-  );
-  // Typing an item in is remembered as the way in last used, except that
-  // something shared to the app is always shown ready to read.
-  const stored = useAddDraft().mode;
-  const [arrivedWithShare, setArrivedWithShare] = useState(() => text.trim().length > 0);
-  const mode: AddMode = arrivedWithShare ? "drop" : stored;
-  const typing = mode === "type";
-
-  // Once the shared content is in the box, it leaves the address: a reload
-  // should come back to the screen as it was left, not re-offer a link that
-  // has since been filed.
-  const hasShare = shared.has("title") || shared.has("text") || shared.has("url");
+  // Arriving from the OS share sheet, the content is in the URL. It is taken
+  // into the kept draft — ready to read, whatever way in was last used — and
+  // then out of the address, so a reload restores the screen as it was left
+  // (the share included, until it is filed) instead of re-offering it forever.
+  const sharedText = [shared.get("title"), shared.get("text"), shared.get("url")]
+    .filter(Boolean)
+    .join("\n");
   useEffect(() => {
-    if (hasShare) router.replace("/add", { scroll: false });
-  }, [hasShare, router]);
+    if (!sharedText) return;
+    takeShare(sharedText);
+    router.replace("/add", { scroll: false });
+  }, [sharedText, router]);
+
+  const draft = useAddDraft();
+  const text = sharedText || draft.text;
+  const setText = editReadText;
+  const mode: AddMode = sharedText ? "drop" : draft.mode;
+  const typing = mode === "type";
   const [image, setImage] = useState<CaptureImage | null>(null);
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [filed, setFiled] = useState<string | null>(null);
@@ -108,8 +108,12 @@ function AddScreenInner() {
   if (!hydrated) return <ScreenSkeleton variant="list" />;
 
   function chooseMode(next: AddMode) {
-    setArrivedWithShare(false);
+    if (next === mode) return;
     setAddMode(next);
+    // What was said about the last filing is not repeated on coming back: it
+    // would take the focus from the button just pressed.
+    setFiled(null);
+    setDuplicates([]);
   }
 
   async function loadImage(file: File) {

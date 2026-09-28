@@ -119,6 +119,19 @@ describe("a typed flight", () => {
     expect(draft?.title).toBe("AI306 DEL → Tokyo");
   });
 
+  it("wants a flight number to look like one, so an airline typed there is not read as a carrier", () => {
+    const flight = (flightNumber: string) =>
+      buildManualDraft(values({ kind: "flight", flightNumber, from: "CDG", to: "HND" }));
+    expect(flight("Air France").errors.flightNumber).toBeTruthy();
+    expect(flight("6E 204").errors).toEqual({});
+    expect(flight("EK-511").draft?.title).toBe("EK511 CDG → HND");
+  });
+
+  it("does not pin a flight's end to an airport it cannot name one code for", () => {
+    const { draft } = buildManualDraft(values({ kind: "flight", flightNumber: "AI 1", from: "DEL/DXB", to: "HND" }));
+    expect(draft?.place).toEqual({ name: "DEL/DXB" });
+  });
+
   it("needs something to call it", () => {
     const { draft, errors } = buildManualDraft(values({ kind: "flight", startsAt: "2026-10-14T19:55" }));
     expect(draft).toBeUndefined();
@@ -150,15 +163,45 @@ describe("clocks and places the extractor would have found", () => {
     expect(unknownEnd?.endsAt).toBe("2026-10-17T16:00:00+05:30");
   });
 
-  it("pins a stay or activity by its name when no place is typed, as the extractor does", () => {
-    const { draft } = buildManualDraft(
-      values({ kind: "lodging", name: "Park Hyatt Tokyo", startsAt: "2026-10-16T15:00", endsAt: "2026-10-25T11:00" }),
-    );
-    expect(draft?.place).toMatchObject({ name: "Tokyo", countryCode: "JP" });
-    expect(draft?.endsAt).toBe("2026-10-25T11:00:00+09:00");
+  it("never guesses a place from a name", () => {
+    // A loose match on the name would pin these to Delhi, Agra and Nara.
+    for (const name of ["Museo del Prado", "Sagrada Familia", "Carbonara cooking class"]) {
+      expect(buildManualDraft(values({ kind: "activity", name })).draft?.place).toBeUndefined();
+    }
+  });
 
-    // A name that lands nowhere is not turned into a place.
-    expect(buildManualDraft(values({ kind: "lodging", name: "Hotel Gracery" })).draft?.place).toBeUndefined();
+  it("puts a stay with no place on the trip's own clock for that day", () => {
+    const stay = values({ kind: "lodging", name: "Park Hyatt Tokyo", startsAt: "2026-10-16T15:00", endsAt: "2026-10-25T11:00" });
+    expect(buildManualDraft(stay, { destinationCountries: ["JP"] }).draft).toMatchObject({
+      startsAt: "2026-10-16T15:00:00+09:00",
+      endsAt: "2026-10-25T11:00:00+09:00",
+    });
+    expect(buildManualDraft(stay, { destinationCountries: ["JP"] }).draft?.place).toBeUndefined();
+
+    // A trip in legs uses the leg that day falls in.
+    const legs = {
+      destinationCountries: ["JP", "TH"],
+      legs: [
+        { id: "a", countryCode: "JP", startDate: "2026-10-14", endDate: "2026-10-20" },
+        { id: "b", countryCode: "TH", startDate: "2026-10-20", endDate: "2026-10-25" },
+      ],
+    };
+    const bangkok = values({ kind: "activity", name: "Muay Thai", startsAt: "2026-10-22T19:00" });
+    expect(buildManualDraft(bangkok, legs).draft?.startsAt).toBe("2026-10-22T19:00:00+07:00");
+
+    // Two countries and no legs: no guess.
+    expect(buildManualDraft(bangkok, { destinationCountries: ["JP", "TH"] }).draft?.startsAt).toBe(
+      "2026-10-22T19:00:00",
+    );
+  });
+
+  it("uses the trip's clock for a journey between two places it cannot find", () => {
+    const { draft } = buildManualDraft(
+      values({ kind: "transit", provider: "Hakone Tozan", from: "Gora", to: "Sounzan", startsAt: "2026-10-17T10:00", endsAt: "2026-10-17T10:10" }),
+      { destinationCountries: ["JP"] },
+    );
+    expect(draft?.startsAt).toBe("2026-10-17T10:00:00+09:00");
+    expect(draft?.endsAt).toBe("2026-10-17T10:10:00+09:00");
   });
 });
 
@@ -260,6 +303,8 @@ describe("typed transit, stays and activities", () => {
 
     expect(priced("about 40", "USD").errors.costAmount).toBeTruthy();
     expect(priced("-40", "USD").errors.costAmount).toBeTruthy();
+    // Said at once, not only after a currency is picked.
+    expect(priced("-40", "").errors).toEqual({ costAmount: "A price cannot be negative" });
     expect(priced("40", "").errors.costCurrency).toBeTruthy();
     expect(priced("1,299.50", "USD").draft?.cost).toEqual({ amount: 1299.5, currency: "USD" });
     expect(priced("", "USD").draft?.cost).toBeUndefined();
@@ -329,13 +374,20 @@ describe("rules shared with the editor", () => {
   });
 
   it("reads a price as written on a booking", () => {
-    expect(readCost("52,400", "INR")).toEqual({ cost: { amount: 52400, currency: "INR" } });
-    expect(readCost(" 12.50 ", "USD")).toEqual({ cost: { amount: 12.5, currency: "USD" } });
+    const priced = (text: string, currency: string) => readCost(text, currency).cost?.amount;
+    expect(readCost("52,400", "INR").cost).toEqual({ amount: 52400, currency: "INR" });
+    expect(priced(" 12.50 ", "USD")).toBe(12.5);
+    // Typed a key at a time on a comma keypad.
+    expect(priced("12,", "EUR")).toBe(12);
+    expect(priced(",50", "EUR")).toBe(0.5);
+    expect(Object.is(priced("-0", "EUR"), 0)).toBe(true);
+    // The amount is known even before a currency is picked.
+    expect(readCost("-40", "")).toEqual({ amount: -40, problem: "currency" });
     // A comma keypad's decimal point, and European grouping.
-    expect(readCost("12,50", "EUR")).toEqual({ cost: { amount: 12.5, currency: "EUR" } });
-    expect(readCost("1.234,50", "EUR")).toEqual({ cost: { amount: 1234.5, currency: "EUR" } });
+    expect(priced("12,50", "EUR")).toBe(12.5);
+    expect(priced("1.234,50", "EUR")).toBe(1234.5);
     // Read as written; the editor keeps a negative it was given.
-    expect(readCost("-40", "USD")).toEqual({ cost: { amount: -40, currency: "USD" } });
+    expect(priced("-40", "USD")).toBe(-40);
     expect(readCost("12,5,0", "EUR")).toEqual({ problem: "amount" });
     expect(readCost("", "USD")).toEqual({});
   });
@@ -354,9 +406,18 @@ describe("airports typed by hand", () => {
     expect(code("Dubai airport")).toBe("DXB");
     expect(code("Male")).toBe("MLE");
     expect(code("Sabiha Gokcen International")).toBe("SAW");
-    // Still left to the traveller: a city with two airports, or two codes at once.
+    expect(code("Haneda")).toBe("HND");
+    expect(code("Istanbul Airport")).toBe("IST");
+    // A code typed beats a name the text happens to hold.
+    expect(code("Istanbul SAW")).toBe("SAW");
+    expect(code("Istanbul Sabiha Gokcen")).toBe("SAW");
+    // Still left to the traveller: a city with two airports, two codes at once,
+    // or a city beside an airport that is not on the list.
     expect(code("Tokyo airport")).toBeUndefined();
     expect(code("DEL to HND")).toBeUndefined();
+    expect(code("Milan Linate")).toBeUndefined();
+    expect(code("Frankfurt Hahn")).toBeUndefined();
+    expect(code("Sharjah Dubai")).toBeUndefined();
   });
 
   it("are found by code, picked suggestion, name, or a city that has only one", () => {

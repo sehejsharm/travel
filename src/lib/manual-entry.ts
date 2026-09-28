@@ -1,4 +1,4 @@
-import type { BookingKind, CostStatus, ItemCategory, PlaceRef } from "./domain/types";
+import type { BookingKind, CostStatus, ItemCategory, PlaceRef, Trip } from "./domain/types";
 import type { ItemDraft } from "./extract/types";
 import { fromLocalInput } from "./datetime";
 import { endsBeforeStart, offsetForCountry, readCost } from "./item-form";
@@ -84,7 +84,13 @@ const TEXT_FIELDS = (Object.keys(EMPTY_MANUAL) as (keyof ManualValues)[]).filter
 );
 
 /** Where an error is shown. "title" is whichever field names the item. */
-export type ManualErrorKey = "title" | "startsAt" | "endsAt" | "costAmount" | "costCurrency";
+export type ManualErrorKey =
+  | "title"
+  | "flightNumber"
+  | "startsAt"
+  | "endsAt"
+  | "costAmount"
+  | "costCurrency";
 export type ManualErrors = Partial<Record<ManualErrorKey, string>>;
 
 export function isTransport(kind: ManualKind): boolean {
@@ -124,6 +130,10 @@ export function toManualValues(value: unknown): ManualValues {
  * What a typed place resolves to, exactly as it will be filed. A flight's
  * ends are airports first, built as the extractor builds them; anything else
  * is grounded like a place typed into the editor.
+ *
+ * A flight's end that names no single airport is never pinned to one anyway:
+ * the gazetteer would find "DEL" in "DEL/DXB" and pin an airport with no code,
+ * which the layover and transit checks cannot see. It stays a city, or a name.
  */
 export function resolvePlace(text: string, airports = false): PlaceRef | undefined {
   const name = text.trim();
@@ -133,8 +143,13 @@ export function resolvePlace(text: string, airports = false): PlaceRef | undefin
     const airport = findAirport(name);
     if (airport) return airportPlace(airport.iata);
   }
-  return groundPlace(name) ?? { name };
+  const grounded = groundPlace(name);
+  if (airports && grounded && AIRPORT_PIN.test(grounded.name)) return { name };
+  return grounded ?? { name };
 }
+
+// How the gazetteer names an airport it pins: "Indira Gandhi International (DEL)".
+const AIRPORT_PIN = /\([A-Z]{3}\)$/;
 
 const TRANSIT_NOUNS: Record<TransitKind, string> = { rail: "Train", car: "Car", other: "Transfer" };
 
@@ -207,41 +222,60 @@ export interface ManualResult {
   errors: ManualErrors;
 }
 
-/**
- * Where a stay or an activity is. The place typed wins; left blank, the name
- * is grounded instead ("Park Hyatt Tokyo" is in Tokyo), as the extractor
- * grounds a booking's whole text — but only when that lands on a real pin,
- * never the name itself standing in for a place.
- */
-export function placeOfSpot(values: Pick<ManualValues, "name" | "place">): PlaceRef | undefined {
-  if (values.place.trim()) return resolvePlace(values.place);
-  const fromName = values.name.trim() ? groundPlace(values.name) : undefined;
-  return fromName?.point ? fromName : undefined;
+/** Where the trip is on a date: the leg that covers it, or its one destination. */
+export type TripClock = Pick<Trip, "destinationCountries" | "legs">;
+
+function tripCountryOn(trip: TripClock | undefined, date: string): string | undefined {
+  if (!trip) return undefined;
+  const leg = date
+    ? trip.legs?.find((entry) => entry.startDate <= date && date <= entry.endDate)
+    : undefined;
+  if (leg) return leg.countryCode;
+  const countries = trip.destinationCountries ?? [];
+  return countries.length === 1 ? countries[0] : undefined;
 }
 
 /**
- * The offsets a journey's two times are filed with. Each end is on its own
+ * The offsets an item's two times are filed with. Each end is on its own
  * country's clock, as the extractor has a flight; an end whose country is not
- * known borrows the other end's, so the two times are never read on different
- * clocks — one with an offset and one in the device's zone.
+ * known borrows the other end's, so the two are never read on different
+ * clocks. With neither known — a stay typed with no place, a train between
+ * two places the gazetteer lacks — the trip itself says where it is that day.
+ * The place is never guessed from the name: "Museo del Prado" is not in Delhi.
  */
-export function journeyOffsets(from?: PlaceRef, to?: PlaceRef): { start: string; end: string } {
+export function itemOffsets(
+  from: PlaceRef | undefined,
+  to: PlaceRef | undefined,
+  trip?: TripClock,
+  date = "",
+): { start: string; end: string } {
   const start = offsetForCountry(from?.countryCode);
   const end = offsetForCountry(to?.countryCode);
-  return { start: start || end, end: end || start };
+  if (start || end) return { start: start || end, end: end || start };
+  const fallback = offsetForCountry(tripCountryOn(trip, date));
+  return { start: fallback, end: fallback };
 }
 
-export function buildManualDraft(values: ManualValues): ManualResult {
+// "AI 142", "6E204", "EK-511", "BA 1A": a carrier code, then the number.
+const FLIGHT_NUMBER = /^[A-Z0-9]{2,3}\d{1,4}[A-Z]?$/;
+
+export function buildManualDraft(values: ManualValues, trip?: TripClock): ManualResult {
   const errors: ManualErrors = {};
   const transport = isTransport(values.kind);
 
-  const place = transport ? resolvePlace(values.from, values.kind === "flight") : placeOfSpot(values);
+  const place = resolvePlace(transport ? values.from : values.place, values.kind === "flight");
   const arrivalPlace = transport ? resolvePlace(values.to, values.kind === "flight") : undefined;
 
   const title = titleOf(values, place, arrivalPlace);
   if (!title) errors.title = TITLE_MISSING[values.kind];
 
-  const offsets = journeyOffsets(place, arrivalPlace);
+  // The airline typed into the number box would lead the title and read as another carrier.
+  const number = values.flightNumber.toUpperCase().replace(/[\s-]+/g, "");
+  if (values.kind === "flight" && number && !FLIGHT_NUMBER.test(number)) {
+    errors.flightNumber = "A flight number looks like AI 142";
+  }
+
+  const offsets = itemOffsets(place, arrivalPlace, trip, values.startsAt.slice(0, 10));
   const startsAt = fromLocalInput(values.startsAt, offsets.start);
   const endsAt = fromLocalInput(values.endsAt, offsets.end);
   if (endsAt && !startsAt) errors.startsAt = "Add when it starts as well";
@@ -249,8 +283,8 @@ export function buildManualDraft(values: ManualValues): ManualResult {
 
   const reading = readCost(values.costAmount, values.costCurrency);
   if (reading.problem === "amount") errors.costAmount = "Not an amount";
-  else if (reading.cost && reading.cost.amount < 0) errors.costAmount = "A price cannot be negative";
-  if (reading.problem === "currency") errors.costCurrency = "Pick one";
+  else if ((reading.amount ?? 0) < 0) errors.costAmount = "A price cannot be negative";
+  else if (reading.problem === "currency") errors.costCurrency = "Pick one";
 
   if (Object.keys(errors).length > 0) return { errors };
 

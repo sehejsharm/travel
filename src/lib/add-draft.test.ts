@@ -45,8 +45,27 @@ describe("the Add screen's unfinished work", () => {
     const second = await fresh();
     expect(second.getAddDraft()).toEqual({
       mode: "type",
+      text: "",
       manual: { ...EMPTY_MANUAL, kind: "lodging", name: "Hotel Gracery", confirmationCode: "BK99120" },
     });
+  });
+
+  it("keeps something shared to be read, ready to read, until it is filed", async () => {
+    const first = await fresh();
+    first.setAddMode("type");
+    first.editManual({ name: "Tea ceremony" });
+    first.takeShare("https://www.instagram.com/reel/C9xArashiyama/");
+
+    // The phone reloads the app while the traveller checks the caption.
+    const second = await fresh();
+    expect(second.getAddDraft()).toMatchObject({
+      mode: "drop",
+      text: "https://www.instagram.com/reel/C9xArashiyama/",
+      manual: { name: "Tea ceremony" },
+    });
+
+    second.editReadText("");
+    expect((await fresh()).getAddDraft().text).toBe("");
   });
 
   it("clears what was typed but stays on the kind that was picked", async () => {
@@ -60,11 +79,12 @@ describe("the Add screen's unfinished work", () => {
 
   it("starts clean from anything unreadable", async () => {
     storage.set(KEY, "{not json");
-    expect((await fresh()).getAddDraft()).toEqual({ mode: "drop", manual: EMPTY_MANUAL });
+    expect((await fresh()).getAddDraft()).toEqual({ mode: "drop", text: "", manual: EMPTY_MANUAL });
 
     storage.set(KEY, JSON.stringify({ mode: "sideways", manual: { kind: 7, notes: "kept" } }));
     expect((await fresh()).getAddDraft()).toEqual({
       mode: "drop",
+      text: "",
       manual: { ...EMPTY_MANUAL, notes: "kept" },
     });
   });

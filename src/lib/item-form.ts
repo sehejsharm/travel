@@ -38,6 +38,8 @@ export function endsBeforeStart(startsAt?: string, endsAt?: string): boolean {
 
 export interface CostReading {
   cost?: Money;
+  /** The number typed, when it is one, even if there is no currency to go with it. */
+  amount?: number;
   /** Why an amount that was typed cannot be filed. */
   problem?: "amount" | "currency";
 }
@@ -47,7 +49,8 @@ export interface CostReading {
 // point. Three digits after a lone comma are thousands, fewer are cents.
 const COMMA_THOUSANDS = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/;
 const DOT_THOUSANDS_COMMA_DECIMAL = /^-?\d{1,3}(\.\d{3})+,\d{1,2}$/;
-const COMMA_DECIMAL = /^-?\d+,\d{1,2}$/;
+// "12,50", but also the halves of one typed a key at a time: "12," and ",50".
+const COMMA_DECIMAL = /^-?(\d+,\d{0,2}|,\d{1,2})$/;
 
 function readAmount(text: string): number {
   if (COMMA_THOUSANDS.test(text)) return Number(text.replace(/,/g, ""));
@@ -65,9 +68,10 @@ export function readCost(amountText: string, currency: string): CostReading {
   const text = amountText.replace(/\s/g, "");
   if (!text) return {};
 
-  const amount = readAmount(text);
+  // "+ 0" turns a typed "-0" into plain 0.
+  const amount = readAmount(text) + 0;
   if (!Number.isFinite(amount)) return { problem: "amount" };
-  if (!currency) return { problem: "currency" };
+  if (!currency) return { amount, problem: "currency" };
 
-  return { cost: { amount, currency } };
+  return { amount, cost: { amount, currency } };
 }

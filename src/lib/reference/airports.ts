@@ -240,42 +240,77 @@ function fold(value: string): string {
     .trim();
 }
 
-const byName = AIRPORT_LIST.map((airport) => ({ airport, name: fold(airport.name) })).sort(
-  (a, b) => b.name.length - a.name.length,
-);
+// Words that say "an airport" without saying which one.
+const GENERIC = new Set(["airport", "airports", "international", "intl", "int", "apt", "terminal", "the"]);
+const isGeneric = (word: string) => GENERIC.has(word) || /^t?\d+$/.test(word);
+
+const words = (value: string) => fold(value).split(" ").filter(Boolean);
+const core = (value: string) => words(value).filter((word) => !isGeneric(word));
+
+interface Entry {
+  airport: Airport;
+  /** Its name without "International" and the like: "Dubai International" is "dubai". */
+  core: string;
+  /** What only its name says, beyond its city: "haneda" for Tokyo Haneda; empty for "Istanbul". */
+  distinctive: string[];
+  city: string[];
+}
+
+const ENTRIES: Entry[] = AIRPORT_LIST.map((airport) => {
+  const city = words(airport.city);
+  const named = core(airport.name);
+  return {
+    airport,
+    core: named.join(" "),
+    distinctive: named.filter((word) => !city.includes(word)),
+    city,
+  };
+});
+
+function containsRun(haystack: string[], run: string[]): boolean {
+  return ` ${haystack.join(" ")} `.includes(` ${run.join(" ")} `);
+}
 
 /**
- * The airport someone means by what they typed into a flight's From or To:
- * a code ("hnd"), a picked suggestion ("Tokyo Haneda (HND)"), an airport's
- * name with or without "Airport" after it, a code beside a city ("Delhi DEL"),
- * or a city with only one airport. A city with two ("Tokyo") is left for the
- * person to settle, as is text naming two different codes.
+ * The airport someone means by what they typed into a flight's From or To.
+ * In order: a picked suggestion ("Tokyo Haneda (HND)") or a bare code; the
+ * airport's name, with or without "Airport" ("Dubai International Airport",
+ * "Istanbul Airport"); a code typed beside anything ("Delhi DEL", "Istanbul
+ * SAW") — a code the person typed always beats a name the text happens to
+ * contain; a name's own words beside its city ("Istanbul Sabiha Gokcen");
+ * then a city with only one airport ("Dubai airport").
+ *
+ * Anything else is left for the person to settle rather than guessed: a city
+ * with two airports ("Tokyo"), two codes at once ("DEL to HND"), or a city
+ * followed by an airport not on the list ("Milan Linate" is not Malpensa).
  */
 export function findAirport(text: string): Airport | undefined {
   const bracketed = getAirport(text.match(/\(([A-Za-z]{3})\)\s*$/)?.[1]);
   if (bracketed) return bracketed;
 
-  const needle = fold(text);
-  if (!needle) return undefined;
-  const padded = ` ${needle} `;
+  const typed = words(text);
+  if (typed.length === 0) return undefined;
+  if (typed.length === 1 && typed[0].length === 3 && getAirport(typed[0])) return getAirport(typed[0]);
 
-  // Exact answers first: the whole text is a code, a name or a one-airport city.
-  const whole = /^[a-z]{3}$/.test(needle) ? getAirport(needle) : undefined;
-  if (whole) return whole;
-  const named = byName.find((entry) => entry.name === needle);
-  if (named) return named.airport;
-  const inCity = AIRPORT_LIST.filter((airport) => fold(airport.city) === needle);
-  if (inCity.length === 1) return inCity[0];
+  const typedCore = typed.filter((word) => !isGeneric(word));
+  const joined = typedCore.join(" ");
+  if (!joined) return undefined;
 
-  // Then the loose forms: a name inside the text (longest first), then a code on its own.
-  const contained = byName.find((entry) => padded.includes(` ${entry.name} `));
-  if (contained) return contained.airport;
+  const byName = ENTRIES.filter((entry) => entry.core === joined);
+  if (byName.length === 1) return byName[0].airport;
 
-  const codes = new Set(needle.split(" ").filter((word) => word.length === 3 && getAirport(word)));
+  const codes = new Set(typedCore.filter((word) => word.length === 3 && getAirport(word)));
   if (codes.size === 1) return getAirport([...codes][0]);
+  if (codes.size > 1) return undefined;
 
-  // Last, a one-airport city named with other words: "Dubai airport".
-  const cities = AIRPORT_LIST.filter((airport) => padded.includes(` ${fold(airport.city)} `));
-  const distinct = new Set(cities.map((airport) => fold(airport.city)));
-  return cities.length === 1 && distinct.size === 1 ? cities[0] : undefined;
+  const byOwnWords = ENTRIES.filter(
+    (entry) =>
+      entry.distinctive.length > 0 &&
+      containsRun(typedCore, entry.distinctive) &&
+      typedCore.every((word) => entry.distinctive.includes(word) || entry.city.includes(word)),
+  );
+  if (byOwnWords.length === 1) return byOwnWords[0].airport;
+
+  const byCity = ENTRIES.filter((entry) => entry.city.join(" ") === joined);
+  return byCity.length === 1 ? byCity[0].airport : undefined;
 }

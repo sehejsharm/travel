@@ -11,10 +11,9 @@ import {
   defaultCostStatus,
   isBlank,
   isTransport,
-  journeyOffsets,
+  itemOffsets,
   MANUAL_KINDS,
   MANUAL_META,
-  placeOfSpot,
   resolvePlace,
   TRANSIT_KINDS,
   type ManualErrorKey,
@@ -107,7 +106,14 @@ const SECTION_LABELS: Record<Section, string> = {
 };
 
 /** Where each problem is shown, and so where the cursor goes to fix it. */
-const ERROR_ORDER: ManualErrorKey[] = ["title", "startsAt", "endsAt", "costAmount", "costCurrency"];
+const ERROR_ORDER: ManualErrorKey[] = [
+  "title",
+  "flightNumber",
+  "startsAt",
+  "endsAt",
+  "costAmount",
+  "costCurrency",
+];
 
 function fieldId(key: ManualErrorKey, kind: ManualKind): string {
   if (key !== "title") return `manual-${key}`;
@@ -163,16 +169,14 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
   const copy = COPY[kind];
   const transit = TRANSIT_COPY[values.transitKind];
   const transport = isTransport(kind);
-  const errors = attempted ? buildManualDraft(values).errors : {};
+  const errors = attempted ? buildManualDraft(values, trip).errors : {};
   const blank = isBlank(values);
 
   // A flight's two ends can be on different clocks, so its arrival is not held to its departure's.
   const offsets = transport
-    ? journeyOffsets(resolvePlace(values.from, kind === "flight"), resolvePlace(values.to, kind === "flight"))
+    ? itemOffsets(resolvePlace(values.from, kind === "flight"), resolvePlace(values.to, kind === "flight"))
     : undefined;
   const sameZone = !offsets || offsets.start === offsets.end;
-  // A stay or activity with no place typed is pinned by its name, and says so.
-  const pinnedByName = !transport && !values.place.trim() ? placeOfSpot(values) : undefined;
 
   function set(patch: Partial<ManualValues>) {
     editManual(patch);
@@ -183,12 +187,13 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
   }
 
   function submit() {
-    const result = buildManualDraft(values);
+    const result = buildManualDraft(values, trip);
 
     if (!result.draft) {
       setAttempted(true);
       const first = ERROR_ORDER.find((key) => result.errors[key]);
-      if (first && inMore(first)) setMoreOpen(true);
+      // Any problem inside "More details" is shown, not only when it is the first.
+      if (ERROR_ORDER.some((key) => result.errors[key] && inMore(key))) setMoreOpen(true);
       // After the render that shows the errors, and has opened "More details" if one is in there.
       if (first) focusSoon(fieldId(first, kind));
       return;
@@ -328,13 +333,13 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
 
           {kind === "flight" && (
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Flight number" error={errors.title}>
+              <Field label="Flight number" error={errors.title ?? errors.flightNumber}>
                 <TextInput
                   id="manual-flightNumber"
                   value={values.flightNumber}
                   placeholder="AI 142"
                   autoComplete="off"
-                  aria-invalid={errors.title ? true : undefined}
+                  aria-invalid={errors.title || errors.flightNumber ? true : undefined}
                   onChange={(event) => set({ flightNumber: event.target.value.toUpperCase() })}
                 />
               </Field>
@@ -412,7 +417,6 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
                 placeholder={copy.place.placeholder}
                 resolve={resolvePlace}
                 suggest={suggestWhenTyped}
-                fallback={pinnedByName}
               />
             </FieldGroup>
           )}

@@ -21,9 +21,10 @@ export default function PrivacyPolicy() {
           were asked to.
         </p>
         <p>
-          An item you are part way through typing in on the Add screen is kept in this browser tab
-          only, so looking something up elsewhere does not lose it. It goes when you file it, clear
-          it, or close the tab, and is never part of a backup.
+          Whatever you are part way through adding on the Add screen — an item you are typing in, or
+          text you pasted or shared to be read — is kept in this browser tab only, so looking
+          something up elsewhere does not lose it. It goes when you file it, clear it, or close the
+          tab, and is never part of a backup.
         </p>
         <p>
           Three things do leave your device, all of them started by something you did. They are
