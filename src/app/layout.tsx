@@ -3,6 +3,7 @@ import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { ServiceWorker } from "@/components/service-worker";
 import { Splash } from "@/components/splash";
+import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], display: "swap" });
@@ -23,7 +24,7 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   // Resolves the social image to an absolute URL at build time.
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://manifest.trip"),
+  metadataBase: siteUrl(),
   title: "Manifest",
   description: "Everything about your trip, in one file.",
   applicationName: "Manifest",
