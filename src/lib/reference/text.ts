@@ -10,13 +10,17 @@ const PLAIN: Record<string, string> = {
 };
 
 export function fold(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[đðłøæœßıþ]/g, (letter) => PLAIN[letter] ?? letter)
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+  return (
+    value
+      .toLowerCase()
+      .replace(/[đðłøæœßıþ]/g, (letter) => PLAIN[letter] ?? letter)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      // Abbreviations stay whole: "Int'l" is "intl", "U.K." is "uk", "O'Hare" is "ohare".
+      .replace(/['\u2019.]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+  );
 }
 
 /** Whether `phrase` appears in `text` as whole words: "agra" is not in "sagrada familia". */

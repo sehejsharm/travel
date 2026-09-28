@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { clearManual, editManual, useAddDraft } from "@/lib/add-draft";
 import { findDuplicates, mergeInto, type DuplicateMatch } from "@/lib/dedupe";
-import { SOURCE_LABELS, type PlaceRef, type Trip, type TripItem } from "@/lib/domain/types";
+import { SOURCE_LABELS, type Trip, type TripItem } from "@/lib/domain/types";
 import type { ItemDraft } from "@/lib/extract/types";
 import { fileDraft } from "@/lib/filing";
 import {
@@ -21,7 +21,7 @@ import {
   type ManualValues,
   type TransitKind,
 } from "@/lib/manual-entry";
-import { suggestAirports, suggestPlaces } from "@/lib/reference/places";
+import { suggestPlaces } from "@/lib/reference/places";
 import { updateItem } from "@/lib/store/state";
 import { Disclosure } from "./disclosure";
 import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "./filing";
@@ -30,6 +30,7 @@ import {
   ConfirmationField,
   CostFields,
   FieldGroup,
+  FLIGHT_END_FIELD,
   NotesField,
   PlaceField,
   RefundField,
@@ -122,12 +123,7 @@ function fieldId(key: ManualErrorKey, kind: ManualKind): string {
 }
 
 // How a flight's ends and other typed places are looked up while typing.
-const FLIGHT_END = {
-  resolve: (text: string) => resolvePlace(text, true),
-  suggest: suggestAirports,
-  pinned: (place: PlaceRef) => Boolean(place.airport),
-  unsettled: "Pick the airport from the list, so its time is on the right clock",
-};
+const FLIGHT_END = { ...FLIGHT_END_FIELD, resolve: (text: string) => resolvePlace(text, true) };
 const suggestWhenTyped = (text: string) => (text.trim() ? suggestPlaces(text) : []);
 
 /** Focus by id once the render in progress has landed. */

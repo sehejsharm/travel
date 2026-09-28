@@ -257,8 +257,9 @@ export function itemOffsets(
 
   const first = days[0];
   const arriving = offsetForCountry(tripCountryOn(trip, first, "arriving"));
+  // Only a stay over more than one day can straddle two legs.
   const leaving =
-    kind === "lodging" && dates.end
+    kind === "lodging" && dates.end && dates.end > first
       ? offsetForCountry(tripCountryOn(trip, dates.end, "leaving"))
       : arriving;
   return { start: arriving || leaving, end: leaving || arriving };

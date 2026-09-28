@@ -2,11 +2,11 @@ import type { Money, PlaceRef } from "./domain/types";
 import { offsetOf } from "./datetime";
 import { offsetSuffix } from "./extract/patterns";
 import {
-  airportCodesIn,
   airportPlace,
-  AIRPORT_LIST,
+  allRegionWords,
   countryWords,
   findAirport,
+  findAirportCity,
   onlyExplained,
 } from "./reference/airports";
 import { CITIES } from "./reference/cities";
@@ -108,34 +108,24 @@ export function resolvePlace(text: string, airports = false): PlaceRef | undefin
   return plainCity(name) ?? { name };
 }
 
-// Joining words between two airports named at once.
-const JOINERS = ["or", "and", "to"];
-
+/**
+ * Where an unsettled flight's end plainly is: a city its airports name, or a
+ * city named outright with nothing beside it pointing somewhere else.
+ */
 function plainCity(name: string): PlaceRef | undefined {
+  const byAirports = findAirportCity(name);
+  if (byAirports) return cityPlace(name, byAirports.city, byAirports.countryCode);
+
   const typed = fold(name).split(" ").filter(Boolean);
   const said = typed.join(" ");
-
-  // Codes that all belong to one city say that city, with or without its name.
-  const codes = airportCodesIn(name);
-  if (codes.length > 0 && codes.every((entry) => entry.city === codes[0].city)) {
-    const [first] = codes;
-    const allowed = [
-      ...codes.map((entry) => entry.iata.toLowerCase()),
-      ...fold(first.city).split(" "),
-      ...countryWords(first.countryCode),
-      ...JOINERS,
-    ];
-    if (onlyExplained(typed, allowed)) return cityPlace(name, first.city, first.countryCode);
-  }
-
-  // A city named outright, with nothing beside it pointing somewhere else:
-  // "Frankfurt, Germany" is Frankfurt; "Manchester, NH" is not Manchester, UK.
-  const named = CITIES.filter((city) => hasWords(said, fold(city.name))).filter((city) =>
-    onlyExplained(typed, [
-      ...fold(city.name).split(" "),
-      ...countryWords(city.countryCode),
-      ...AIRPORT_LIST.filter((entry) => entry.city === city.name).map((entry) => entry.iata.toLowerCase()),
-    ]),
+  const named = CITIES.filter(
+    (city) =>
+      hasWords(said, fold(city.name)) &&
+      onlyExplained(typed, [
+        ...fold(city.name).split(" "),
+        ...countryWords(city.countryCode),
+        ...allRegionWords(city.countryCode),
+      ]),
   );
   return named.length === 1 ? cityPlace(name, named[0].name, named[0].countryCode) : undefined;
 }

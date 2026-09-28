@@ -4,7 +4,7 @@ import { useId, type ReactNode } from "react";
 import type { CostStatus, PlaceRef, Traveler } from "@/lib/domain/types";
 import { mapEmbedUrl, openInMapsUrl } from "@/lib/maps";
 import { CURRENCY_SYMBOLS } from "@/lib/reference/fx";
-import { groundPlace, suggestPlaces, type PlaceSuggestion } from "@/lib/reference/places";
+import { groundPlace, suggestAirports, suggestPlaces, type PlaceSuggestion } from "@/lib/reference/places";
 import { Field, Segmented, Select, TextArea, TextInput } from "./form";
 
 /**
@@ -104,6 +104,13 @@ export function WhenFields({
     </FieldGroup>
   );
 }
+
+/** How a flight's end is looked up while typing: airports only, settled only on one. */
+export const FLIGHT_END_FIELD = {
+  suggest: suggestAirports,
+  pinned: (place: PlaceRef) => Boolean(place.airport),
+  unsettled: "Pick the airport from the list, so its time is on the right clock",
+};
 
 /**
  * A place, grounded as it is typed: suggestions until the name lands on a

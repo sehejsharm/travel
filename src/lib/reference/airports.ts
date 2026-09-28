@@ -232,28 +232,75 @@ export function airportPlace(code?: string): PlaceRef | undefined {
   };
 }
 
-// Words that say "an airport" without saying which one.
-// So are the joining words of a name in another language ("Aeropuerto de…"),
-// though not "del", which is also Delhi's code.
-const GENERIC = new Set([
+// Words that say "an airport" without saying which one; left out of names.
+const NOISE = new Set([
   "airport", "airports", "aeropuerto", "aeroport", "aeroporto", "flughafen",
   "international", "intl", "int", "apt", "terminal", "the", "new", "of",
-  "de", "da", "do", "di", "du", "des", "la", "le", "el",
 ]);
-const isGeneric = (word: string) => GENERIC.has(word) || /^t?\d+[a-z]?$/.test(word);
+// Joining words of a name in another language ("Aeropuerto de…", "Charles de
+// Gaulle"). They stay in names, and are filler only between other words: a
+// final ", LA" or ", DE" is a US state. Not "del", which is also Delhi's code.
+const CONNECTORS = new Set(["de", "da", "do", "di", "du", "des", "la", "le", "el"]);
+
+const isNoise = (word: string) => NOISE.has(word) || /^t?\d+[a-z]?$/.test(word);
 
 // How people write the country after an airport, beyond its name and code.
-const COUNTRY_ALIASES: Record<string, string[]> = {
-  US: [
-    "usa", "america", "united", "states",
-    ...("al ak az ar ca co ct de fl ga hi id il in ia ks ky la me md ma mi mn ms mo mt ne nv nh nj " +
-      "nm ny nc nd oh ok or pa ri sc sd tn tx ut vt va wa wv wi wy dc").split(" "),
-  ],
-  GB: ["uk", "britain", "england", "scotland", "wales"],
-  AE: ["uae", "emirates"],
-  TR: ["turkey", "turkiye"],
-  NL: ["holland"],
+const COUNTRY_ALIASES: Record<string, string> = {
+  US: "usa us america united states",
+  GB: "uk britain great england scotland wales",
+  AE: "uae emirates",
+  TR: "turkey turkiye",
+  NL: "holland",
+  HK: "china prc",
+  MO: "china prc",
 };
+
+// States and provinces, as written after a city: the code and the name.
+const REGIONS: Record<string, Record<string, string>> = {
+  US: {
+    AL: "alabama", AK: "alaska", AZ: "arizona", AR: "arkansas", CA: "california", CO: "colorado",
+    CT: "connecticut", DE: "delaware", FL: "florida", GA: "georgia", HI: "hawaii", ID: "idaho",
+    IL: "illinois", IN: "indiana", IA: "iowa", KS: "kansas", KY: "kentucky", LA: "louisiana",
+    ME: "maine", MD: "maryland", MA: "massachusetts", MI: "michigan", MN: "minnesota",
+    MS: "mississippi", MO: "missouri", MT: "montana", NE: "nebraska", NV: "nevada",
+    NH: "new hampshire", NJ: "new jersey", NM: "new mexico", NY: "new york", NC: "north carolina",
+    ND: "north dakota", OH: "ohio", OK: "oklahoma", OR: "oregon", PA: "pennsylvania",
+    RI: "rhode island", SC: "south carolina", SD: "south dakota", TN: "tennessee", TX: "texas",
+    UT: "utah", VT: "vermont", VA: "virginia", WA: "washington", WV: "west virginia",
+    WI: "wisconsin", WY: "wyoming", DC: "district of columbia",
+  },
+  CA: {
+    ON: "ontario", BC: "british columbia", QC: "quebec", AB: "alberta", MB: "manitoba",
+    SK: "saskatchewan", NS: "nova scotia", NB: "new brunswick", NL: "newfoundland labrador",
+    PE: "prince edward island", YT: "yukon", NT: "northwest territories", NU: "nunavut",
+  },
+  AU: {
+    NSW: "new south wales", VIC: "victoria", QLD: "queensland", WA: "western australia",
+    SA: "south australia", TAS: "tasmania", NT: "northern territory", ACT: "australian capital territory",
+  },
+};
+
+// Where each listed airport in a country with regions is, so "Logan, UT" is
+// not Boston Logan and "Las Vegas, NM" is not Harry Reid.
+const AIRPORT_REGION: Record<string, string> = {
+  JFK: "NY", EWR: "NJ", LGA: "NY", LAX: "CA", SFO: "CA", ORD: "IL", MIA: "FL", BOS: "MA",
+  SEA: "WA", DEN: "CO", ATL: "GA", DFW: "TX", LAS: "NV", HNL: "HI",
+  YYZ: "ON", YVR: "BC", YUL: "QC",
+  SYD: "NSW", MEL: "VIC", BNE: "QLD", PER: "WA",
+};
+
+const regionWords = (code: string, name: string) => [code.toLowerCase(), ...name.split(" ")];
+
+/** Every state or province of a country, for a city named with one. */
+export function allRegionWords(countryCode: string): string[] {
+  return Object.entries(REGIONS[countryCode] ?? {}).flatMap(([code, name]) => regionWords(code, name));
+}
+
+function airportRegionWords(airport: Airport): string[] {
+  const code = AIRPORT_REGION[airport.iata];
+  const name = code ? REGIONS[airport.countryCode]?.[code] : undefined;
+  return code && name ? regionWords(code, name) : [];
+}
 
 const words = (value: string) => fold(value).split(" ").filter(Boolean);
 
@@ -263,14 +310,19 @@ export function countryWords(countryCode: string): string[] {
   return [
     countryCode.toLowerCase(),
     ...(country ? words(country.name) : []),
-    ...(COUNTRY_ALIASES[countryCode] ?? []),
+    ...(COUNTRY_ALIASES[countryCode]?.split(" ") ?? []),
   ];
 }
 
 /** Whether every word is filler, or one of `known`: nothing left pointing somewhere else. */
 export function onlyExplained(typed: string[], known: Iterable<string>): boolean {
   const allowed = new Set(known);
-  return typed.every((word) => isGeneric(word) || allowed.has(word));
+  return typed.every(
+    (word, index) =>
+      isNoise(word) ||
+      allowed.has(word) ||
+      (CONNECTORS.has(word) && index < typed.length - 1),
+  );
 }
 
 interface Entry {
@@ -286,7 +338,7 @@ interface Entry {
 
 const ENTRIES: Entry[] = AIRPORT_LIST.map((airport) => {
   const city = words(airport.city);
-  const name = words(airport.name).filter((word) => !isGeneric(word));
+  const name = words(airport.name).filter((word) => !isNoise(word));
   const code = airport.iata.toLowerCase();
   return {
     airport,
@@ -294,7 +346,13 @@ const ENTRIES: Entry[] = AIRPORT_LIST.map((airport) => {
     name,
     distinctive: name.filter((word) => !city.includes(word)),
     city,
-    explains: [code, ...name, ...city, ...countryWords(airport.countryCode)],
+    explains: [
+      code,
+      ...name,
+      ...city,
+      ...countryWords(airport.countryCode),
+      ...airportRegionWords(airport),
+    ],
   };
 });
 
@@ -313,9 +371,6 @@ const EVIDENCE = ["code", "distinctive", "name", "city"] as const;
  * than none: it puts the time on another country's clock.
  */
 export function findAirport(text: string): Airport | undefined {
-  const bracketed = getAirport(text.match(/\(([A-Za-z]{3})\)\s*$/)?.[1]);
-  if (bracketed) return bracketed;
-
   const typed = words(text);
   if (typed.length === 0) return undefined;
   const said = typed.join(" ");
@@ -338,6 +393,57 @@ export function findAirport(text: string): Airport | undefined {
   if (settled.length === 0) return undefined;
   if (settled.length > 1 && settled[1].strength === settled[0].strength) return undefined;
   return settled[0].entry.airport;
+}
+
+// Joining words between two airports named at once.
+const JOINERS = ["or", "and", "to"];
+
+interface CityGroup {
+  city: string;
+  countryCode: string;
+  cityWords: string[];
+  entries: Entry[];
+  explains: string[];
+}
+
+const CITY_GROUPS: CityGroup[] = [
+  ...ENTRIES.reduce((groups, entry) => {
+    const key = `${entry.airport.city}|${entry.airport.countryCode}`;
+    const group = groups.get(key) ?? {
+      city: entry.airport.city,
+      countryCode: entry.airport.countryCode,
+      cityWords: entry.city,
+      entries: [],
+      explains: [...JOINERS],
+    };
+    group.entries.push(entry);
+    group.explains.push(...entry.explains);
+    return groups.set(key, group);
+  }, new Map<string, CityGroup>()).values(),
+];
+
+/**
+ * The city a flight's end is plainly in when it names no single airport:
+ * "Tokyo NRT/HND", "Narita or Haneda", "Charles de Gaulle or Orly". Only
+ * when every word belongs to that city's airports, the city, or its country —
+ * "Manchester, NH" is not Manchester in England.
+ */
+export function findAirportCity(text: string): { city: string; countryCode: string } | undefined {
+  const typed = words(text);
+  if (typed.length === 0) return undefined;
+  const said = typed.join(" ");
+
+  const found = CITY_GROUPS.filter((group) => {
+    const named =
+      hasWords(said, group.cityWords.join(" ")) ||
+      group.entries.some(
+        (entry) =>
+          typed.includes(entry.code) ||
+          (entry.distinctive.length > 0 && hasWords(said, entry.distinctive.join(" "))),
+      );
+    return named && onlyExplained(typed, group.explains);
+  });
+  return found.length === 1 ? { city: found[0].city, countryCode: found[0].countryCode } : undefined;
 }
 
 /** Every airport code the text names, in any case: "NRT/HND", "nrt or hnd". */

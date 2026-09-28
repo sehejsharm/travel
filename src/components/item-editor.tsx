@@ -10,6 +10,7 @@ import {
   ConfirmationField,
   CostFields,
   FieldGroup,
+  FLIGHT_END_FIELD,
   NotesField,
   PlaceField,
   RefundField,
@@ -138,6 +139,8 @@ function ItemEditorForm({
     set("endsAt", toLocalInput(addHours(`${startsAt}:00`, 2)));
   }
 
+  const isFlight = draft.category === "booking" && draft.bookingKind === "flight";
+
   /**
    * Where the place field lands, for its preview and for Save alike. A place
    * left as it was is kept exactly as filed: grounding its name again would
@@ -149,7 +152,7 @@ function ItemEditorForm({
     const name = text.trim();
     if (!name) return undefined;
     if (item.place && name === item.place.name.trim()) return item.place;
-    return resolvePlace(name, draft.category === "booking" && draft.bookingKind === "flight");
+    return resolvePlace(name, isFlight);
   }
 
   // A time filed on another clock (a flight landing elsewhere) can read earlier than it left.
@@ -234,6 +237,7 @@ function ItemEditorForm({
           <PlaceField
             value={draft.placeName}
             onChange={(value) => set("placeName", value)}
+            {...(isFlight ? FLIGHT_END_FIELD : {})}
             resolve={placeFor}
           />
         </FieldGroup>
