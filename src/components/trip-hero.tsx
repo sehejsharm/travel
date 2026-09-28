@@ -36,11 +36,22 @@ export function TripHero({
       // instead of hard-cutting to the next gradient.
       key={trip.id}
       className="animate-hero-in grain relative isolate overflow-hidden rounded-3xl text-white shadow-float"
-      style={{
-        backgroundImage:
-          trip.accentHue === undefined ? heroGradient(seed) : hueGradient(trip.accentHue),
-      }}
     >
+      {/*
+        The gradient lives on its own layer so its hue-drift loop and the
+        section's one-shot entrance can both run — a single element can only
+        carry one `animation` shorthand, and the later rule would otherwise
+        silently win and drop the other.
+      */}
+      <div
+        aria-hidden="true"
+        className="animate-hue-drift pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            trip.accentHue === undefined ? heroGradient(seed) : hueGradient(trip.accentHue),
+        }}
+      />
+
       {/* Contour lines, so the block reads as a place rather than a swatch. */}
       <svg
         aria-hidden="true"

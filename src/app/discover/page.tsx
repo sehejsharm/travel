@@ -287,7 +287,7 @@ function SuggestionCard({ suggestion, tripId }: { suggestion: Suggestion; tripId
   }
 
   return (
-    <Card as="div" className="p-4">
+    <Card as="div" className="liftable raised p-4">
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-[15px] leading-snug font-medium">{suggestion.name}</h3>
         <Chip tone={TIER_TONE[suggestion.tier] ?? "neutral"}>{suggestion.tier}</Chip>

@@ -82,7 +82,7 @@ export function PrimaryButton({
   return (
     <button
       {...props}
-      className={`press w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-ink disabled:opacity-40 ${props.className ?? ""}`}
+      className={`press shine w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-ink disabled:opacity-40 ${props.className ?? ""}`}
     >
       {children}
     </button>

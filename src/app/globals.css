@@ -399,6 +399,105 @@ body {
   transform: scale(0.94);
 }
 
+/* ----------------------------------------------------------- nav feedback */
+/*
+ * The pill already slides between tabs; the icon itself gets a small spring
+ * pop the frame it becomes current, so landing on a tab reads as arriving
+ * rather than a colour swap.
+ */
+@keyframes tab-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  55% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+[aria-current="page"] .tab-icon {
+  animation: tab-pop var(--dur-move) var(--ease-spring) both;
+}
+
+/*
+ * The Add tab is where every visit eventually leads. A slow breathing ring
+ * behind it keeps it feeling live without asking for attention — the loop
+ * is barely faster than a resting heartbeat, not a notification badge.
+ */
+@keyframes fab-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.fab-ring {
+  position: relative;
+}
+.fab-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: var(--accent);
+  animation: fab-breathe 2.6s var(--ease-soft) infinite;
+  pointer-events: none;
+}
+
+/*
+ * A light sweep across a primary action on hover. One gradient, transform
+ * only, so it costs nothing — and it reads as "this does something" before
+ * the click on the surfaces that matter (Create trip, Save).
+ */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  transition: left var(--dur-hero) var(--ease-soft);
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .shine:hover::after {
+    left: 130%;
+  }
+}
+
+/*
+ * The hero's gradient rotates hue by a few degrees over a slow, long loop.
+ * White text and white strokes carry no saturation, so hue-rotate leaves
+ * them untouched — only the gradient itself drifts, which is what makes the
+ * hero read as alive rather than a static swatch behind static content.
+ */
+@keyframes hue-drift {
+  0%,
+  100% {
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    filter: hue-rotate(10deg);
+  }
+}
+.animate-hue-drift {
+  animation: hue-drift 18s var(--ease-soft) infinite;
+  will-change: filter;
+}
+
 /*
  * Reduced motion is a real accessibility setting, not a nicety. Everything
  * above degrades to its end state instantly — the transforms are neutralised
@@ -420,6 +519,8 @@ body {
   .animate-drift,
   .animate-float,
   .animate-pulse-dot,
+  .animate-hue-drift,
+  .fab-ring::before,
   .skeleton {
     animation: none !important;
   }

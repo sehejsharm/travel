@@ -210,9 +210,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                     />
                     <span
                       // Same box for every tab, so the labels sit on one line.
-                      className={`flex h-10 w-10 items-center justify-center ${
+                      // tab-icon is what the spring-pop keyframe hooks onto;
+                      // fab-ring is the idle breathing ring behind Add alone.
+                      className={`tab-icon flex h-10 w-10 items-center justify-center ${
                         isAdd
-                          ? "rounded-full bg-accent text-accent-ink shadow-float ring-1 ring-white/10"
+                          ? "fab-ring rounded-full bg-accent text-accent-ink shadow-float ring-1 ring-white/10"
                           : `rounded-xl ${active ? "bg-accent-soft" : ""}`
                       }`}
                     >
