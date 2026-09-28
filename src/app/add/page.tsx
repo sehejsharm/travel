@@ -1,9 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "@/components/filing";
-import { Segmented } from "@/components/form";
 import { ManualAddTripItem } from "@/components/manual-add-trip-item";
 import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { setAddMode, useAddDraft, type AddMode } from "@/lib/add-draft";
@@ -15,11 +14,6 @@ import { formatMoney } from "@/lib/reference/fx";
 import { updateItem } from "@/lib/store/state";
 import { findDuplicates, mergeInto, type DuplicateMatch } from "@/lib/dedupe";
 import { useTripView } from "@/lib/store/use-store";
-
-const MODES: { value: AddMode; label: string }[] = [
-  { value: "drop", label: "Drop it in" },
-  { value: "type", label: "Type it in" },
-];
 
 const EXAMPLES: { label: string; text: string }[] = [
   {
@@ -66,11 +60,12 @@ function AddScreenInner() {
   const [text, setText] = useState(() =>
     [shared.get("title"), shared.get("text"), shared.get("url")].filter(Boolean).join("\n"),
   );
-  // Which way in was last used is remembered, except that something shared
-  // to the app is always shown ready to read.
+  // Typing an item in is remembered as the way in last used, except that
+  // something shared to the app is always shown ready to read.
   const stored = useAddDraft().mode;
   const [arrivedWithShare, setArrivedWithShare] = useState(() => text.trim().length > 0);
   const mode: AddMode = arrivedWithShare ? "drop" : stored;
+  const typing = mode === "type";
   const [image, setImage] = useState<CaptureImage | null>(null);
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [filed, setFiled] = useState<string | null>(null);
@@ -83,6 +78,7 @@ function AddScreenInner() {
 
   // Pasting a screenshot straight onto the screen is the fastest path there is.
   // Not while typing an item in, where a paste belongs to the field.
+  const onPastedImage = useEffectEvent((file: File) => loadImage(file));
   useEffect(() => {
     if (mode !== "drop") return;
 
@@ -93,7 +89,7 @@ function AddScreenInner() {
       if (!file) return;
 
       event.preventDefault();
-      await loadImage(file);
+      await onPastedImage(file);
     }
 
     window.addEventListener("paste", onPaste);
@@ -102,7 +98,14 @@ function AddScreenInner() {
 
   if (!hydrated) return <ScreenSkeleton variant="list" />;
 
+  function chooseMode(next: AddMode) {
+    setArrivedWithShare(false);
+    setAddMode(next);
+  }
+
   async function loadImage(file: File) {
+    // An image arriving, however it came, means it is to be read.
+    chooseMode("drop");
     setError(null);
     setFiled(null);
     setResult(null);
@@ -115,6 +118,7 @@ function AddScreenInner() {
   }
 
   async function pasteFromClipboard() {
+    chooseMode("drop");
     setError(null);
     try {
       const clipboard = await navigator.clipboard.readText();
@@ -183,38 +187,13 @@ function AddScreenInner() {
 
   const ready = image !== null || text.trim().length > 0;
 
-  function chooseMode(next: AddMode) {
-    setArrivedWithShare(false);
-    setAddMode(next);
-  }
-
-  const modePicker = (
-    <Segmented label="How to add it" value={mode} options={MODES} onChange={chooseMode} />
-  );
-
-  if (mode === "type") {
-    return (
-      <div className="flex flex-col gap-5">
-        <ScreenHeader
-          eyebrow="Add"
-          title="Type it in"
-          meta="A booking with no email to paste, or anything quicker to enter yourself. It is filed and checked exactly like something read."
-        />
-        {modePicker}
-        <ManualAddTripItem trip={trip} items={items} />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader
         eyebrow="Add"
         title="Drop anything in"
-        meta="A screenshot, a Reel link, a booking email, or a scribbled note. It gets read, filed and checked."
+        meta="A screenshot, a Reel link, a booking email, or a scribbled note — or type it in yourself. It gets filed and checked."
       />
-
-      {modePicker}
 
       <input
         ref={fileInput}
@@ -242,7 +221,7 @@ function AddScreenInner() {
         }}
       />
 
-      {image ? (
+      {image && !typing ? (
         <Card className="animate-pop overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={image.previewUrl} alt="Screenshot to read" className="max-h-72 w-full object-contain bg-surface-2" />
@@ -276,7 +255,8 @@ function AddScreenInner() {
             dragging ? "border-accent bg-accent-soft" : "border-line bg-surface"
           }`}
         >
-          <div className="grid grid-cols-3 gap-2">
+          {/* Two by two on a phone: four across, "Screenshot" no longer fits its button. */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <CaptureButton
               label="Screenshot"
               onClick={() => fileInput.current?.click()}
@@ -308,74 +288,93 @@ function AddScreenInner() {
                 </>
               }
             />
+            <CaptureButton
+              label="Type it in"
+              pressed={typing}
+              onClick={() => chooseMode(typing ? "drop" : "type")}
+              icon={
+                <>
+                  <path d="M4 20h4L19 9l-4-4L4 16z" />
+                  <path d="m13.5 6.5 4 4" />
+                </>
+              }
+            />
           </div>
 
           <p className="mt-3 text-center text-xs text-ink-faint">
-            Drop a screenshot here, or paste one straight onto this screen
+            {typing
+              ? "Or drop a screenshot here to have it read instead"
+              : "Drop a screenshot here, or paste one straight onto this screen"}
           </p>
         </div>
       )}
 
-      <Card className="p-4">
-        <textarea
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          rows={5}
-          aria-label="Content to extract"
-          placeholder="…or paste a link, an email, or just type what you want to remember"
-          className="w-full resize-y bg-transparent text-sm leading-relaxed outline-none"
-        />
+      {typing ? (
+        <ManualAddTripItem trip={trip} items={items} />
+      ) : (
+        <>
+          <Card className="p-4">
+            <textarea
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              rows={5}
+              aria-label="Content to extract"
+              placeholder="…or paste a link, an email, or just type what you want to remember"
+              className="w-full resize-y bg-transparent text-sm leading-relaxed outline-none"
+            />
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-          <Chip tone={image ? "accent" : "neutral"}>
-            {image ? "screenshot" : SOURCE_LABELS[sourceForText(text)]}
-          </Chip>
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+              <Chip tone={image ? "accent" : "neutral"}>
+                {image ? "screenshot" : SOURCE_LABELS[sourceForText(text)]}
+              </Chip>
 
-          <button
-            type="button"
-            onClick={run}
-            disabled={busy || !ready}
-            className="press ml-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink disabled:opacity-40"
-          >
-            {busy ? "Reading…" : image ? "Read the screenshot" : "Extract"}
-          </button>
-        </div>
-      </Card>
+              <button
+                type="button"
+                onClick={run}
+                disabled={busy || !ready}
+                className="press ml-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink disabled:opacity-40"
+              >
+                {busy ? "Reading…" : image ? "Read the screenshot" : "Extract"}
+              </button>
+            </div>
+          </Card>
 
-      {!image && !text && (
-        <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
-          {EXAMPLES.map((example) => (
-            <button
-              key={example.label}
-              type="button"
-              onClick={() => setText(example.text)}
-              className="press shrink-0 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs text-ink-soft hover:border-accent hover:text-accent-strong"
-            >
-              Try: {example.label}
-            </button>
-          ))}
-        </div>
+          {!image && !text && (
+            <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
+              {EXAMPLES.map((example) => (
+                <button
+                  key={example.label}
+                  type="button"
+                  onClick={() => setText(example.text)}
+                  className="press shrink-0 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs text-ink-soft hover:border-accent hover:text-accent-strong"
+                >
+                  Try: {example.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div aria-live="polite" className="flex flex-col gap-3">
+            {error && <Card className="border-critical p-4 text-sm text-critical">{error}</Card>}
+
+            {filed && <FiledNotice label={filed} />}
+
+            {result && duplicates.length === 0 && (
+              <Preview result={result} onFile={() => file()} startsTrip={!trip} />
+            )}
+
+            {result && duplicates.length > 0 && (
+              <DuplicateChoice
+                draft={result.draft}
+                matches={duplicates}
+                onMerge={merge}
+                onKeepBoth={() => file(true)}
+                onCancel={() => setDuplicates([])}
+              />
+            )}
+          </div>
+        </>
       )}
-
-      <div aria-live="polite" className="flex flex-col gap-3">
-        {error && <Card className="border-critical p-4 text-sm text-critical">{error}</Card>}
-
-        {filed && <FiledNotice label={filed} />}
-
-        {result && duplicates.length === 0 && (
-          <Preview result={result} onFile={() => file()} startsTrip={!trip} />
-        )}
-
-        {result && duplicates.length > 0 && (
-          <DuplicateChoice
-            draft={result.draft}
-            matches={duplicates}
-            onMerge={merge}
-            onKeepBoth={() => file(true)}
-            onCancel={() => setDuplicates([])}
-          />
-        )}
-      </div>
     </div>
   );
 }
@@ -384,16 +383,22 @@ function CaptureButton({
   label,
   onClick,
   icon,
+  pressed,
 }: {
   label: string;
   onClick: () => void;
   icon: React.ReactNode;
+  /** Set only on a way in that stays chosen, like typing it in. */
+  pressed?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="press flex flex-col items-center gap-2 rounded-xl border border-line bg-bg-elevated px-2 py-3.5 text-xs font-medium hover:border-accent hover:text-accent-strong"
+      aria-pressed={pressed}
+      className={`press flex flex-col items-center gap-2 rounded-xl border px-2 py-3.5 text-xs font-medium hover:border-accent hover:text-accent-strong ${
+        pressed ? "border-accent bg-accent-soft text-accent-strong" : "border-line bg-bg-elevated"
+      }`}
     >
       <svg
         width="24"
