@@ -23,11 +23,3 @@ export function fold(value: string): string {
 export function hasWords(text: string, phrase: string): boolean {
   return phrase !== "" && ` ${text} `.includes(` ${phrase} `);
 }
-
-/**
- * Three-letter words written in capitals, as airport codes are. Lower case is
- * left alone: "del" in "Museo del Prado" and "los" in "Los Angeles" are words.
- */
-export function capitalCodes(text: string): string[] {
-  return [...text.matchAll(/(?<![A-Za-z])[A-Z]{3}(?![A-Za-z])/g)].map((match) => match[0]);
-}

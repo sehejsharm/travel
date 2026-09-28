@@ -1,6 +1,6 @@
 import type { GeoPoint, PlaceRef } from "../domain/types";
 import { getCountry } from "./countries";
-import { capitalCodes, fold, hasWords } from "./text";
+import { fold, hasWords } from "./text";
 
 export interface Airport {
   iata: string;
@@ -233,9 +233,12 @@ export function airportPlace(code?: string): PlaceRef | undefined {
 }
 
 // Words that say "an airport" without saying which one.
+// So are the joining words of a name in another language ("Aeropuerto de…"),
+// though not "del", which is also Delhi's code.
 const GENERIC = new Set([
   "airport", "airports", "aeropuerto", "aeroport", "aeroporto", "flughafen",
   "international", "intl", "int", "apt", "terminal", "the", "new", "of",
+  "de", "da", "do", "di", "du", "des", "la", "le", "el",
 ]);
 const isGeneric = (word: string) => GENERIC.has(word) || /^t?\d+[a-z]?$/.test(word);
 
@@ -254,6 +257,22 @@ const COUNTRY_ALIASES: Record<string, string[]> = {
 
 const words = (value: string) => fold(value).split(" ").filter(Boolean);
 
+/** The words that may stand beside a place in `countryCode` without pointing anywhere else. */
+export function countryWords(countryCode: string): string[] {
+  const country = getCountry(countryCode);
+  return [
+    countryCode.toLowerCase(),
+    ...(country ? words(country.name) : []),
+    ...(COUNTRY_ALIASES[countryCode] ?? []),
+  ];
+}
+
+/** Whether every word is filler, or one of `known`: nothing left pointing somewhere else. */
+export function onlyExplained(typed: string[], known: Iterable<string>): boolean {
+  const allowed = new Set(known);
+  return typed.every((word) => isGeneric(word) || allowed.has(word));
+}
+
 interface Entry {
   airport: Airport;
   code: string;
@@ -262,14 +281,12 @@ interface Entry {
   /** What only its name says, beyond its city: ["haneda"] for Tokyo Haneda; none for "Istanbul". */
   distinctive: string[];
   city: string[];
-  /** Every word that may sit beside it without casting doubt on which airport it is. */
-  explains: Set<string>;
+  explains: string[];
 }
 
 const ENTRIES: Entry[] = AIRPORT_LIST.map((airport) => {
   const city = words(airport.city);
   const name = words(airport.name).filter((word) => !isGeneric(word));
-  const country = getCountry(airport.countryCode);
   const code = airport.iata.toLowerCase();
   return {
     airport,
@@ -277,33 +294,23 @@ const ENTRIES: Entry[] = AIRPORT_LIST.map((airport) => {
     name,
     distinctive: name.filter((word) => !city.includes(word)),
     city,
-    explains: new Set([
-      code,
-      ...name,
-      ...city,
-      airport.countryCode.toLowerCase(),
-      ...(country ? words(country.name) : []),
-      ...(COUNTRY_ALIASES[airport.countryCode] ?? []),
-    ]),
+    explains: [code, ...name, ...city, ...countryWords(airport.countryCode)],
   };
 });
 
+// How strongly the text points at an airport, strongest first.
+const EVIDENCE = ["code", "distinctive", "name", "city"] as const;
+
 /**
- * The airport someone means by what they typed into a flight's From or To.
- *
- * - A picked suggestion ("Tokyo Haneda (HND)"), or a code on its own ("hnd").
- * - A code written in capitals beside anything ("Delhi DEL", "Los Angeles
- *   LAX", "Istanbul SAW"). Lower case is not a code: "Los" and "del" are words.
- * - The words only its own name has ("Haneda", "Sabiha Gokcen", "Charles de
- *   Gaulle", "Indira Gandhi International Airport, New Delhi").
- * - Its name or city, with nothing beside it but words that explain it — its
- *   code, "airport", its country ("Dubai International Airport, UAE",
- *   "Frankfurt, Germany", "Hyderabad, India"). Where a city has two airports,
- *   the one named after the city wins ("Istanbul Airport").
- *
- * Anything else is left for the person to settle rather than guessed: a city
- * with two airports ("Tokyo"), two codes ("DEL to HND"), or a word that points
- * somewhere not on the list ("Milan Linate" is not Malpensa).
+ * The airport someone means by what they typed into a flight's From or To —
+ * settled only when the text leaves no doubt. Something must point at it (its
+ * code, its name, the words only its name has, or its city) and every other
+ * word must belong to it too: "airport", its country, a US state. So "Delhi
+ * DEL", "Los Angeles International Airport, USA", "LOS ANGELES", "Istanbul
+ * Sabiha Gokcen" and "Dubai International Airport, UAE" settle; "Charles de
+ * Gaulle or Orly", "Milan Linate", "Tokyo" and "Museo del Prado" do not, and
+ * are left for the traveller to pick from the list. A wrong airport is worse
+ * than none: it puts the time on another country's clock.
  */
 export function findAirport(text: string): Airport | undefined {
   const bracketed = getAirport(text.match(/\(([A-Za-z]{3})\)\s*$/)?.[1]);
@@ -311,31 +318,29 @@ export function findAirport(text: string): Airport | undefined {
 
   const typed = words(text);
   if (typed.length === 0) return undefined;
-  if (typed.length === 1 && typed[0].length === 3 && getAirport(typed[0])) return getAirport(typed[0]);
-
-  const codes = new Set(capitalCodes(text).filter((code) => getAirport(code)));
-  if (codes.size === 1) return getAirport([...codes][0]);
-  if (codes.size > 1) return undefined;
-
-  const longest = ENTRIES.filter(
-    (entry) => entry.distinctive.length > 0 && hasWords(typed.join(" "), entry.distinctive.join(" ")),
-  ).sort((a, b) => b.distinctive.length - a.distinctive.length);
-  if (longest.length > 0 && longest[0].distinctive.length > (longest[1]?.distinctive.length ?? 0)) {
-    return longest[0].airport;
-  }
-
   const said = typed.join(" ");
-  const explained = ENTRIES.filter(
-    (entry) =>
-      (hasWords(said, entry.city.join(" ")) || hasWords(said, entry.name.join(" ")) || typed.includes(entry.code)) &&
-      typed.every((word) => isGeneric(word) || entry.explains.has(word)),
-  );
-  if (explained.length === 1) return explained[0].airport;
-  const namedHere = explained.filter((entry) => hasWords(said, entry.name.join(" ")));
-  return namedHere.length === 1 ? namedHere[0].airport : undefined;
+
+  const strength = (entry: Entry): number => {
+    const found = [
+      typed.includes(entry.code),
+      entry.distinctive.length > 0 && hasWords(said, entry.distinctive.join(" ")),
+      entry.name.length > 0 && hasWords(said, entry.name.join(" ")),
+      hasWords(said, entry.city.join(" ")),
+    ];
+    const best = found.findIndex(Boolean);
+    return best === -1 ? -1 : EVIDENCE.length - best;
+  };
+
+  const settled = ENTRIES.map((entry) => ({ entry, strength: strength(entry) }))
+    .filter(({ entry, strength }) => strength > 0 && onlyExplained(typed, entry.explains))
+    .sort((a, b) => b.strength - a.strength);
+
+  if (settled.length === 0) return undefined;
+  if (settled.length > 1 && settled[1].strength === settled[0].strength) return undefined;
+  return settled[0].entry.airport;
 }
 
-/** Airport codes written in capitals in the text, as a traveller names a connection. */
+/** Every airport code the text names, in any case: "NRT/HND", "nrt or hnd". */
 export function airportCodesIn(text: string): Airport[] {
-  return [...new Set(capitalCodes(text))].flatMap((code) => getAirport(code) ?? []);
+  return [...new Set(words(text))].flatMap((word) => (word.length === 3 ? getAirport(word) ?? [] : []));
 }

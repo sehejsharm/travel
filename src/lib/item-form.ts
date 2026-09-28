@@ -1,7 +1,18 @@
-import type { Money } from "./domain/types";
+import type { Money, PlaceRef } from "./domain/types";
 import { offsetOf } from "./datetime";
 import { offsetSuffix } from "./extract/patterns";
+import {
+  airportCodesIn,
+  airportPlace,
+  AIRPORT_LIST,
+  countryWords,
+  findAirport,
+  onlyExplained,
+} from "./reference/airports";
+import { CITIES } from "./reference/cities";
 import { getCountry } from "./reference/countries";
+import { groundPlace } from "./reference/places";
+import { fold, hasWords } from "./reference/text";
 
 /**
  * The rules an item's form holds its fields to, shared by the editor and by
@@ -74,4 +85,63 @@ export function readCost(amountText: string, currency: string): CostReading {
   if (!currency) return { amount, problem: "currency" };
 
   return { amount, cost: { amount, currency } };
+}
+
+/**
+ * What a typed place resolves to, exactly as it will be filed — on the Add
+ * screen and in the editor alike. A flight's ends are airports, built as the
+ * extractor builds them; anything else is grounded as the editor always has.
+ *
+ * A flight's end that names no single airport is never pinned to one: a wrong
+ * airport puts the time on another country's clock, and one without its code
+ * is invisible to the layover checks. It keeps the city it plainly names —
+ * "NRT/HND" and "Tokyo NRT/HND" are Tokyo — and otherwise just its name, for
+ * the traveller to settle from the list.
+ */
+export function resolvePlace(text: string, airports = false): PlaceRef | undefined {
+  const name = text.trim();
+  if (!name) return undefined;
+  if (!airports) return groundPlace(name) ?? { name };
+
+  const airport = findAirport(name);
+  if (airport) return airportPlace(airport.iata);
+  return plainCity(name) ?? { name };
+}
+
+// Joining words between two airports named at once.
+const JOINERS = ["or", "and", "to"];
+
+function plainCity(name: string): PlaceRef | undefined {
+  const typed = fold(name).split(" ").filter(Boolean);
+  const said = typed.join(" ");
+
+  // Codes that all belong to one city say that city, with or without its name.
+  const codes = airportCodesIn(name);
+  if (codes.length > 0 && codes.every((entry) => entry.city === codes[0].city)) {
+    const [first] = codes;
+    const allowed = [
+      ...codes.map((entry) => entry.iata.toLowerCase()),
+      ...fold(first.city).split(" "),
+      ...countryWords(first.countryCode),
+      ...JOINERS,
+    ];
+    if (onlyExplained(typed, allowed)) return cityPlace(name, first.city, first.countryCode);
+  }
+
+  // A city named outright, with nothing beside it pointing somewhere else:
+  // "Frankfurt, Germany" is Frankfurt; "Manchester, NH" is not Manchester, UK.
+  const named = CITIES.filter((city) => hasWords(said, fold(city.name))).filter((city) =>
+    onlyExplained(typed, [
+      ...fold(city.name).split(" "),
+      ...countryWords(city.countryCode),
+      ...AIRPORT_LIST.filter((entry) => entry.city === city.name).map((entry) => entry.iata.toLowerCase()),
+    ]),
+  );
+  return named.length === 1 ? cityPlace(name, named[0].name, named[0].countryCode) : undefined;
+}
+
+/** A place known to its city and country, pinned on the city itself when the city is known. */
+function cityPlace(name: string, city: string, countryCode: string): PlaceRef {
+  const known = CITIES.find((entry) => entry.name === city);
+  return { name, city, countryCode, point: known?.point };
 }

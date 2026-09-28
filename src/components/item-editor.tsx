@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { addHours, fromLocalInput, offsetOf, toLocalInput } from "@/lib/datetime";
-import type { BookingKind, ItemCategory, Trip, TripItem } from "@/lib/domain/types";
-import { endsBeforeStart, offsetForCountry, readCost } from "@/lib/item-form";
-import { groundPlace } from "@/lib/reference/places";
+import type { BookingKind, ItemCategory, PlaceRef, Trip, TripItem } from "@/lib/domain/types";
+import { endsBeforeStart, offsetForCountry, readCost, resolvePlace } from "@/lib/item-form";
 import { removeItem, unscheduleItem, updateItem } from "@/lib/store/state";
 import { Field, GhostButton, PrimaryButton, Segmented, Select, TextInput } from "./form";
 import {
@@ -100,8 +99,7 @@ function ItemEditorForm({
     const known = offsetOf(existing);
     if (known) return known;
 
-    const grounded = groundPlace(draft.placeName);
-    return offsetForCountry(grounded?.countryCode ?? item.place?.countryCode);
+    return offsetForCountry(placeFor(draft.placeName)?.countryCode ?? item.place?.countryCode);
   }
 
   function save() {
@@ -111,16 +109,7 @@ function ItemEditorForm({
     const typedEnd = fromLocalInput(draft.endsAt, offsetFor(item.endsAt) || startOffset);
     const endsAt = endsBeforeStart(startsAt, typedEnd) ? undefined : typedEnd;
 
-    // A place left as it was is kept exactly as filed: grounding its name
-    // again would lose what only the filing knew, like a flight's airport
-    // code. A renamed one is grounded afresh and keeps no stale pin; spaces
-    // alone are no place.
-    const placeName = draft.placeName.trim();
-    const place = !placeName
-      ? undefined
-      : placeName === item.place?.name
-        ? item.place
-        : (groundPlace(placeName) ?? { name: placeName });
+    const place = placeFor(draft.placeName);
 
     // A price that is not a number, or has no currency, is left off.
     const { cost } = readCost(draft.costAmount, draft.costCurrency);
@@ -147,6 +136,20 @@ function ItemEditorForm({
     const startsAt = `${trip.startDate}T09:00`;
     set("startsAt", startsAt);
     set("endsAt", toLocalInput(addHours(`${startsAt}:00`, 2)));
+  }
+
+  /**
+   * Where the place field lands, for its preview and for Save alike. A place
+   * left as it was is kept exactly as filed: grounding its name again would
+   * lose what only the filing knew, like a flight's airport code. A renamed
+   * one is resolved afresh — a flight's end as an airport, as on the Add
+   * screen — and keeps no stale pin. Spaces alone are no place.
+   */
+  function placeFor(text: string): PlaceRef | undefined {
+    const name = text.trim();
+    if (!name) return undefined;
+    if (item.place && name === item.place.name.trim()) return item.place;
+    return resolvePlace(name, draft.category === "booking" && draft.bookingKind === "flight");
   }
 
   // A time filed on another clock (a flight landing elsewhere) can read earlier than it left.
@@ -228,7 +231,11 @@ function ItemEditorForm({
         />
 
         <FieldGroup>
-          <PlaceField value={draft.placeName} onChange={(value) => set("placeName", value)} />
+          <PlaceField
+            value={draft.placeName}
+            onChange={(value) => set("placeName", value)}
+            resolve={placeFor}
+          />
         </FieldGroup>
 
         <CostFields

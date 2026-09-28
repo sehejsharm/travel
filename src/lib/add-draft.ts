@@ -66,7 +66,7 @@ function save(next: AddDraft): boolean {
   try {
     const store = storage();
     store?.setItem(KEY, JSON.stringify(next));
-    kept = store !== undefined;
+    kept = store !== undefined && store !== null;
   } catch {
     // Private windows and full storage still keep it for as long as the app is open.
   }

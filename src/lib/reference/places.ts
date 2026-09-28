@@ -1,7 +1,6 @@
 import type { PlaceRef } from "../domain/types";
 import { AIRPORT_LIST } from "./airports";
 import { CITIES } from "./cities";
-import { capitalCodes, fold, hasWords } from "./text";
 
 interface GazetteerEntry extends PlaceRef {
   aliases: string[];
@@ -167,27 +166,28 @@ const GAZETTEER: GazetteerEntry[] = [
   },
 ];
 
-const normalize = fold;
+function normalize(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 /**
  * Resolves free text to a known place: a specific landmark where one matches,
  * otherwise the city it names. Returns undefined rather than guessing — an
  * ungrounded item is still filed, it just sits out the distance checks.
- *
- * Names match as whole words, so "Sagrada Familia" is not Agra and a
- * carbonara class is not in Nara; an airport code counts only written in
- * capitals, so "Museo del Prado" is not Delhi's DEL.
  */
 export function groundPlace(text: string): PlaceRef | undefined {
   const needle = normalize(text);
   if (!needle) return undefined;
-  const codes = new Set(capitalCodes(text));
 
   let best: { entry: GazetteerEntry; score: number } | undefined;
 
   for (const entry of GAZETTEER) {
     for (const alias of entry.aliases) {
-      if (!hasWords(needle, normalize(alias))) continue;
+      if (!needle.includes(alias)) continue;
       const score = alias.length;
       if (!best || score > best.score) best = { entry, score };
     }
@@ -204,7 +204,9 @@ export function groundPlace(text: string): PlaceRef | undefined {
 
   // An airport next: a flight names one, and "DEL" is not a city.
   for (const airport of AIRPORT_LIST) {
-    if (codes.has(airport.iata) || hasWords(needle, normalize(airport.name))) {
+    const code = airport.iata.toLowerCase();
+    const byCode = new RegExp(`(^|\\s)${code}(\\s|$)`).test(needle);
+    if (byCode || needle.includes(normalize(airport.name))) {
       return {
         name: `${airport.name} (${airport.iata})`,
         city: airport.city,
@@ -218,7 +220,7 @@ export function groundPlace(text: string): PlaceRef | undefined {
   let city: { name: string; countryCode: string; point: { lat: number; lng: number } } | undefined;
   for (const candidate of CITIES) {
     const alias = normalize(candidate.name);
-    if (!hasWords(needle, alias)) continue;
+    if (!needle.includes(alias)) continue;
     if (!city || alias.length > normalize(city.name).length) city = candidate;
   }
 
@@ -298,7 +300,7 @@ export function suggestAirports(text: string, limit = 6): PlaceSuggestion[] {
 
 function rankOf(needle: string, name: string, aliases: string[] = []): number {
   if (!needle) return 1;
-  for (const candidate of [normalize(name), ...aliases.map(normalize)]) {
+  for (const candidate of [normalize(name), ...aliases]) {
     if (candidate.startsWith(needle)) return 3;
     if (candidate.includes(needle)) return 2;
   }

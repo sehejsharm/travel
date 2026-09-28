@@ -122,8 +122,12 @@ function fieldId(key: ManualErrorKey, kind: ManualKind): string {
 }
 
 // How a flight's ends and other typed places are looked up while typing.
-const resolveAirport = (text: string) => resolvePlace(text, true);
-const isAirport = (place: PlaceRef) => Boolean(place.airport);
+const FLIGHT_END = {
+  resolve: (text: string) => resolvePlace(text, true),
+  suggest: suggestAirports,
+  pinned: (place: PlaceRef) => Boolean(place.airport),
+  unsettled: "Pick the airport from the list, so its time is on the right clock",
+};
 const suggestWhenTyped = (text: string) => (text.trim() ? suggestPlaces(text) : []);
 
 /** Focus by id once the render in progress has landed. */
@@ -387,9 +391,7 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
                   value={values.from}
                   onChange={(value) => set({ from: value })}
                   placeholder={kind === "flight" ? "DEL or Delhi" : "Tokyo"}
-                  {...(kind === "flight"
-                    ? { resolve: resolveAirport, suggest: suggestAirports, pinned: isAirport }
-                    : { resolve: resolvePlace, suggest: suggestWhenTyped })}
+                  {...(kind === "flight" ? FLIGHT_END : { resolve: resolvePlace, suggest: suggestWhenTyped })}
                   map={false}
                 />
                 <PlaceField
@@ -398,9 +400,7 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
                   value={values.to}
                   onChange={(value) => set({ to: value })}
                   placeholder={kind === "flight" ? "HND or Tokyo Haneda" : "Kyoto"}
-                  {...(kind === "flight"
-                    ? { resolve: resolveAirport, suggest: suggestAirports, pinned: isAirport }
-                    : { resolve: resolvePlace, suggest: suggestWhenTyped })}
+                  {...(kind === "flight" ? FLIGHT_END : { resolve: resolvePlace, suggest: suggestWhenTyped })}
                   map={false}
                 />
               </div>

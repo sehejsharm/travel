@@ -106,6 +106,13 @@ describe("the Add screen's unfinished work", () => {
     expect(draft.getAddDraft().manual.name).toBe("Tea ceremony");
   });
 
+  it("says a share is not kept when storage is switched off, so its address stays", async () => {
+    vi.stubGlobal("window", { sessionStorage: null });
+    const draft = await fresh();
+    expect(draft.takeShare("https://www.instagram.com/reel/C9xArashiyama/")).toBe(false);
+    expect(draft.getAddDraft().text).toBe("https://www.instagram.com/reel/C9xArashiyama/");
+  });
+
   it("hands out a new snapshot on each change, which is what re-renders the form", async () => {
     const draft = await fresh();
     const before = draft.getAddDraft();

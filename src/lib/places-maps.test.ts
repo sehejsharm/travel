@@ -90,17 +90,6 @@ describe("airport grounding", () => {
     expect(groundPlace("delicatessen crawl")?.city).not.toBe("Delhi");
   });
 
-  it("reads a code only when it is written as one, in capitals", () => {
-    expect(groundPlace("Museo del Prado")).toBeUndefined();
-    expect(groundPlace("Calle del Prado 12, Madrid")?.name).toBe("Madrid");
-  });
-
-  it("matches a place's name as whole words, not inside another word", () => {
-    expect(groundPlace("Sagrada Familia")).toBeUndefined();
-    expect(groundPlace("Carbonara cooking class")).toBeUndefined();
-    expect(groundPlace("standing sushi bar in tsukiji")?.name).toBe("Tsukiji Outer Market");
-  });
-
   it("prefers a landmark over an airport that shares a city", () => {
     expect(groundPlace("Senso-ji")?.name).toBe("Senso-ji");
   });

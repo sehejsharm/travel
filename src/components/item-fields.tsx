@@ -118,6 +118,7 @@ export function PlaceField({
   suggest = suggestPlaces,
   pinned = (place) => Boolean(place.point),
   map = true,
+  unsettled,
   id,
   error,
 }: {
@@ -131,6 +132,8 @@ export function PlaceField({
   /** Whether the place found is settled enough to stop suggesting. */
   pinned?: (place: PlaceRef) => boolean;
   map?: boolean;
+  /** Said while the text has not settled on one place, in place of the plain hint. */
+  unsettled?: string;
   id?: string;
   error?: string;
 }) {
@@ -153,9 +156,13 @@ export function PlaceField({
         label={label}
         error={error}
         hint={
-          value.trim() && !grounded
-            ? "No coordinates for this name, so it sits out the distance checks"
-            : undefined
+          !value.trim()
+            ? undefined
+            : unsettled && !settled
+              ? unsettled
+              : !grounded
+                ? "No coordinates for this name, so it sits out the distance checks"
+                : undefined
         }
       >
         <TextInput

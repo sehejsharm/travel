@@ -138,10 +138,8 @@ describe("a typed flight", () => {
     expect(tokyo).toMatchObject({ name: "NRT/HND", city: "Tokyo", countryCode: "JP" });
     expect(tokyo?.airport).toBeUndefined();
 
-    // An airport off the list, beside a city on it: that city's country, not its airport.
-    const hahn = resolvePlace("Frankfurt Hahn", true);
-    expect(hahn).toMatchObject({ name: "Frankfurt Hahn", countryCode: "DE" });
-    expect(hahn?.airport).toBeUndefined();
+    // An airport off the list, beside a city on it: not that city's airport, nor a guess at its country.
+    expect(resolvePlace("Frankfurt Hahn", true)).toEqual({ name: "Frankfurt Hahn" });
 
     // So a same-day flight east across the date line still files, on the right clocks.
     const { draft, errors } = buildManualDraft(
@@ -225,11 +223,30 @@ describe("clocks and places the extractor would have found", () => {
       buildManualDraft(values({ kind: "lodging", name: "Mandarin Oriental", startsAt: "2026-10-02T15:00", endsAt: "2026-10-05T11:00" }), touching).draft,
     ).toMatchObject({ startsAt: "2026-10-02T15:00:00+07:00", endsAt: "2026-10-05T11:00:00+07:00" });
 
-    // Outside the trip's dates, the trip says nothing about where it is.
+    // Anything but a stay keeps one clock, even across the travel day.
+    const dinner = values({ kind: "activity", name: "Seine dinner cruise", startsAt: "2026-10-05T19:00", endsAt: "2026-10-05T22:00" });
+    const westward = {
+      destinationCountries: ["JP", "FR"],
+      legs: [
+        { id: "a", countryCode: "JP", startDate: "2026-10-01", endDate: "2026-10-05" },
+        { id: "b", countryCode: "FR", startDate: "2026-10-05", endDate: "2026-10-10" },
+      ],
+    };
+    expect(buildManualDraft(dinner, westward)).toMatchObject({
+      errors: {},
+      draft: { startsAt: "2026-10-05T19:00:00+01:00", endsAt: "2026-10-05T22:00:00+01:00" },
+    });
+
+    // Outside the trip's dates the trip says nothing, for either end: a stay
+    // the night before, out on the first morning, is not on the trip's clock.
     const dated = { destinationCountries: ["JP"], startDate: "2026-10-01", endDate: "2026-10-10" };
     expect(
-      buildManualDraft(values({ kind: "lodging", name: "Hilton SFO", startsAt: "2026-09-30T20:00", endsAt: "2026-09-30T23:00" }), dated).draft?.startsAt,
-    ).toBe("2026-09-30T20:00:00");
+      buildManualDraft(values({ kind: "lodging", name: "Hilton SFO", startsAt: "2026-09-30T20:00", endsAt: "2026-10-01T08:00" }), dated).draft,
+    ).toMatchObject({ startsAt: "2026-09-30T20:00:00", endsAt: "2026-10-01T08:00:00" });
+    // Nor for a last night that checks out the morning after the trip ends.
+    expect(
+      buildManualDraft(values({ kind: "lodging", name: "Airport hotel", startsAt: "2026-10-10T20:00", endsAt: "2026-10-11T08:00" }), dated).draft,
+    ).toMatchObject({ startsAt: "2026-10-10T20:00:00", endsAt: "2026-10-11T08:00:00" });
 
     // Two countries and no legs: no guess.
     expect(buildManualDraft(bangkok, { destinationCountries: ["JP", "TH"] }).draft?.startsAt).toBe(
@@ -455,8 +472,20 @@ describe("airports typed by hand", () => {
     ["Aeropuerto de Málaga-Costa del Sol", "AGP"],
     ["Zagreb Franjo Tuđman Airport", "ZAG"],
     ["delhi del", "DEL"],
-    // Lower case is a word, not a code: "Los" is not Lagos, "del" is not Delhi.
-    ["Los Angeles, California", undefined],
+    // Printed in capitals on an e-ticket: still names, not codes.
+    ["LOS ANGELES", "LAX"],
+    ["LOS ANGELES INTERNATIONAL AIRPORT", "LAX"],
+    ["MÁLAGA-COSTA DEL SOL", "AGP"],
+    ["FRANJO TUĐMAN", "ZAG"],
+    ["Costa del Sol", "AGP"],
+    // Left for the traveller: two airports at once, an airport not on the
+    // list, a word pointing at another country, a word that only looks like a code.
+    ["Charles de Gaulle or Orly", undefined],
+    ["Suvarnabhumi or Don Mueang", undefined],
+    ["Lansing Capital Region International Airport", undefined],
+    ["Manchester, NH", undefined],
+    ["Melbourne, FL", undefined],
+    ["Museo del Prado", undefined],
     ["Frankfurt/Main", undefined],
     ["NRT/HND", undefined],
   ];
@@ -513,6 +542,11 @@ describe("airports typed by hand", () => {
     expect(resolvePlace("HND", true)).toEqual(airportPlace("HND"));
     // Anywhere but a flight's ends, a code is just text to ground.
     expect(resolvePlace("HND")?.airport).toBeUndefined();
+    // Unsettled, a flight's end keeps only a city it plainly names.
+    expect(resolvePlace("Manchester, NH", true)).toEqual({ name: "Manchester, NH" });
+    expect(resolvePlace("Frankfurt, Germany", true)?.airport).toBe("FRA");
+    expect(resolvePlace("nrt or hnd", true)).toMatchObject({ city: "Tokyo", countryCode: "JP" });
+    expect(resolvePlace("Tokyo NRT/HND", true)).toMatchObject({ city: "Tokyo", countryCode: "JP" });
     expect(resolvePlace("   ")).toBeUndefined();
   });
 });

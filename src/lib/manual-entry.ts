@@ -1,10 +1,7 @@
 import type { BookingKind, CostStatus, ItemCategory, PlaceRef, Trip } from "./domain/types";
 import type { ItemDraft } from "./extract/types";
 import { fromLocalInput } from "./datetime";
-import { endsBeforeStart, offsetForCountry, readCost } from "./item-form";
-import { airportCodesIn, airportPlace, findAirport } from "./reference/airports";
-import { CITIES } from "./reference/cities";
-import { groundPlace } from "./reference/places";
+import { endsBeforeStart, offsetForCountry, readCost, resolvePlace } from "./item-form";
 
 /**
  * Typing an item in by hand. What comes out is the same ItemDraft the
@@ -127,44 +124,8 @@ export function toManualValues(value: unknown): ManualValues {
   return values;
 }
 
-/**
- * What a typed place resolves to, exactly as it will be filed. A flight's
- * ends are airports first, built as the extractor builds them; anything else
- * is grounded like a place typed into the editor.
- *
- * A flight's end that names no single airport is never pinned to an airport
- * without its code — the layover and transit checks could not see it — but it
- * keeps the city and country it is plainly in, so its time is on the right
- * clock: "NRT/HND" is Tokyo, "Frankfurt Hahn" is in Germany.
- */
-export function resolvePlace(text: string, airports = false): PlaceRef | undefined {
-  const name = text.trim();
-  if (!name) return undefined;
-  if (!airports) return groundPlace(name) ?? { name };
-
-  const airport = findAirport(name);
-  if (airport) return airportPlace(airport.iata);
-
-  const named = airportCodesIn(name);
-  if (named.length > 1) {
-    const [first] = named;
-    const oneCountry = named.every((entry) => entry.countryCode === first.countryCode);
-    const oneCity = oneCountry && named.every((entry) => entry.city === first.city);
-    return oneCountry ? cityPlace(name, oneCity ? first.city : undefined, first.countryCode) : { name };
-  }
-
-  const grounded = groundPlace(name);
-  if (grounded?.name.match(/\([A-Z]{3}\)$/)) {
-    return cityPlace(name, grounded.city, grounded.countryCode);
-  }
-  return grounded ?? { name };
-}
-
-/** A place known to its city and country, pinned on the city itself when the city is known. */
-function cityPlace(name: string, city: string | undefined, countryCode: string | undefined): PlaceRef {
-  const known = city ? CITIES.find((entry) => entry.name === city) : undefined;
-  return { name, city, countryCode, point: known?.point };
-}
+/** Where a typed place lands, shared with the editor so both file the same thing. */
+export { resolvePlace } from "./item-form";
 
 const TRANSIT_NOUNS: Record<TransitKind, string> = { rail: "Train", car: "Car", other: "Transfer" };
 
@@ -244,19 +205,15 @@ export type TripClock = Partial<
 
 /**
  * Where the trip is on a date: the leg that covers it, or its one
- * destination — and nowhere, before or after the trip. Legs share their
- * travel day, so an arrival on it belongs to the leg starting that day and a
- * departure to the leg ending it: check-in in Tokyo, check-out in Bangkok.
+ * destination. Legs share their travel day, so an arrival on it belongs to
+ * the leg starting that day and a departure to the leg ending it: check-in in
+ * Tokyo, check-out in Bangkok.
  */
 function tripCountryOn(
-  trip: TripClock | undefined,
+  trip: TripClock,
   date: string,
   side: "arriving" | "leaving",
 ): string | undefined {
-  if (!trip || !date) return undefined;
-  const dated = !trip.datesTbd && trip.startDate && trip.endDate;
-  if (dated && (date < trip.startDate! || date > trip.endDate!)) return undefined;
-
   const covering = (trip.legs ?? []).filter((leg) => leg.startDate <= date && date <= leg.endDate);
   if (covering.length > 0) {
     const onTheDay = covering.find((leg) =>
@@ -272,8 +229,12 @@ function tripCountryOn(
  * The offsets an item's two times are filed with. Each end is on its own
  * country's clock, as the extractor has a flight; an end whose country is not
  * known borrows the other end's, so the two are never read on different
- * clocks. With neither known — a stay typed with no place, a train between
- * two places the gazetteer lacks — the trip itself says where it is that day.
+ * clocks — one with an offset and one in the device's zone.
+ *
+ * With neither place known — a stay typed with no place, a train between two
+ * places the gazetteer lacks — the trip says where it is that day, as long as
+ * the whole item falls within the trip. Only a stay may span two clocks (in
+ * on one leg's last day, out on the next leg's); anything else keeps one.
  * The place is never guessed from the name: "Museo del Prado" is not in Delhi.
  */
 export function itemOffsets(
@@ -281,14 +242,26 @@ export function itemOffsets(
   to: PlaceRef | undefined,
   trip?: TripClock,
   dates: { start?: string; end?: string } = {},
+  kind?: ManualKind,
 ): { start: string; end: string } {
   const start = offsetForCountry(from?.countryCode);
   const end = offsetForCountry(to?.countryCode);
-  if (start || end) return { start: start || end, end: end || start };
-  return {
-    start: offsetForCountry(tripCountryOn(trip, dates.start ?? "", "arriving")),
-    end: offsetForCountry(tripCountryOn(trip, dates.end || dates.start || "", "leaving")),
-  };
+  if (start || end || !trip) return { start: start || end, end: end || start };
+
+  const days = [dates.start, dates.end].filter((day): day is string => Boolean(day));
+  const dated = !trip.datesTbd && trip.startDate && trip.endDate;
+  if (days.length === 0) return { start: "", end: "" };
+  if (dated && days.some((day) => day < trip.startDate! || day > trip.endDate!)) {
+    return { start: "", end: "" };
+  }
+
+  const first = days[0];
+  const arriving = offsetForCountry(tripCountryOn(trip, first, "arriving"));
+  const leaving =
+    kind === "lodging" && dates.end
+      ? offsetForCountry(tripCountryOn(trip, dates.end, "leaving"))
+      : arriving;
+  return { start: arriving || leaving, end: leaving || arriving };
 }
 
 // "AI 142", "6E204", "EK-511", "BA 1A": a carrier code, then the number.
@@ -310,10 +283,13 @@ export function buildManualDraft(values: ManualValues, trip?: TripClock): Manual
     errors.flightNumber = "A flight number looks like AI 142";
   }
 
-  const offsets = itemOffsets(place, arrivalPlace, trip, {
-    start: values.startsAt.slice(0, 10),
-    end: values.endsAt.slice(0, 10),
-  });
+  const offsets = itemOffsets(
+    place,
+    arrivalPlace,
+    trip,
+    { start: values.startsAt.slice(0, 10), end: values.endsAt.slice(0, 10) },
+    values.kind,
+  );
   const startsAt = fromLocalInput(values.startsAt, offsets.start);
   const endsAt = fromLocalInput(values.endsAt, offsets.end);
   if (endsAt && !startsAt) errors.startsAt = "Add when it starts as well";
