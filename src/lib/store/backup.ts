@@ -17,7 +17,12 @@ export interface Backup {
   state: AppState;
 }
 
-export function buildBackup(state: AppState = getSnapshot()): Backup {
+export function buildBackup(snapshot: AppState = getSnapshot()): Backup {
+  // A diversion is where someone is this afternoon, not part of the trip, and
+  // a restore never brings one back — so it is not written out either.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { divert, ...state } = snapshot;
+
   return {
     format: "manifest.backup",
     version: BACKUP_VERSION,
@@ -86,12 +91,16 @@ export function restore(backup: Backup, mode: RestoreMode): void {
   }
 
   const current = getSnapshot();
+  const trips = mergeById(current.trips, backup.state.trips);
   const merged: AppState = {
-    trips: mergeById(current.trips, backup.state.trips),
+    trips,
     items: mergeById(current.items, backup.state.items),
     checklist: mergeById(current.checklist, backup.state.checklist),
     advice: [...(current.advice ?? []), ...(backup.state.advice ?? [])],
     activeTripId: backup.state.activeTripId || current.activeTripId,
+    // Merging keeps what is on the device, including someone out on their own,
+    // for as long as the merged trip still has them in a group (see tidy()).
+    divert: current.divert,
   };
 
   replaceState(merged);

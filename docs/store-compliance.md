@@ -18,6 +18,7 @@ behaviour changes, this file and `/legal/privacy` both have to change with it.
 | Trip purpose, legs and cover (local only) | `src/lib/trip-purpose.ts`, `src/lib/rules/shared.ts` |
 | Passport country and expiry, per traveller (local only) | `src/components/traveler-quick-add.tsx`, `src/lib/rules/compliance.ts` |
 | Home-country guess from locale/timezone (no network, no location) | `src/lib/reference/home-country.ts` |
+| Divert from group: who broke off, the chosen spot and when (local only, drawn as an inline map, no location read, no network) | `src/lib/divert/`, `src/components/divert/`, `src/lib/store/state.ts` |
 
 ---
 
@@ -32,7 +33,7 @@ retained*. Manifest retains nothing, so almost everything is "Not Collected".
 | Contact info (name, email, phone) | **No** | No account, no sign-in, no email capture. Traveller names are typed by the user and never leave the device. |
 | Health & fitness | **No** | Vaccination *requirements* are reference data about a country, not a record about the user. |
 | Financial info | **No** | Prices and budgets are stored on device only. No payment is ever taken. |
-| Location | **No** | Location permission is never requested. Maps centre on filed places, not on the device. The "flying from" default is inferred from the browser's own locale and IANA timezone (`Intl.DateTimeFormat().resolvedOptions()`) — a setting already on the device, not a geolocation lookup, and it never leaves it. Worth stating in review notes, since "guesses your country" invites the question. |
+| Location | **No** | Location permission is never requested. Maps centre on filed places, not on the device. Divert from group works out where the group is from the trip's own timeline and a simulated or real clock, never from the device. The "flying from" default is inferred from the browser's own locale and IANA timezone (`Intl.DateTimeFormat().resolvedOptions()`) — a setting already on the device, not a geolocation lookup, and it never leaves it. Worth stating in review notes, since "guesses your country" invites the question. |
 | Sensitive info | **No** | Passport country and expiry are captured during trip creation and stored on device only. They are read by the compliance rules, which run entirely locally against bundled reference data, and are never transmitted. |
 | Contacts | **No** | The address book is never read. |
 | User content (photos, other) | **No — but disclose in review notes** | A screenshot is *transmitted* for extraction and immediately discarded; it is not retained, so it is not "collected" under Apple's definition. Say so explicitly in the review notes to avoid a rejection for under-disclosure. |
