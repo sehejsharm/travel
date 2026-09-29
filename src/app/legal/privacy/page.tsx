@@ -21,6 +21,12 @@ export default function PrivacyPolicy() {
           were asked to.
         </p>
         <p>
+          Whatever you are part way through adding on the Add screen — an item you are typing in, or
+          text you pasted or shared to be read — is kept in this browser tab only, so looking
+          something up elsewhere does not lose it. It goes when you file it, clear it, or close the
+          tab, and is never part of a backup.
+        </p>
+        <p>
           Three things do leave your device, all of them started by something you did. They are
           listed in full below.
         </p>
@@ -90,8 +96,8 @@ export default function PrivacyPolicy() {
 
       <Section heading="3. Maps">
         <p>
-          Where a map is shown — on the cabinet map view and in an item&rsquo;s editor — it is a
-          Google Maps embed loaded by your browser. That is a direct connection from your device to
+          Where a map is shown — on the cabinet map view, in an item&rsquo;s editor, and under a
+          place you type in on the Add screen — it is a Google Maps embed loaded by your browser. That is a direct connection from your device to
           Google, which means Google receives your IP address, your browser details, and the
           coordinates or place name being displayed, under{" "}
           <a

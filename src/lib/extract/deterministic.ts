@@ -1,5 +1,5 @@
 import type { BookingKind, ItemCategory, PlaceRef } from "../domain/types";
-import { getAirport } from "../reference/airports";
+import { airportPlace } from "../reference/airports";
 import { getCountry } from "../reference/countries";
 import { groundPlace } from "../reference/places";
 import {
@@ -52,18 +52,6 @@ function deriveTitle(text: string, place?: PlaceRef): string {
   if (cleaned && cleaned.length <= 70) return cleaned;
   if (place) return place.name;
   return cleaned?.slice(0, 67).concat("…") ?? "Untitled item";
-}
-
-function airportPlace(code?: string): PlaceRef | undefined {
-  const airport = getAirport(code);
-  if (!airport) return undefined;
-  return {
-    name: airport.name,
-    city: airport.city,
-    countryCode: airport.countryCode,
-    point: airport.point,
-    airport: airport.iata,
-  };
 }
 
 function offsetFor(place?: PlaceRef): number | undefined {

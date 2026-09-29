@@ -1,14 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
+import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "@/components/filing";
+import { ManualAddTripItem } from "@/components/manual-add-trip-item";
 import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
+import { editReadText, setAddMode, takeShare, useAddDraft, type AddMode } from "@/lib/add-draft";
 import { prepareImage, requestExtraction, sourceForText, type CaptureImage } from "@/lib/capture";
 import { SOURCE_LABELS, type TripItem } from "@/lib/domain/types";
-import type { ExtractionResult, ItemDraft } from "@/lib/extract/types";
+import type { ExtractionResult } from "@/lib/extract/types";
+import { fileDraft } from "@/lib/filing";
 import { formatMoney } from "@/lib/reference/fx";
-import { addItem, startTripFromDraft, updateItem } from "@/lib/store/state";
+import { updateItem } from "@/lib/store/state";
 import { findDuplicates, mergeInto, type DuplicateMatch } from "@/lib/dedupe";
 import { useTripView } from "@/lib/store/use-store";
 
@@ -53,10 +56,31 @@ export default function AddScreen() {
 function AddScreenInner() {
   const { trip, items, hydrated } = useTripView();
   const shared = useSearchParams();
-  // Arriving from the OS share sheet, the content is already in the URL.
-  const [text, setText] = useState(() =>
-    [shared.get("title"), shared.get("text"), shared.get("url")].filter(Boolean).join("\n"),
-  );
+  // Arriving from the OS share sheet, the content is in the URL. It is taken
+  // into the kept draft — ready to read, whatever way in was last used — and
+  // then out of the address, so a reload restores the screen as it was left
+  // (the share included, until it is filed) instead of re-offering it forever.
+  const sharedText = [shared.get("title"), shared.get("text"), shared.get("url")]
+    .filter(Boolean)
+    .join("\n");
+  const shareInAddress = shared.has("title") || shared.has("text") || shared.has("url");
+  useEffect(() => {
+    if (!shareInAddress) return;
+    const kept = sharedText ? takeShare(sharedText) : true;
+    // Native, not a router navigation: the address changes at once, with no
+    // request in between for the box to be stuck showing the share, and Next
+    // keeps useSearchParams in step with it.
+    if (kept) window.history.replaceState(null, "", "/add");
+  }, [shareInAddress, sharedText]);
+
+  // Until the share is taken in, the address speaks for it; after, the draft
+  // does, even if storage refused it and the address had to stay.
+  const draft = useAddDraft();
+  const shareWaiting = sharedText !== "" && draft.sharedFrom !== sharedText;
+  const text = shareWaiting ? sharedText : draft.text;
+  const setText = editReadText;
+  const mode: AddMode = shareWaiting ? "drop" : draft.mode;
+  const typing = mode === "type";
   const [image, setImage] = useState<CaptureImage | null>(null);
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [filed, setFiled] = useState<string | null>(null);
@@ -68,7 +92,11 @@ function AddScreenInner() {
   const cameraInput = useRef<HTMLInputElement>(null);
 
   // Pasting a screenshot straight onto the screen is the fastest path there is.
+  // Not while typing an item in, where a paste belongs to the field.
+  const onPastedImage = useEffectEvent((file: File) => loadImage(file));
   useEffect(() => {
+    if (mode !== "drop") return;
+
     async function onPaste(event: ClipboardEvent) {
       const file = [...(event.clipboardData?.items ?? [])]
         .find((item) => item.type.startsWith("image/"))
@@ -76,16 +104,27 @@ function AddScreenInner() {
       if (!file) return;
 
       event.preventDefault();
-      await loadImage(file);
+      await onPastedImage(file);
     }
 
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, []);
+  }, [mode]);
 
   if (!hydrated) return <ScreenSkeleton variant="list" />;
 
+  function chooseMode(next: AddMode) {
+    if (next === mode) return;
+    setAddMode(next);
+    // What was said about the last filing is not repeated on coming back: it
+    // would take the focus from the button just pressed.
+    setFiled(null);
+    setDuplicates([]);
+  }
+
   async function loadImage(file: File) {
+    // An image arriving, however it came, means it is to be read.
+    chooseMode("drop");
     setError(null);
     setFiled(null);
     setResult(null);
@@ -98,6 +137,7 @@ function AddScreenInner() {
   }
 
   async function pasteFromClipboard() {
+    chooseMode("drop");
     setError(null);
     try {
       const clipboard = await navigator.clipboard.readText();
@@ -143,12 +183,9 @@ function AddScreenInner() {
     }
 
     // With no trip yet, the thing you just filed becomes the start of one.
-    const target = trip ?? { id: startTripFromDraft(result.draft), travelers: [] };
-
-    addItem(target.id, result.draft, {
+    fileDraft(trip, result.draft, {
       confidence: result.confidence,
       extractionMethod: result.method,
-      addedBy: target.travelers[0]?.id,
     });
     clear(result.draft.title);
   }
@@ -174,7 +211,7 @@ function AddScreenInner() {
       <ScreenHeader
         eyebrow="Add"
         title="Drop anything in"
-        meta="A screenshot, a Reel link, a booking email, or a scribbled note. It gets read, filed and checked."
+        meta="A screenshot, a Reel link, a booking email, or a scribbled note — or type it in yourself. It gets filed and checked."
       />
 
       <input
@@ -203,7 +240,7 @@ function AddScreenInner() {
         }}
       />
 
-      {image ? (
+      {image && !typing ? (
         <Card className="animate-pop overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={image.previewUrl} alt="Screenshot to read" className="max-h-72 w-full object-contain bg-surface-2" />
@@ -237,7 +274,8 @@ function AddScreenInner() {
             dragging ? "border-accent bg-accent-soft" : "border-line bg-surface"
           }`}
         >
-          <div className="grid grid-cols-3 gap-2">
+          {/* Two by two on a phone: four across, "Screenshot" no longer fits its button. */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <CaptureButton
               label="Screenshot"
               onClick={() => fileInput.current?.click()}
@@ -269,81 +307,93 @@ function AddScreenInner() {
                 </>
               }
             />
+            <CaptureButton
+              label="Type it in"
+              pressed={typing}
+              onClick={() => chooseMode(typing ? "drop" : "type")}
+              icon={
+                <>
+                  <path d="M4 20h4L19 9l-4-4L4 16z" />
+                  <path d="m13.5 6.5 4 4" />
+                </>
+              }
+            />
           </div>
 
           <p className="mt-3 text-center text-xs text-ink-faint">
-            Drop a screenshot here, or paste one straight onto this screen
+            {typing
+              ? "Or drop a screenshot here to have it read instead"
+              : "Drop a screenshot here, or paste one straight onto this screen"}
           </p>
         </div>
       )}
 
-      <Card className="p-4">
-        <textarea
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          rows={5}
-          aria-label="Content to extract"
-          placeholder="…or paste a link, an email, or just type what you want to remember"
-          className="w-full resize-y bg-transparent text-sm leading-relaxed outline-none"
-        />
+      {typing ? (
+        <ManualAddTripItem trip={trip} items={items} />
+      ) : (
+        <>
+          <Card className="p-4">
+            <textarea
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              rows={5}
+              aria-label="Content to extract"
+              placeholder="…or paste a link, an email, or just type what you want to remember"
+              className="w-full resize-y bg-transparent text-sm leading-relaxed outline-none"
+            />
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-          <Chip tone={image ? "accent" : "neutral"}>
-            {image ? "screenshot" : SOURCE_LABELS[sourceForText(text)]}
-          </Chip>
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+              <Chip tone={image ? "accent" : "neutral"}>
+                {image ? "screenshot" : SOURCE_LABELS[sourceForText(text)]}
+              </Chip>
 
-          <button
-            type="button"
-            onClick={run}
-            disabled={busy || !ready}
-            className="press ml-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink disabled:opacity-40"
-          >
-            {busy ? "Reading…" : image ? "Read the screenshot" : "Extract"}
-          </button>
-        </div>
-      </Card>
-
-      {!image && !text && (
-        <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
-          {EXAMPLES.map((example) => (
-            <button
-              key={example.label}
-              type="button"
-              onClick={() => setText(example.text)}
-              className="press shrink-0 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs text-ink-soft hover:border-accent hover:text-accent-strong"
-            >
-              Try: {example.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div aria-live="polite" className="flex flex-col gap-3">
-        {error && <Card className="border-critical p-4 text-sm text-critical">{error}</Card>}
-
-        {filed && (
-          <Card className="animate-pop border-teal p-4 text-sm">
-            Filed <span className="font-medium">{filed}</span>.{" "}
-            <Link href="/cabinet" className="text-accent-strong underline">
-              See it in the cabinet
-            </Link>
+              <button
+                type="button"
+                onClick={run}
+                disabled={busy || !ready}
+                className="press ml-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink disabled:opacity-40"
+              >
+                {busy ? "Reading…" : image ? "Read the screenshot" : "Extract"}
+              </button>
+            </div>
           </Card>
-        )}
 
-        {result && duplicates.length === 0 && (
-          <Preview result={result} onFile={() => file()} startsTrip={!trip} />
-        )}
+          {!image && !text && (
+            <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
+              {EXAMPLES.map((example) => (
+                <button
+                  key={example.label}
+                  type="button"
+                  onClick={() => setText(example.text)}
+                  className="press shrink-0 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs text-ink-soft hover:border-accent hover:text-accent-strong"
+                >
+                  Try: {example.label}
+                </button>
+              ))}
+            </div>
+          )}
 
-        {result && duplicates.length > 0 && (
-          <DuplicateChoice
-            draft={result.draft}
-            matches={duplicates}
-            onMerge={merge}
-            onKeepBoth={() => file(true)}
-            onCancel={() => setDuplicates([])}
-          />
-        )}
-      </div>
+          <div aria-live="polite" className="flex flex-col gap-3">
+            {error && <Card className="border-critical p-4 text-sm text-critical">{error}</Card>}
+
+            {filed && <FiledNotice label={filed} />}
+
+            {result && duplicates.length === 0 && (
+              <Preview result={result} onFile={() => file()} startsTrip={!trip} />
+            )}
+
+            {result && duplicates.length > 0 && (
+              <DuplicateChoice
+                draft={result.draft}
+                matches={duplicates}
+                onMerge={merge}
+                onKeepBoth={() => file(true)}
+                onCancel={() => setDuplicates([])}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -352,16 +402,22 @@ function CaptureButton({
   label,
   onClick,
   icon,
+  pressed,
 }: {
   label: string;
   onClick: () => void;
   icon: React.ReactNode;
+  /** Set only on a way in that stays chosen, like typing it in. */
+  pressed?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="press flex flex-col items-center gap-2 rounded-xl border border-line bg-bg-elevated px-2 py-3.5 text-xs font-medium hover:border-accent hover:text-accent-strong"
+      aria-pressed={pressed}
+      className={`press flex flex-col items-center gap-2 rounded-xl border px-2 py-3.5 text-xs font-medium hover:border-accent hover:text-accent-strong ${
+        pressed ? "border-accent bg-accent-soft text-accent-strong" : "border-line bg-bg-elevated"
+      }`}
     >
       <svg
         width="24"
@@ -414,12 +470,14 @@ function Preview({
 
   return (
     <Card className="animate-pop p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold tracking-tight">Preview</h2>
-        <Chip tone={result.method === "llm" ? "accent" : "neutral"}>
-          {result.method === "llm" ? "model pass" : "pattern pass"}
-        </Chip>
-      </div>
+      <DraftHeading
+        title="Preview"
+        chip={
+          <Chip tone={result.method === "llm" ? "accent" : "neutral"}>
+            {result.method === "llm" ? "model pass" : "pattern pass"}
+          </Chip>
+        }
+      />
 
       <div className="mt-3">
         <div className="flex justify-between font-mono text-[11px] text-ink-soft">
@@ -474,81 +532,7 @@ function Preview({
         {startsTrip ? "Start a new trip from this" : "File it"}
       </button>
 
-      {startsTrip && (
-        <p className="mt-2 text-center font-mono text-[10px] leading-relaxed text-ink-faint">
-          You have no trip open. This builds one around what was found — you can rename it and
-          fill in the dates after.
-        </p>
-      )}
-    </Card>
-  );
-}
-
-/**
- * Shown instead of the file button when something very like this is already
- * in the cabinet. Neither answer is presumed: merging fills the gaps in what
- * is filed, keeping both leaves the cabinet exactly as the traveller expects.
- */
-function DuplicateChoice({
-  draft,
-  matches,
-  onMerge,
-  onKeepBoth,
-  onCancel,
-}: {
-  draft: ItemDraft;
-  matches: DuplicateMatch[];
-  onMerge: (item: TripItem) => void;
-  onKeepBoth: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <Card className="animate-rise border-accent p-4">
-      <p className="text-sm font-medium">
-        You may already have {matches.length === 1 ? "this" : "one of these"}
-      </p>
-      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-        “{draft.title}” looks like something already filed. Merging keeps what you have and fills
-        in anything it was missing.
-      </p>
-
-      <ul className="mt-3 flex flex-col gap-2">
-        {matches.map((match) => (
-          <li
-            key={match.item.id}
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface-2 p-3"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{match.item.title}</span>
-              <span className="block font-mono text-[10px] text-ink-faint">{match.reason}</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => onMerge(match.item)}
-              className="press shrink-0 rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-accent-ink"
-            >
-              Merge into this
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-3 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onKeepBoth}
-          className="press rounded-lg border border-line px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-ink-soft"
-        >
-          Keep both
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="press font-mono text-[10px] text-ink-faint underline"
-        >
-          back
-        </button>
-      </div>
+      {startsTrip && <StartsTripNote what="what was found" />}
     </Card>
   );
 }

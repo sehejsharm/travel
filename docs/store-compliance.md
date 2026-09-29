@@ -12,13 +12,14 @@ behaviour changes, this file and `/legal/privacy` both have to change with it.
 | Extraction (text + screenshots → Anthropic) | `src/app/api/extract/route.ts`, `src/lib/extract/llm.ts` |
 | Link metadata scraping (Instagram / TikTok / YouTube) | `src/lib/extract/url.ts`, `src/lib/extract/og.ts` |
 | Suggestions (Google Places, Anthropic web search) | `src/lib/advisor/places.ts`, `src/lib/advisor/search.ts` |
-| Google Maps embeds loaded by the browser | `src/components/trip-map.tsx`, `src/components/item-editor.tsx` |
+| Google Maps embeds loaded by the browser (cabinet map, item editor, a place typed in on Add) | `src/components/trip-map.tsx`, `src/components/item-fields.tsx` |
 | Local storage of all trip data | `src/lib/store/state.ts` |
 | Affiliate links | `src/lib/partners/index.ts` |
 | Trip purpose, legs and cover (local only) | `src/lib/trip-purpose.ts`, `src/lib/rules/shared.ts` |
 | Passport country and expiry, per traveller (local only) | `src/components/traveler-quick-add.tsx`, `src/lib/rules/compliance.ts` |
 | Home-country guess from locale/timezone (no network, no location) | `src/lib/reference/home-country.ts` |
 | Divert from group: who broke off, the chosen spot and when (local only, drawn as an inline map, no location read, no network) | `src/lib/divert/`, `src/components/divert/`, `src/lib/store/state.ts` |
+| Unfinished work on Add — an item being typed in, text pasted or shared to be read (sessionStorage, this tab only, never in a backup, no network) | `src/lib/add-draft.ts`, `src/components/manual-add-trip-item.tsx`, `src/app/add/page.tsx` |
 
 ---
 

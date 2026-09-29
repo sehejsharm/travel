@@ -1,6 +1,7 @@
 import type { PlaceRef } from "../domain/types";
 import { AIRPORT_LIST } from "./airports";
 import { CITIES } from "./cities";
+import { fold } from "./text";
 
 interface GazetteerEntry extends PlaceRef {
   aliases: string[];
@@ -273,6 +274,33 @@ export function suggestPlaces(text: string, limit = 8): PlaceSuggestion[] {
   }));
 
   return [...landmarks, ...airports, ...cities]
+    .filter((candidate) => candidate.rank > 0)
+    .sort((a, b) => b.rank - a.rank || a.name.length - b.name.length)
+    .slice(0, limit)
+    .map(({ name, detail }) => ({ name, detail }));
+}
+
+/**
+ * Type-ahead for a flight's ends, which are airports and nothing else. Nothing
+ * is offered for an empty box: a list of arbitrary airports is noise. Accents
+ * are folded, so "Malaga" finds Málaga and "Zürich" finds Zurich.
+ */
+export function suggestAirports(text: string, limit = 6): PlaceSuggestion[] {
+  const needle = fold(text);
+  if (!needle) return [];
+  const rank = (candidates: string[]) => {
+    for (const candidate of candidates) {
+      if (candidate.startsWith(needle)) return 3;
+      if (candidate.includes(needle)) return 2;
+    }
+    return 0;
+  };
+
+  return AIRPORT_LIST.map((airport) => ({
+    name: `${airport.name} (${airport.iata})`,
+    detail: `${airport.city}, ${airport.countryCode}`,
+    rank: rank([fold(airport.name), airport.iata.toLowerCase(), fold(airport.city)]),
+  }))
     .filter((candidate) => candidate.rank > 0)
     .sort((a, b) => b.rank - a.rank || a.name.length - b.name.length)
     .slice(0, limit)

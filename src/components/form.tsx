@@ -8,20 +8,34 @@ const CONTROL =
 export function Field({
   label,
   hint,
+  error,
+  group = false,
   children,
 }: {
   label: string;
   hint?: string;
+  /** What is wrong with the value, shown in place of the hint. */
+  error?: string;
+  /**
+   * For a control that labels itself, like a Segmented group. Wrapped in a
+   * <label>, its first button would take the label's text as its own name.
+   */
+  group?: boolean;
   children: ReactNode;
 }) {
+  const Tag = group ? "div" : "label";
   return (
-    <label className="flex flex-col gap-1.5">
+    <Tag className="flex flex-col gap-1.5">
       <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
         {label}
       </span>
       {children}
-      {hint && <span className="text-[11px] text-ink-faint">{hint}</span>}
-    </label>
+      {error ? (
+        <span className="text-[11px] text-critical">{error}</span>
+      ) : (
+        hint && <span className="text-[11px] text-ink-faint">{hint}</span>
+      )}
+    </Tag>
   );
 }
 
@@ -63,7 +77,7 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(option.value)}
-            className={`press flex-1 rounded-lg px-2 py-1.5 text-xs font-medium capitalize ${
+            className={`press flex-1 rounded-lg px-2 py-1.5 text-xs font-medium ${
               active ? "bg-surface text-ink shadow-sm" : "text-ink-soft"
             }`}
           >
