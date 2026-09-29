@@ -264,6 +264,22 @@ describe("clocks and places the extractor would have found", () => {
       buildManualDraft(values({ kind: "lodging", name: "Paris hotel", startsAt: "2026-10-05T22:00", endsAt: "2026-10-10T11:00" }), gap).draft,
     ).toMatchObject({ startsAt: "2026-10-05T22:00:00+01:00", endsAt: "2026-10-10T11:00:00+01:00" });
 
+    // Checking in on a gap day and out on a travel day: the leg ending that
+    // day, where the nights were — not the one starting then.
+    const gapThenTravel = {
+      startDate: "2026-10-01",
+      endDate: "2026-10-12",
+      destinationCountries: ["JP", "TH"],
+      legs: [
+        { id: "a", countryCode: "JP", startDate: "2026-10-01", endDate: "2026-10-03" },
+        { id: "b", countryCode: "TH", startDate: "2026-10-06", endDate: "2026-10-09" },
+        { id: "c", countryCode: "JP", startDate: "2026-10-09", endDate: "2026-10-12" },
+      ],
+    };
+    expect(
+      buildManualDraft(values({ kind: "lodging", name: "Bangkok hotel", startsAt: "2026-10-05T22:00", endsAt: "2026-10-09T11:00" }), gapThenTravel).draft,
+    ).toMatchObject({ startsAt: "2026-10-05T22:00:00+07:00", endsAt: "2026-10-09T11:00:00+07:00" });
+
     // A day room on the travel day is one stay in one place: one clock.
     expect(
       buildManualDraft(values({ kind: "lodging", name: "Day room", startsAt: "2026-10-05T10:00", endsAt: "2026-10-05T16:00" }), westward),
@@ -530,7 +546,15 @@ describe("airports typed by hand", () => {
     ["Santiago de Chile", "SCL"],
     ["Aeropuerto de Madrid", "MAD"],
     ["JFK, N.Y., U.S.A.", "JFK"],
+    ["JFK, N.Y. U.S.A.", "JFK"],
+    ["Dubai, U.A.E", "DXB"],
+    ["Heathrow, England, U.K", "LHR"],
     ["Sydney, N.S.W., A.U.", "SYD"],
+    // French and Spanish forms: a preposition after "international", or before the city.
+    ["Aéroport international de Dubaï", "DXB"],
+    ["Miami (MIA-Aéroport international de Miami)", "MIA"],
+    ["Aéroport international de Paris-Orly", "ORY"],
+    ["Aeropuerto Jorge Chávez de Lima (LIM)", "LIM"],
     // Left for the traveller: two airports at once, an airport not on the
     // list, a word pointing at another country, a word that only looks like a code.
     ["Charles de Gaulle or Orly", undefined],
@@ -550,6 +574,10 @@ describe("airports typed by hand", () => {
     // La Palma in the Canaries is not Palma de Mallorca, and is not on the list.
     ["La Palma", undefined],
     ["Aeropuerto de La Palma", undefined],
+    ["Aeropuerto La Palma", undefined],
+    ["Flughafen La Palma", undefined],
+    // Paris has two airports: the city, not one of them.
+    ["Aéroport international de Paris", undefined],
     // Two airports named with their codes: neither is picked.
     ["Charles de Gaulle (CDG) or Orly (ORY)", undefined],
     ["Museo del Prado", undefined],

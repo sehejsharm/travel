@@ -237,13 +237,14 @@ const NOISE = new Set([
   "airport", "airports", "aeropuerto", "aeroport", "aeroporto", "flughafen",
   "international", "intl", "int", "apt", "terminal", "the", "new", "of",
 ]);
-// Joining words of a name in another language ("Aeropuerto de…", "Charles de
-// Gaulle"). They stay in names, and count as filler only straight after an
-// airport word ("Aeropuerto de Málaga"); anywhere else they must belong to
-// the airport, so "La Palma" is not Palma de Mallorca and ", LA" or ", DE"
-// after a city is a US state. Not "del", which is also Delhi's code.
-const CONNECTORS = new Set(["de", "da", "do", "di", "du", "des", "la", "le", "el"]);
-const AIRPORT_WORDS = new Set(["airport", "aeropuerto", "aeroport", "aeroporto", "flughafen"]);
+// Joining words of a name in another language. They stay in names. A
+// preposition ("de", "do") is filler after an airport word ("Aéroport
+// international de Dubaï") or before the airport's own city or name ("Jorge
+// Chávez de Lima"); an article ("la", "el") only ever as part of the
+// airport's own name ("El Prat"). So "La Palma" is not Palma de Mallorca, and
+// ", LA" or ", DE" after a city is a US state. Not "del": Delhi's code.
+const PREPOSITIONS = new Set(["de", "da", "do", "di", "du", "des"]);
+const CONNECTORS = new Set([...PREPOSITIONS, "la", "le", "el"]);
 
 // Names a listed airport goes by that are neither its name nor its city.
 const ALSO_KNOWN_AS: Record<string, string[]> = {
@@ -324,9 +325,9 @@ export function countryWords(countryCode: string): string[] {
 
 /**
  * Whether every word is filler, or one of `known`: nothing left pointing
- * somewhere else. A joining word of a name is filler only straight after an
- * airport word; one between two airports ("or", "and") only when more of a
- * name follows it — "Narita or Haneda". So a state after a city stays a
+ * somewhere else. A preposition is filler after an airport word or before
+ * more of the name; a word between two airports ("or", "and") only before
+ * more of a name — "Narita or Haneda". So a state after a city stays a
  * state: "Athens, LA", "Rome, OR", "Logan, LA, USA".
  */
 export function onlyExplained(
@@ -340,11 +341,10 @@ export function onlyExplained(
   const between = new Set(joiners);
   return typed.every((word, index) => {
     if (isNoise(word) || allowed.has(word)) return true;
-    if (CONNECTORS.has(word) && AIRPORT_WORDS.has(typed[index - 1])) return true;
-    if (between.has(word)) {
-      const next = typed.slice(index + 1).find((later) => !isNoise(later));
-      return next !== undefined && nameWords.has(next);
-    }
+    const next = typed.slice(index + 1).find((later) => !isNoise(later));
+    const beforeName = next !== undefined && nameWords.has(next);
+    if (PREPOSITIONS.has(word)) return beforeName || (index > 0 && isNoise(typed[index - 1]));
+    if (between.has(word)) return beforeName;
     return false;
   });
 }

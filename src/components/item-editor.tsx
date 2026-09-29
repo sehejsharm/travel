@@ -87,6 +87,7 @@ function ItemEditorForm({
 }) {
   const [draft, setDraft] = useState<Draft>(() => toDraft(item));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [placeTouched, setPlaceTouched] = useState(false);
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => (current ? { ...current, [key]: value } : current));
@@ -140,6 +141,10 @@ function ItemEditorForm({
   }
 
   const isFlight = draft.category === "booking" && draft.bookingKind === "flight";
+  // Left as filed until the traveller touches it: picking the suggestion that
+  // spells the same name is still a choice, and is resolved as one.
+  const unchanged = (text: string) =>
+    !placeTouched && item.place !== undefined && text.trim() === item.place.name.trim();
 
   /**
    * Where the place field lands, for its preview and for Save alike. A place
@@ -151,18 +156,7 @@ function ItemEditorForm({
   function placeFor(text: string): PlaceRef | undefined {
     const name = text.trim();
     if (!name) return undefined;
-    if (item.place && name === item.place.name.trim()) {
-      // Filed as an airport pin without its code field ("Tokyo Haneda (HND)",
-      // as a screenshot is read), a flight's end is settled on the airport its
-      // own bracketed code names. A place filed only as a city ("Milan") is
-      // left as it is: which of its airports was meant is not known.
-      const bracketed = name.match(/\(([A-Z]{3})\)$/)?.[1];
-      if (isFlight && !item.place.airport && bracketed) {
-        const settled = resolvePlace(name, true);
-        if (settled?.airport === bracketed) return settled;
-      }
-      return item.place;
-    }
+    if (unchanged(name)) return item.place;
     return resolvePlace(name, isFlight);
   }
 
@@ -247,8 +241,14 @@ function ItemEditorForm({
         <FieldGroup>
           <PlaceField
             value={draft.placeName}
-            onChange={(value) => set("placeName", value)}
+            onChange={(value) => {
+              setPlaceTouched(true);
+              set("placeName", value);
+            }}
             {...(isFlight ? FLIGHT_END_FIELD : {})}
+            // A place left as filed is not questioned: only one being retyped
+            // is asked to settle on an airport.
+            unsettled={isFlight && !unchanged(draft.placeName) ? FLIGHT_END_FIELD.unsettled : undefined}
             resolve={placeFor}
           />
         </FieldGroup>

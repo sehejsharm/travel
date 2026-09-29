@@ -205,13 +205,21 @@ export type TripClock = Partial<
 
 /**
  * Where the trip is on a date: the leg that covers it, or its one
- * destination. Legs share their travel day, and whatever starts on it is
- * taken to be at the leg starting that day: check in in Tokyo, not Bangkok.
+ * destination. Legs share their travel day: whatever starts on it is at the
+ * leg starting that day (check in in Tokyo, not Bangkok), and whatever ends on
+ * it is still at the leg ending that day.
  */
-function tripCountryOn(trip: TripClock, date: string): string | undefined {
+function tripCountryOn(
+  trip: TripClock,
+  date: string,
+  side: "starting" | "ending" = "starting",
+): string | undefined {
   const covering = (trip.legs ?? []).filter((leg) => leg.startDate <= date && date <= leg.endDate);
   if (covering.length > 0) {
-    return (covering.find((leg) => leg.startDate === date) ?? covering[0]).countryCode;
+    const onTheDay = covering.find((leg) =>
+      side === "starting" ? leg.startDate === date : leg.endDate === date,
+    );
+    return (onTheDay ?? covering[0]).countryCode;
   }
   const countries = trip.destinationCountries ?? [];
   return countries.length === 1 ? countries[0] : undefined;
@@ -246,9 +254,10 @@ export function itemOffsets(
     return { start: "", end: "" };
   }
 
-  // A day no leg covers says nothing; the other end's day may.
+  // A day no leg covers says nothing; the day it ends may — at the leg that
+  // day ends, where its nights were, not the one starting then.
   const clock = offsetForCountry(
-    tripCountryOn(trip, days[0]) ?? tripCountryOn(trip, days[days.length - 1]),
+    tripCountryOn(trip, days[0]) ?? tripCountryOn(trip, days[days.length - 1], "ending"),
   );
   return { start: clock, end: clock };
 }

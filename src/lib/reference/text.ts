@@ -18,10 +18,10 @@ export function fold(value: string): string {
       .replace(/[\u0300-\u036f]/g, "")
       // An apostrophe joins: "O'Hare" is "ohare", "Int'l" is "intl".
       .replace(/['`\u00b4\u2018\u2019\u02bb\u02bc]/g, "")
-      // Dotted initials run together, spaced or not: "U.S.A." and "U. S. A."
-      // are "usa", "O.R. Tambo" and "O. R. Tambo" are "or tambo". A comma
-      // still parts them: "N.Y., U.S.A." is "ny usa".
-      .replace(/(?:\b[a-z]\. ?){2,}/g, (run) => run.replace(/[. ]/g, "") + " ")
+      // Dotted initials run together: "U.S.A.", "U.S.A" and "U. S. A." are
+      // "usa"; "O.R. Tambo" and "O. R. Tambo" are "or tambo". A run keeps
+      // one spacing, so "N.Y. U.S.A." stays two, as does "N.Y., U.S.A.".
+      .replace(/\b[a-z](?:\.[a-z]\b)+\.?|\b[a-z](?:\. [a-z]\b)+\.?/g, (run) => `${run.replace(/[. ]/g, "")} `)
       .replace(/[^a-z0-9]+/g, " ")
       .trim()
   );
