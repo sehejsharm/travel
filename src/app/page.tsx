@@ -64,7 +64,7 @@ export default function TripScreen() {
 
       <DeferredPrompts trip={trip} items={items} />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="stagger grid grid-cols-3 gap-3">
         <Stat label="Scheduled" value={String(scheduled.length)} />
         <Stat label="Ideas" value={String(unscheduled.length)} />
         <Stat

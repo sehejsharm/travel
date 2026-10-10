@@ -26,7 +26,7 @@ export default function RecapScreen() {
     <div className="flex flex-col gap-6">
       <ScreenHeader eyebrow="Recap" title={trip.name} meta={STATUS_COPY[recap.status]} />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label="Nights" value={String(recap.nights)} />
         <Stat label="Places" value={String(recap.placesVisited)} />
         <Stat label="Activities" value={String(recap.activities)} />

@@ -92,7 +92,9 @@ const SIDEBAR_TABS: Tab[] = [...TABS, MORE];
 function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2">
-      <Mark size={22} />
+      <span className="animate-float inline-flex">
+        <Mark size={22} />
+      </span>
       {!compact && (
         <span className="font-display text-[17px] font-semibold tracking-tight">Manifest</span>
       )}

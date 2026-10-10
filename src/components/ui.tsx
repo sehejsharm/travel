@@ -1,4 +1,7 @@
+"use client";
+
 import type { CSSProperties, ReactNode } from "react";
+import { useCountUp } from "@/lib/use-motion";
 
 export function ScreenHeader({
   eyebrow,
@@ -106,10 +109,18 @@ export function Stat({
   const valueTone =
     tone === "critical" ? "text-critical" : tone === "ok" ? "text-ok" : "text-ink";
 
+  // Most callers pass a plain count (items filed, nights, things to fix) —
+  // that one tweens in on mount rather than appearing as a flat number.
+  // Anything else (a joined country list, a formatted money string) is
+  // printed as given, since there is nothing numeric to animate.
+  const numeric = /^-?\d+$/.test(value) ? Number(value) : null;
+  const tweened = useCountUp(numeric ?? 0, 700);
+  const display = numeric === null ? value : String(Math.round(tweened));
+
   return (
-    <Card as="div" className="px-3.5 py-3">
+    <Card as="div" className="liftable raised px-3.5 py-3">
       <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">{label}</p>
-      <p className={`mt-1 font-display text-2xl font-semibold tabular ${valueTone}`}>{value}</p>
+      <p className={`mt-1 font-display text-2xl font-semibold tabular ${valueTone}`}>{display}</p>
     </Card>
   );
 }
