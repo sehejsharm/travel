@@ -6,9 +6,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-static";
 
 /**
- * The 48px source the favicon.ico is built from. Small enough that the check
- * needs a heavier stroke to survive, which is why this is not just the 192
- * route scaled down.
+ * The 48px frame of favicon.ico. The .ico also carries 16 and 32px frames
+ * drawn the same way, because a browser shrinking this one to tab size
+ * blurs it.
+ *
+ * At every size the mark is scaled so the stub's edges land on whole pixels
+ * (here 0.75, with the viewBox nudged half a pixel down), and the check is
+ * stroked heavier the smaller it gets: 7 units here, 7.5 at 32px, 9 at 16px.
+ * That is why this is not just the 192 route scaled down.
  */
 export function GET() {
   return new ImageResponse(
@@ -18,18 +23,16 @@ export function GET() {
           width: "100%",
           height: "100%",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           background: BRAND.ink,
         }}
       >
-        <svg width="40" height="40" viewBox="0 0 64 64">
+        <svg width="48" height="48" viewBox="0 -0.6667 64 64">
           <path d={STUB_PATH} fill={BRAND.accentLight} />
           <path
             d={CHECK_PATH}
             fill="none"
             stroke={BRAND.ink}
-            strokeWidth="7.5"
+            strokeWidth="7"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
