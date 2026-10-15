@@ -29,39 +29,35 @@ export function FlagCard({
   return (
     <Card
       as="li"
-      className={`liftable raised flex overflow-hidden transition-opacity duration-[var(--dur-move)] ${
+      className={`raised flex overflow-hidden transition-opacity duration-300 ease-[var(--ease-spring)] ${
         settled ? "opacity-60" : ""
       }`}
       style={{ "--i": index } as React.CSSProperties}
     >
       <span
-        className={`w-1 shrink-0 transition-colors duration-[var(--dur-move)] ${
+        className={`w-1 shrink-0 transition-colors duration-300 ease-[var(--ease-spring)] ${
           settled ? "bg-ok" : severity.rail
         }`}
         aria-hidden="true"
       />
-      <div className="min-w-0 flex-1 px-4 py-3.5">
+      <div className="min-w-0 flex-1 px-4 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <Chip tone={settled ? "ok" : severity.tone}>
             {urgent && (
               <span
                 aria-hidden="true"
-                className={`animate-pulse-dot mr-0.5 h-1.5 w-1.5 rounded-full ${severity.rail}`}
+                className={`animate-pulse-dot h-2 w-2 rounded-full ${severity.rail}`}
               />
             )}
             {settled ? "done" : flag.category}
           </Chip>
-          <h3
-            className={`text-[15px] leading-snug font-medium ${
-              settled ? "text-ink-faint line-through" : ""
-            }`}
-          >
+          <h3 className={`text-headline ${settled ? "text-ink-soft line-through" : ""}`}>
             {flag.title}
           </h3>
         </div>
-        <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{flag.detail}</p>
+        <p className="mt-1 text-subheadline text-ink-soft">{flag.detail}</p>
         {flag.verifyWith && (
-          <p className="mt-2 rounded-lg bg-surface-2 px-2.5 py-1.5 font-mono text-[10px] leading-relaxed text-ink-faint">
+          <p className="mt-2 rounded-control bg-surface-2 px-3 py-2 text-caption text-ink-soft">
             Reference data — confirm with {flag.verifyWith}.
           </p>
         )}

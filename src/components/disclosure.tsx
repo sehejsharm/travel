@@ -25,28 +25,32 @@ export function Disclosure({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+    // No overflow-hidden: it would clip the row's focus outline. The row takes
+    // the card's corners itself, so its hover wash still fits the shape.
+    <div className="rounded-card border border-line bg-surface">
       <button
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="press flex w-full items-center gap-3 px-3.5 py-3 text-left hover:bg-surface-2"
+        className={`press flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2 ${
+          open ? "rounded-t-card" : "rounded-card"
+        }`}
       >
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium">{label}</span>
-          <span className="mt-0.5 block truncate font-mono text-[10px] text-ink-faint">
+          <span className="block text-headline">{label}</span>
+          <span className="block truncate text-footnote text-ink-soft">
             {summary || hint || "Optional"}
           </span>
         </span>
         <span
           aria-hidden="true"
-          className={`shrink-0 text-ink-faint transition-transform ${open ? "rotate-90" : ""}`}
+          className={`shrink-0 text-ink-faint transition-transform duration-300 ease-[var(--ease-spring)] ${open ? "rotate-90" : ""}`}
         >
           ›
         </span>
       </button>
 
-      {open && <div className="border-t border-line px-3.5 py-3.5">{children}</div>}
+      {open && <div className="border-t border-line p-4">{children}</div>}
     </div>
   );
 }

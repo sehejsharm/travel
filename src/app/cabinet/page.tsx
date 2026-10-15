@@ -5,7 +5,8 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ItemEditor } from "@/components/item-editor";
 import { TripMap } from "@/components/trip-map";
-import { TextInput } from "@/components/form";
+import { PrimaryButton, TextInput } from "@/components/form";
+import { PRIMARY_BUTTON_CLASSES } from "@/components/styles";
 import { Card, Chip, EmptyState, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { CATEGORY_LABELS, SOURCE_LABELS, type ItemCategory, type TripItem } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/reference/fx";
@@ -77,10 +78,7 @@ function CabinetScreenInner() {
         title="No trip yet"
         body="Create a trip and everything you file lands here."
         action={
-          <Link
-            href="/"
-            className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
-          >
+          <Link href="/trip/new" className={PRIMARY_BUTTON_CLASSES}>
             Start a trip
           </Link>
         }
@@ -125,15 +123,16 @@ function CabinetScreenInner() {
           placeholder="Search places, refs, notes…"
           onChange={(event) => setQuery(event.target.value)}
         />
-        <div className="flex shrink-0 rounded-xl border border-line bg-surface-2 p-1">
+        {/* Drawn as the shared Segmented control, kept as toggle buttons for their aria-pressed. */}
+        <div className="flex shrink-0 gap-1 rounded-full bg-accent/8 p-1">
           {(["list", "map"] as const).map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => setView(option)}
               aria-pressed={view === option}
-              className={`press rounded-lg px-3 py-1.5 text-xs font-medium capitalize ${
-                view === option ? "bg-surface text-ink shadow-sm" : "text-ink-soft"
+              className={`press tap h-9 rounded-full px-3 text-footnote font-medium capitalize ${
+                view === option ? "bg-surface text-ink shadow-sm" : "text-ink-soft hover:text-ink"
               }`}
             >
               {option}
@@ -142,7 +141,8 @@ function CabinetScreenInner() {
         </div>
       </div>
 
-      <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+      {/* The vertical padding keeps each chip's 44px hit area and focus ring inside the scroller, which clips. */}
+      <div className="no-scrollbar -mx-5 -mt-2 -mb-1 flex gap-2 overflow-x-auto px-5 py-2">
         {FILTERS.map((option) => {
           const active = filter === option.value;
           return (
@@ -151,22 +151,22 @@ function CabinetScreenInner() {
               type="button"
               onClick={() => setFilter(option.value)}
               aria-pressed={active}
-              className={`press shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium ${
+              className={`press tap flex min-h-8 shrink-0 items-center gap-1 rounded-badge border px-3 text-footnote ${
                 active
                   ? "border-accent bg-accent-soft text-accent-strong"
                   : "border-line bg-surface text-ink-soft"
               }`}
             >
               {option.label}
-              <span className="ml-1.5 font-mono text-[10px] tabular opacity-70">
-                {countFor(option.value)}
-              </span>
+              <span className="text-caption tabular">{countFor(option.value)}</span>
             </button>
           );
         })}
       </div>
 
-      {view === "map" ? (
+      {/* With nothing to show, the map falls through to the list's empty state,
+          which knows whether a search is the reason. */}
+      {view === "map" && visible.length > 0 ? (
         <TripMap items={visible} onSelect={setEditing} />
       ) : visible.length === 0 ? (
         <EmptyState
@@ -177,11 +177,12 @@ function CabinetScreenInner() {
               : "Forward a booking email, a screenshot, or a Reel and it lands in the cabinet."
           }
           action={
-            !query && (
-              <Link
-                href="/add"
-                className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
-              >
+            query ? (
+              <PrimaryButton type="button" onClick={() => setQuery("")}>
+                Clear search
+              </PrimaryButton>
+            ) : (
+              <Link href="/add" className={PRIMARY_BUTTON_CLASSES}>
                 Add something
               </Link>
             )
@@ -192,7 +193,7 @@ function CabinetScreenInner() {
           // Keyed on the filter so changing it replays the stagger — the list
           // settling is what tells you the filter did something.
           key={filter}
-          className="stagger flex flex-col gap-2.5"
+          className="stagger flex flex-col gap-3"
         >
           {visible.map((item, index) => (
             <li
@@ -200,12 +201,13 @@ function CabinetScreenInner() {
               // Capped: a long cabinet should settle, not cascade for seconds.
               style={{ "--i": Math.min(index, 10) } as React.CSSProperties}
             >
+              {/* The whole card is the control, so it lifts as one rather than pressing twice. */}
               <button
                 type="button"
                 onClick={() => setEditing(item)}
-                className="press block w-full text-left"
+                className="liftable block w-full rounded-card text-left"
               >
-                <Card as="div" className="liftable raised relative overflow-hidden p-4 pl-5">
+                <Card as="div" className="raised relative overflow-hidden p-4 pl-5">
                   <span
                     aria-hidden="true"
                     className={`absolute inset-y-0 left-0 w-1 ${
@@ -213,12 +215,12 @@ function CabinetScreenInner() {
                     }`}
                   />
                   <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-[15px] leading-snug font-medium">{item.title}</h3>
+                    <h3 className="text-headline">{item.title}</h3>
                     <Chip>{SOURCE_LABELS[item.source]}</Chip>
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                    <span className="font-mono text-[11px] text-ink-faint tabular">
+                    <span className="text-footnote text-ink-soft tabular">
                       {item.startsAt
                         ? `${formatDay(item.startsAt)}${
                             formatTime(item.startsAt) ? ` · ${formatTime(item.startsAt)}` : ""
@@ -226,7 +228,7 @@ function CabinetScreenInner() {
                         : "Tap to schedule"}
                     </span>
                     {item.cost && (
-                      <span className="font-mono text-[11px] text-ink-soft tabular">
+                      <span className="text-footnote text-ink-soft tabular">
                         {formatMoney(item.cost.amount, item.cost.currency)}
                         {item.costStatus === "estimated" && " est."}
                       </span>
@@ -234,7 +236,7 @@ function CabinetScreenInner() {
                   </div>
 
                   {(item.place || item.confirmationCode) && (
-                    <p className="mt-1 font-mono text-[11px] text-ink-faint">
+                    <p className="mt-1 text-footnote text-ink-soft">
                       {[
                         item.place?.name,
                         item.confirmationCode && `Ref ${item.confirmationCode}`,

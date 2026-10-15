@@ -42,10 +42,16 @@ export function Card({
   /** Mostly the stagger index; kept narrow rather than spreading all props. */
   style?: CSSProperties;
 }) {
+  // Tailwind orders same-property utilities itself, so a caller's border colour
+  // could lose to border-line. Leave the hairline out when one is given.
+  const tinted =
+    /(?:^|\s)(?:[a-z-]+:)*border-(?:accent|critical|warning|ok|teal|brand|ink|line-strong|transparent)(?![\w-])/.test(
+      className,
+    );
   return (
     <Tag
       style={style}
-      className={`rounded-card border border-line bg-surface shadow-card ${className}`}
+      className={`rounded-card border bg-surface shadow-card ${tinted ? "" : "border-line"} ${className}`}
     >
       {children}
     </Tag>
@@ -117,7 +123,7 @@ export function Stat({
   const display = numeric === null ? value : String(Math.round(tweened));
 
   return (
-    <Card as="div" className="liftable raised px-4 py-3">
+    <Card as="div" className="raised px-4 py-3">
       <p className="text-caption text-ink-soft">{label}</p>
       <p className={`mt-1 text-title-1 tabular ${valueTone}`}>{display}</p>
     </Card>

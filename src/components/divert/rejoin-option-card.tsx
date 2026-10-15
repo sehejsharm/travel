@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { BORDERLESS_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from "@/components/styles";
 import { Card, Chip } from "@/components/ui";
 import {
   atPlace,
@@ -41,13 +42,13 @@ function Leg({
       : `${formatDistance(distance)} ${MODE_LABELS[mode]}`;
 
   return (
-    <div className="rounded-xl bg-surface-2 px-3 py-2.5">
-      <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">{label}</dt>
-      <dd className="mt-1 font-display text-lg font-semibold tracking-tight tabular">
+    <div className="rounded-control bg-surface-2 px-3 py-3">
+      <dt className="text-caption text-ink-soft">{label}</dt>
+      <dd className="mt-1 text-title-3 tabular">
         {/* A simulated clock is not now, so it gets a time rather than a countdown. */}
         {simulated ? `at ${at}` : formatEta(eta)}
       </dd>
-      <dd className="font-mono text-[11px] text-ink-faint tabular">
+      <dd className="text-footnote text-ink-soft tabular">
         {where}
         {!simulated && ` · ${at}`}
       </dd>
@@ -103,15 +104,15 @@ export function RejoinOptionCard({
       <div className="p-4">
         <div className="flex flex-wrap items-center gap-2">
           <Chip tone={catchUp ? "accent" : "ok"}>{catchUp ? "Rejoin point" : "Group joins you"}</Chip>
-          {chosen && <Chip tone="accent">your plan</Chip>}
-          {!option.feasible && <Chip tone="warning">does not work in time</Chip>}
-          {standIn && <Chip tone="warning">stand-in</Chip>}
+          {chosen && <Chip tone="accent">Your plan</Chip>}
+          {!option.feasible && <Chip tone="warning">Does not work in time</Chip>}
+          {standIn && <Chip tone="warning">Stand-in</Chip>}
         </div>
 
-        <h3 className="mt-3 font-display text-xl font-semibold tracking-tight">
+        <h3 className="mt-3 text-title-2">
           {option.meetingPointName}
         </h3>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1 text-subheadline text-ink-soft">
           {gone
             ? "The group's last stop, though they have already moved on."
             : missed
@@ -131,11 +132,9 @@ export function RejoinOptionCard({
             simulated={route.simulated}
           />
           {gone ? (
-            <div className="rounded-xl bg-surface-2 px-3 py-2.5">
-              <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-                The group left
-              </dt>
-              <dd className="mt-1 font-display text-lg font-semibold tracking-tight tabular">
+            <div className="rounded-control bg-surface-2 px-3 py-3">
+              <dt className="text-caption text-ink-soft">The group left</dt>
+              <dd className="mt-1 text-title-3 tabular">
                 at {time(option.groupLeaveMin!)}
               </dd>
             </div>
@@ -151,8 +150,8 @@ export function RejoinOptionCard({
           )}
         </dl>
 
-        <p className="mt-3 text-sm leading-relaxed">{option.note}</p>
-        <p className="mt-1.5 font-mono text-[11px] text-ink-faint tabular">
+        <p className="mt-3 text-subheadline">{option.note}</p>
+        <p className="mt-1 text-footnote text-ink-soft tabular">
           {missed && option.groupLeaveMin !== undefined ? (
             <>
               You arrive {time(option.userETA)} ·{" "}
@@ -179,10 +178,8 @@ export function RejoinOptionCard({
           onClick={onChoose}
           aria-pressed={chosen}
           aria-label={`Go with this: ${choice}`}
-          className={`press flex-1 rounded-xl px-4 py-2.5 text-sm font-medium ${
-            chosen
-              ? "border border-accent bg-accent-soft text-accent-strong"
-              : "bg-accent text-accent-ink"
+          className={`${SECONDARY_BUTTON_CLASSES} flex-1 border ${
+            chosen ? "border-accent" : "border-transparent"
           }`}
         >
           Go with this
@@ -196,7 +193,7 @@ export function RejoinOptionCard({
               ? `Search Google Maps for a ${standInSearch(option.meetingPointName)}`
               : `Open ${option.meetingPointName} in Google Maps`
           }
-          className="press shrink-0 rounded-xl border border-line px-3 py-2.5 font-mono text-[11px] text-ink-soft hover:border-accent hover:text-accent-strong"
+          className={`${BORDERLESS_BUTTON_CLASSES} shrink-0`}
         >
           Maps ↗
         </a>

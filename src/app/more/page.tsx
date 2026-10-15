@@ -5,6 +5,7 @@ import { useState } from "react";
 import { BackupPanel } from "@/components/backup-panel";
 import { LEGAL_PAGES } from "@/components/legal";
 import { InstallPrompt } from "@/components/install-prompt";
+import { PRIMARY_BUTTON_CLASSES } from "@/components/styles";
 import { Card, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import { toCalendar } from "@/lib/calendar";
 import { buildShareLink, type ShareLink } from "@/lib/share";
@@ -27,7 +28,17 @@ export default function MoreScreen() {
 
   if (!hydrated) return <ScreenSkeleton />;
   if (!trip) {
-    return <EmptyState title="No trip yet" body="Create a trip first and this fills in." />;
+    return (
+      <EmptyState
+        title="No trip yet"
+        body="Create a trip first and this fills in."
+        action={
+          <Link href="/trip/new" className={PRIMARY_BUTTON_CLASSES}>
+            Start a trip
+          </Link>
+        }
+      />
+    );
   }
 
   const briefs = destinationBriefs({ trip, items, now: new Date() });
@@ -72,11 +83,11 @@ export default function MoreScreen() {
                 "text/calendar;charset=utf-8",
               )
             }
-            className="press flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+            className="press flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left"
           >
             <span>
-              <span className="text-sm font-medium">Push to calendar</span>
-              <span className="mt-0.5 block text-xs text-ink-soft">
+              <span className="block text-headline">Push to calendar</span>
+              <span className="mt-1 block text-footnote text-ink-soft">
                 Downloads an .ics any calendar app reads
               </span>
             </span>
@@ -86,11 +97,11 @@ export default function MoreScreen() {
           <button
             type="button"
             onClick={share}
-            className="press flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+            className="press flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left"
           >
             <span>
-              <span className="text-sm font-medium">Share the plan</span>
-              <span className="mt-0.5 block text-xs text-ink-soft">
+              <span className="block text-headline">Share the plan</span>
+              <span className="mt-1 block text-footnote text-ink-soft">
                 {shareState === "copied"
                   ? "Link copied — prices and confirmations are stripped out"
                   : shareState === "failed"
@@ -102,7 +113,7 @@ export default function MoreScreen() {
           </button>
 
           {shareLink && shareLink.size !== "safe" && (
-            <p className="px-4 py-3 text-xs leading-relaxed text-warning">
+            <p className="px-4 py-3 text-footnote text-warning">
               {shareLink.size === "too-big" ? (
                 <>
                   The whole trip comes to {shareLink.length.toLocaleString()} characters, which is
@@ -119,16 +130,19 @@ export default function MoreScreen() {
           )}
 
           {shareLink?.trimmedTo !== undefined && shareState === "copied" && (
-            <p className="px-4 py-3 text-xs leading-relaxed text-ink-soft">
+            <p className="px-4 py-3 text-footnote text-ink-soft">
               The full trip was too long for a reliable link, so this one carries the{" "}
               {shareLink.trimmedTo} scheduled items. Unscheduled ideas were left out.
             </p>
           )}
 
-          <Link href="/recap" className="press flex items-center justify-between gap-3 px-4 py-3.5">
+          <Link
+            href="/recap"
+            className="press flex min-h-11 items-center justify-between gap-3 px-4 py-3"
+          >
             <span>
-              <span className="text-sm font-medium">Trip recap</span>
-              <span className="mt-0.5 block text-xs text-ink-soft">
+              <span className="block text-headline">Trip recap</span>
+              <span className="mt-1 block text-footnote text-ink-soft">
                 Spend, places, and where each item came from
               </span>
             </span>
@@ -142,11 +156,9 @@ export default function MoreScreen() {
           <SectionTitle>On the ground</SectionTitle>
           <Card className="divide-y divide-line">
             {briefs.map(({ country, hoursFromHome }) => (
-              <div key={country.code} className="px-4 py-3.5">
-                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-teal">
-                  {country.name}
-                </p>
-                <p className="mt-1 text-sm text-ink-soft">
+              <div key={country.code} className="px-4 py-3">
+                <p className="text-subheadline font-medium text-teal">{country.name}</p>
+                <p className="mt-1 text-subheadline text-ink-soft">
                   Emergency {country.emergency} · {country.currency} · plugs Type{" "}
                   {country.plugTypes.join("/")} ·{" "}
                   <span className="tabular">
@@ -155,7 +167,7 @@ export default function MoreScreen() {
                   </span>{" "}
                   from home
                 </p>
-                <p className="mt-1 text-sm text-ink-soft">{country.tipping}</p>
+                <p className="mt-1 text-subheadline text-ink-soft">{country.tipping}</p>
               </div>
             ))}
           </Card>
@@ -173,11 +185,11 @@ export default function MoreScreen() {
         <Card className="divide-y divide-line">
           <a
             href="mailto:support@manifest.trip?subject=Manifest%20feedback"
-            className="press flex items-center justify-between gap-3 px-4 py-3.5"
+            className="press flex min-h-11 items-center justify-between gap-3 px-4 py-3"
           >
             <span className="min-w-0">
-              <span className="block text-sm font-medium">Help &amp; feedback</span>
-              <span className="mt-0.5 block font-mono text-[10px] text-ink-faint">
+              <span className="block text-headline">Help &amp; feedback</span>
+              <span className="mt-1 block text-footnote text-ink-soft">
                 Something wrong, or something missing? Tell us.
               </span>
             </span>
@@ -190,11 +202,11 @@ export default function MoreScreen() {
             <Link
               key={page.href}
               href={page.href}
-              className="press flex items-center justify-between gap-3 px-4 py-3.5"
+              className="press flex min-h-11 items-center justify-between gap-3 px-4 py-3"
             >
               <span className="min-w-0">
-                <span className="block text-sm font-medium">{page.title}</span>
-                <span className="mt-0.5 block font-mono text-[10px] text-ink-faint">
+                <span className="block text-headline">{page.title}</span>
+                <span className="mt-1 block text-footnote text-ink-soft">
                   {page.blurb}
                 </span>
               </span>

@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { PlaceRef, TripItem } from "@/lib/domain/types";
 import { haversineKm } from "@/lib/geo";
 import { mapEmbedForPlaces, mapEmbedUrl, openInMapsUrl } from "@/lib/maps";
+import { BorderlessButton, PrimaryButton } from "./form";
+import { BORDERLESS_BUTTON_CLASSES, PRIMARY_BUTTON_CLASSES } from "./styles";
 import { Card, Chip, EmptyState } from "./ui";
 
 const CATEGORY_TONE: Record<string, string> = {
@@ -34,6 +37,17 @@ export function TripMap({
       <EmptyState
         title="Nothing to map yet"
         body="An item gets a pin once its place name matches somewhere known. Open an item and set its place."
+        action={
+          items.length > 0 ? (
+            <PrimaryButton type="button" onClick={() => onSelect(items[0])}>
+              <span className="min-w-0 truncate">Set a place for {items[0].title}</span>
+            </PrimaryButton>
+          ) : (
+            <Link href="/add" className={PRIMARY_BUTTON_CLASSES}>
+              Add something
+            </Link>
+          )
+        }
       />
     );
   }
@@ -63,22 +77,23 @@ export function TripMap({
           />
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-3">
-          <span className="font-mono text-[11px] text-ink-faint tabular">
+        {/* The action is a full 44px target; the text pads to match, and the row may wrap on a phone. */}
+        <div className="flex min-h-13 flex-wrap items-center justify-between gap-x-2 border-t border-line py-1 pr-1 pl-4">
+          <span className="py-2 text-footnote text-ink-soft tabular">
             {located.length} pinned
             {spread > 1 && ` · ${Math.round(spread)} km across`}
           </span>
 
           {focused ? (
-            <button
+            <BorderlessButton
               type="button"
               onClick={() => setFocused(null)}
-              className="press font-mono text-[11px] text-accent-strong underline"
+              className="-ml-3"
             >
-              show the whole trip
-            </button>
+              Show the whole trip
+            </BorderlessButton>
           ) : (
-            <span className="font-mono text-[11px] text-ink-faint">Pick a place to zoom in</span>
+            <span className="py-2 pr-3 text-footnote text-ink-soft">Pick a place to zoom in</span>
           )}
         </div>
       </Card>
@@ -96,17 +111,17 @@ export function TripMap({
                 <button
                   type="button"
                   onClick={() => setFocused(active ? null : item)}
-                  className="press flex min-w-0 flex-1 items-center gap-3 text-left"
+                  className="press flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left"
                 >
                   <span
-                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                    className={`h-3 w-3 shrink-0 rounded-full ${
                       CATEGORY_TONE[item.category] ?? "bg-ink-faint"
                     }`}
                     aria-hidden="true"
                   />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">{item.title}</span>
-                    <span className="block truncate font-mono text-[11px] text-ink-faint">
+                    <span className="block truncate text-headline">{item.title}</span>
+                    <span className="block truncate text-footnote text-ink-soft">
                       {item.place?.name}
                       {item.place?.city && item.place.city !== item.place.name
                         ? ` · ${item.place.city}`
@@ -120,19 +135,19 @@ export function TripMap({
                   target="_blank"
                   rel="noreferrer"
                   aria-label={`Open ${item.title} in Google Maps`}
-                  className="press shrink-0 rounded-lg border border-line px-2.5 py-1.5 font-mono text-[10px] text-ink-soft hover:border-accent hover:text-accent-strong"
+                  className={`${BORDERLESS_BUTTON_CLASSES} shrink-0`}
                 >
                   Maps ↗
                 </a>
 
-                <button
+                <BorderlessButton
                   type="button"
                   onClick={() => onSelect(item)}
                   aria-label={`Edit ${item.title}`}
-                  className="press shrink-0 rounded-lg border border-line px-2.5 py-1.5 font-mono text-[10px] text-ink-soft hover:border-accent hover:text-accent-strong"
+                  className="shrink-0"
                 >
                   Edit
-                </button>
+                </BorderlessButton>
               </Card>
             </li>
           );
@@ -140,9 +155,9 @@ export function TripMap({
       </ul>
 
       <div className="flex flex-wrap gap-2">
-        <Chip tone="accent">bookings</Chip>
-        <Chip tone="ok">activities</Chip>
-        <Chip>places</Chip>
+        <Chip tone="accent">Bookings</Chip>
+        <Chip tone="ok">Activities</Chip>
+        <Chip>Places</Chip>
       </div>
     </div>
   );

@@ -21,8 +21,8 @@ export default function Terms() {
       </Section>
 
       <Section heading="The checks are information, not advice">
-        <p className="rounded-xl border border-warning bg-[var(--warning-soft)] p-3.5 text-warning">
-          <strong>Manifest is not a legal, immigration, medical, insurance or financial adviser,
+        <p className="rounded-card border border-warning bg-warning-soft p-4 text-warning">
+          <strong className="font-medium">Manifest is not a legal, immigration, medical, insurance or financial adviser,
           and its findings are not advice.</strong> Visa requirements, passport validity rules,
           vaccination guidance, customs and duty-free allowances, baggage rules and currency
           figures are drawn from reference data compiled into the app on a stated date. They change

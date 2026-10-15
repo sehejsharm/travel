@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PrimaryButton } from "@/components/form";
+import { BORDERLESS_BUTTON_CLASSES, SECONDARY_BUTTON_CLASSES } from "@/components/styles";
 import { Card, Chip } from "@/components/ui";
 import { divertedName } from "@/lib/divert";
 import { atPlace, formatEta, inSentence, wallClock } from "@/lib/divert/format";
@@ -35,15 +36,15 @@ export function GroupStatusCard() {
       <Card className="raised border-accent p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               <Chip tone="accent">Diverted{who && ` · ${who}`}</Chip>
-              {!option.feasible && <Chip tone="warning">does not work in time</Chip>}
-              {standIn && <Chip tone="warning">stand-in</Chip>}
+              {!option.feasible && <Chip tone="warning">Does not work in time</Chip>}
+              {standIn && <Chip tone="warning">Stand-in</Chip>}
             </div>
-            <h3 className="mt-2 truncate font-display text-lg font-semibold tracking-tight">
+            <h3 className="mt-2 truncate text-title-3">
               {plan.spot.name}
             </h3>
-            <p className="mt-0.5 text-sm text-ink-soft">
+            <p className="mt-1 text-subheadline text-ink-soft">
               {missed ? (
                 option.note
               ) : (
@@ -59,15 +60,12 @@ export function GroupStatusCard() {
               )}
             </p>
             {route.demo && (
-              <p className="mt-1 font-mono text-[11px] text-ink-faint">
+              <p className="mt-1 text-caption text-ink-soft">
                 {DEMO_GROUP}: your timeline has no timed, placed stops to plan around.
               </p>
             )}
           </div>
-          <Link
-            href="/divert"
-            className="press shrink-0 rounded-xl border border-line px-3 py-1.5 font-mono text-[11px] text-ink-soft"
-          >
+          <Link href="/divert" className={`${BORDERLESS_BUTTON_CLASSES} shrink-0`}>
             Options ›
           </Link>
         </div>
@@ -83,15 +81,12 @@ export function GroupStatusCard() {
   return (
     <Card className="raised flex flex-wrap items-center justify-between gap-3 p-4">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">Travelling as {trip.travelers.length}</p>
-        <p className="mt-0.5 text-sm text-ink-soft">
+        <p className="text-headline tabular">Travelling as {trip.travelers.length}</p>
+        <p className="mt-1 text-subheadline text-ink-soft">
           Break off for coffee or a photo and get a route back to the others.
         </p>
       </div>
-      <Link
-        href="/divert"
-        className="press shine shrink-0 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-ink"
-      >
+      <Link href="/divert" className={`${SECONDARY_BUTTON_CLASSES} shrink-0`}>
         Divert from group
       </Link>
     </Card>

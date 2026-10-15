@@ -61,7 +61,10 @@ interface PlacedLabel {
 
 /** Labels are cut to this many characters, with an ellipsis. */
 const LABEL_CHARS = 26;
-/** The system monospace advances about 0.6em a character; the labels are 11px. */
+/**
+ * The labels are 11px in the system face, which averages under 0.6em a
+ * character; budgeting 0.6em keeps even a wide name whole inside the frame.
+ */
 const CHAR_WIDTH = 6.6;
 
 function shorten(text: string): string {
@@ -120,7 +123,7 @@ function Label({ at, text, tone }: PlacedLabel) {
       y={at.y}
       textAnchor="middle"
       fontSize="11"
-      className="font-mono"
+      className="text-caption-2"
       fill={tone}
       stroke="var(--surface-2)"
       strokeWidth="3"

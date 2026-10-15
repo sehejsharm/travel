@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { SecondaryButton } from "@/components/form";
+import { BorderlessButton, DestructiveButton, SecondaryButton } from "@/components/form";
 import { Sheet } from "@/components/sheet";
 import { TravelerEditor } from "@/components/traveler-editor";
 import { TripForm } from "@/components/trip-form";
@@ -38,7 +38,8 @@ export default function TripSettings() {
       {state.trips.length > 1 && (
         <section>
           <SectionTitle>Your trips</SectionTitle>
-          <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
+          {/* The vertical padding keeps each button's focus ring inside the scroller, which clips. */}
+          <div className="no-scrollbar -mx-5 -my-1 flex gap-2 overflow-x-auto px-5 py-1">
             {state.trips.map((candidate) => {
               const active = candidate.id === trip.id;
               return (
@@ -46,12 +47,12 @@ export default function TripSettings() {
                   key={candidate.id}
                   type="button"
                   onClick={() => selectTrip(candidate.id)}
-                  className={`press shrink-0 rounded-xl border px-3.5 py-2 text-left ${
+                  className={`press min-h-11 shrink-0 rounded-control border px-4 py-2 text-left ${
                     active ? "border-accent bg-accent-soft" : "border-line bg-surface"
                   }`}
                 >
-                  <span className="block text-sm font-medium">{candidate.name}</span>
-                  <span className="block font-mono text-[10px] text-ink-faint tabular">
+                  <span className="block text-headline">{candidate.name}</span>
+                  <span className="block text-caption text-ink-soft tabular">
                     {candidate.startDate}
                   </span>
                 </button>
@@ -81,16 +82,17 @@ export default function TripSettings() {
       <section>
         <SectionTitle
           trailing={
-            <button
+            // Full 44px button; the negative margins keep the title row its own height.
+            <BorderlessButton
               type="button"
               onClick={() => {
                 setEditingTraveler(null);
                 setTravelerOpen(true);
               }}
-              className="press text-accent-strong underline"
+              className="-my-3 -mr-3"
             >
-              add
-            </button>
+              Add
+            </BorderlessButton>
           }
         >
           Travellers
@@ -98,7 +100,7 @@ export default function TripSettings() {
 
         {trip.travelers.length === 0 ? (
           <Card className="p-5">
-            <p className="text-sm text-ink-soft">
+            <p className="text-subheadline text-ink-soft">
               Add a traveller with their passport details and the visa, passport validity and
               insurance checks start running.
             </p>
@@ -113,18 +115,18 @@ export default function TripSettings() {
                   setEditingTraveler(traveler);
                   setTravelerOpen(true);
                 }}
-                className="press flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+                className="press flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left"
               >
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">{traveler.name}</span>
-                  <span className="mt-0.5 block font-mono text-[11px] text-ink-faint">
+                  <span className="block text-headline">{traveler.name}</span>
+                  <span className="block text-footnote text-ink-soft">
                     {traveler.passportCountry} passport
                     {traveler.passportExpiry
                       ? ` · expires ${formatDay(traveler.passportExpiry)}`
                       : " · no expiry set"}
                   </span>
                 </span>
-                {!traveler.passportExpiry && <Chip tone="warning">incomplete</Chip>}
+                {!traveler.passportExpiry && <Chip tone="warning">Incomplete</Chip>}
               </button>
             ))}
           </Card>
@@ -136,7 +138,7 @@ export default function TripSettings() {
         <Card className="flex flex-col gap-3 p-5">
           <SecondaryButton onClick={() => setNewTripOpen(true)}>Start another trip</SecondaryButton>
 
-          <SecondaryButton
+          <DestructiveButton
             onClick={() => {
               if (!confirmDelete) {
                 setConfirmDelete(true);
@@ -145,12 +147,11 @@ export default function TripSettings() {
               deleteTrip(trip.id);
               router.push("/");
             }}
-            className={confirmDelete ? "border-critical text-critical" : ""}
           >
             {confirmDelete
               ? `Tap again to delete "${trip.name}" and its ${tripItems(state, trip.id).length} items`
               : "Delete this trip"}
-          </SecondaryButton>
+          </DestructiveButton>
         </Card>
       </section>
 

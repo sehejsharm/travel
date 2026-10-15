@@ -1,43 +1,41 @@
 "use client";
 
 import type { ReactNode } from "react";
+import {
+  BORDERLESS_BUTTON_CLASSES,
+  DESTRUCTIVE_BUTTON_CLASSES,
+  INPUT_CLASSES,
+  PRIMARY_BUTTON_CLASSES,
+  REMOVE_BUTTON_CLASSES,
+  SECONDARY_BUTTON_CLASSES,
+} from "./styles";
 
 /*
- * Form controls, built to Apple's text-field and button specs with the brand
- * filled in. docs/design-system.md has the reasoning behind each number.
- *
- * Inputs set 17px text: Safari zooms the page into any field smaller than
- * 16px on focus, which is the single most un-native thing a web form does.
- * Every control is at least 44px tall, the smallest target a thumb can hit.
+ * The shared form controls. Their looks live in styles.ts, so links and
+ * server components can share them.
  */
-export const INPUT_CLASSES =
-  "min-h-11 w-full rounded-input border border-line bg-surface px-3 py-2 text-body text-ink outline-none placeholder:text-ink-faint transition-[border-color,box-shadow] duration-300 ease-[var(--ease-out)] focus:border-accent focus:ring-4 focus:ring-accent/15 focus-visible:outline-none disabled:opacity-40";
-
-/*
- * The three button looks as class strings, so a link that acts as a button
- * (a Link to /trip/new, say) is drawn exactly like one.
- */
-export const PRIMARY_BUTTON_CLASSES =
-  "press shine flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-accent px-4 py-2 text-body font-medium text-accent-ink disabled:opacity-40";
-export const SECONDARY_BUTTON_CLASSES =
-  "press inline-flex min-h-11 items-center justify-center gap-2 rounded-control bg-accent-soft px-4 py-2 text-subheadline font-medium text-accent-strong disabled:opacity-40";
-export const BORDERLESS_BUTTON_CLASSES =
-  "press inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-3 py-2 text-subheadline font-medium text-accent-strong hover:bg-accent-soft disabled:opacity-40";
 
 export function Field({
   label,
   hint,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
+  /** Shown in place of the hint, in the critical tone, while the value is wrong. */
+  error?: string;
   children: ReactNode;
 }) {
   return (
     <label className="flex flex-col gap-2">
       <span className="text-footnote font-medium text-ink-soft">{label}</span>
       {children}
-      {hint && <span className="text-caption text-ink-soft">{hint}</span>}
+      {error ? (
+        <span className="text-caption text-critical">{error}</span>
+      ) : (
+        hint && <span className="text-caption text-ink-soft">{hint}</span>
+      )}
     </label>
   );
 }
@@ -118,6 +116,29 @@ export function SecondaryButton({
       {...props}
       className={`${SECONDARY_BUTTON_CLASSES} ${props.className ?? ""}`}
     >
+      {children}
+    </button>
+  );
+}
+
+/** Deleting or replacing something: the tinted shape in the critical tone. */
+export function DestructiveButton({
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button {...props} className={`${DESTRUCTIVE_BUTTON_CLASSES} ${props.className ?? ""}`}>
+      {children}
+    </button>
+  );
+}
+
+export function RemoveButton({
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button {...props} className={`${REMOVE_BUTTON_CLASSES} ${props.className ?? ""}`}>
       {children}
     </button>
   );

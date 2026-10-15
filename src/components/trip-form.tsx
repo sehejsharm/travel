@@ -13,7 +13,7 @@ import { Celebrate } from "./celebrate";
 import { CoverPicker } from "./cover-picker";
 import { DestinationPicker } from "./destination-picker";
 import { Disclosure } from "./disclosure";
-import { Field, PrimaryButton, Select, TextInput } from "./form";
+import { BorderlessButton, Field, PrimaryButton, Select, TextInput } from "./form";
 import { InterestPicker } from "./interest-picker";
 import { LegsEditor } from "./legs-editor";
 import { TravelerQuickAdd } from "./traveler-quick-add";
@@ -196,25 +196,26 @@ export function TripForm({
 
       <PurposeChips value={draft.purpose} onChange={(value) => set("purpose", value)} />
 
-      <div className="rounded-2xl border border-line bg-surface p-3.5">
+      <div className="rounded-card border border-line bg-surface p-4">
         <div className="flex items-center justify-between gap-2">
-          <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">When</p>
-          <button
+          <p className="section-label">When</p>
+          {/* Full 44px button; the negative margins keep the header row slim. */}
+          <BorderlessButton
             type="button"
             onClick={() => set("datesTbd", !draft.datesTbd)}
-            className="press font-mono text-[10px] text-accent-strong underline"
+            className="-my-2 -mr-3"
           >
             {draft.datesTbd ? "I know the dates" : "No dates yet"}
-          </button>
+          </BorderlessButton>
         </div>
 
         {draft.datesTbd ? (
-          <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+          <p className="mt-2 text-footnote text-ink-soft">
             Fine — file ideas now and add dates later. Anything that depends on when you travel
             (visa lead times, weather, jet lag) stays quiet until you do.
           </p>
         ) : (
-          <div className="mt-2.5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <Field label="Leaving">
               <TextInput
                 type="date"
@@ -222,7 +223,7 @@ export function TripForm({
                 onChange={(event) => set("startDate", event.target.value)}
               />
             </Field>
-            <Field label="Back" hint={datesValid ? undefined : "Must be on or after you leave"}>
+            <Field label="Back" error={datesValid ? undefined : "Must be on or after you leave"}>
               <TextInput
                 type="date"
                 value={draft.endDate}
@@ -283,7 +284,7 @@ export function TripForm({
           summary={draft.interests.length > 0 ? `${draft.interests.length} picked` : undefined}
         >
           {purpose?.suppressSuggestions && (
-            <p className="mb-2.5 rounded-lg bg-surface-2 px-2.5 py-1.5 text-xs text-ink-soft">
+            <p className="mb-3 rounded-control bg-surface-2 px-3 py-2 text-footnote text-ink-soft">
               You picked {purpose.label}, so Discover stays quiet by default. Picking interests here
               turns it back on.
             </p>
@@ -321,7 +322,7 @@ export function TripForm({
               </Select>
             </Field>
           </div>
-          <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+          <p className="mt-2 text-footnote text-ink-soft">
             Without a target the budget card can only show what you have spent. With one, the very
             first check run can tell you whether you are over it.
           </p>
@@ -365,10 +366,8 @@ export function TripForm({
 
       {/* A last look, only for someone who actually went past the fast path. */}
       {wentDeep && !trip && (
-        <p className="rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-xs leading-relaxed text-ink-soft">
-          <span className="font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-            Creating
-          </span>
+        <p className="rounded-card border border-line bg-surface-2 px-4 py-3 text-footnote text-ink-soft">
+          <span className="section-label">Creating</span>
           <br />
           {summary}
         </p>
@@ -381,7 +380,7 @@ export function TripForm({
       <Celebrate at={burst} onDone={() => setBurst(undefined)} />
 
       {!trip && !wentDeep && (
-        <p className="text-center font-mono text-[10px] text-ink-faint">
+        <p className="text-center text-caption text-ink-soft">
           Everything above the button is optional — a destination is enough to start.
         </p>
       )}
@@ -400,12 +399,12 @@ function PurposeChips({
   const chosen = getPurpose(value);
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-        What kind of trip?
-      </span>
+    <div className="flex flex-col gap-2">
+      {/* Drawn like a Field label, so it reads as one of the form's questions. */}
+      <span className="text-footnote font-medium text-ink-soft">What kind of trip?</span>
 
-      <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+      {/* The vertical padding keeps each chip's 44px hit area and focus ring inside the scroller, which clips. */}
+      <div className="no-scrollbar -mx-1 -my-2 flex gap-2 overflow-x-auto px-1 py-2">
         {PURPOSES.map((purpose) => {
           const active = value === purpose.id;
           return (
@@ -414,7 +413,7 @@ function PurposeChips({
               type="button"
               onClick={() => onChange(active ? undefined : purpose.id)}
               aria-pressed={active}
-              className={`press shrink-0 rounded-full border px-3 py-1.5 text-xs ${
+              className={`press tap flex min-h-8 shrink-0 items-center gap-1 rounded-badge border px-3 text-footnote ${
                 active
                   ? "border-accent bg-accent-soft text-accent-strong"
                   : "border-line bg-surface text-ink-soft"
@@ -426,7 +425,7 @@ function PurposeChips({
         })}
       </div>
 
-      <p className="font-mono text-[10px] leading-relaxed text-ink-faint">
+      <p className="text-caption text-ink-soft">
         {chosen ? chosen.effect : "Optional — it only changes what gets pre-filled."}
       </p>
     </div>
@@ -458,14 +457,14 @@ function OnTheGround({ codes, homeCode }: { codes: string[]; homeCode: string })
           <li
             key={code}
             // The "it just knew that" beat: each country's facts slide in.
-            className="rounded-xl border border-line bg-surface-2 px-3 py-2.5"
+            className="rounded-card border border-line bg-surface-2 px-4 py-3"
             style={{ "--i": index } as React.CSSProperties}
           >
-            <p className="flex items-center gap-1.5 text-sm font-medium">
+            <p className="flex items-center gap-2 text-subheadline font-medium">
               <span aria-hidden="true">{flagEmoji(code)}</span>
               {country.name}
             </p>
-            <p className="mt-0.5 font-mono text-[10px] leading-relaxed text-ink-faint">
+            <p className="text-footnote text-ink-soft tabular">
               {facts.join(" · ")}
             </p>
           </li>

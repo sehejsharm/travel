@@ -25,28 +25,26 @@ export function LegalPage({
     <div className="flex flex-col gap-5">
       <ScreenHeader eyebrow="Legal" title={title} meta={summary} />
 
-      <article className="prose-legal flex flex-col gap-5 text-sm leading-relaxed text-ink-soft">
+      <article className="prose-legal flex flex-col gap-5 text-callout text-ink-soft">
         {children}
       </article>
 
       <nav className="border-t border-line pt-4">
-        <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-          Also here
-        </p>
-        <ul className="flex flex-col gap-1.5">
+        <p className="section-label mb-1">Also here</p>
+        <ul className="flex flex-col">
           {LEGAL_PAGES.filter((page) => page.title !== title).map((page) => (
-            <li key={page.href}>
+            <li key={page.href} className="flex flex-wrap items-baseline gap-x-2">
               <Link
                 href={page.href}
-                className="press text-sm text-accent-strong underline underline-offset-2"
+                className="press tap inline-flex min-h-11 items-center text-subheadline text-accent-strong underline underline-offset-2"
               >
                 {page.title}
               </Link>
-              <span className="ml-2 font-mono text-[10px] text-ink-faint">{page.blurb}</span>
+              <span className="text-caption text-ink-soft">{page.blurb}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-4 font-mono text-[10px] text-ink-faint">
+        <p className="mt-4 text-caption text-ink-soft tabular">
           Last updated {LEGAL_UPDATED}.
         </p>
       </nav>
@@ -57,7 +55,7 @@ export function LegalPage({
 export function Section({ heading, children }: { heading: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="font-display text-lg font-semibold tracking-tight text-ink">{heading}</h2>
+      <h2 className="text-title-3 text-ink">{heading}</h2>
       {children}
     </section>
   );
@@ -65,10 +63,13 @@ export function Section({ heading, children }: { heading: string; children: Reac
 
 export function Bullets({ items }: { items: ReactNode[] }) {
   return (
-    <ul className="flex flex-col gap-1.5">
+    <ul className="flex flex-col gap-2">
       {items.map((item, index) => (
-        <li key={index} className="flex gap-2.5">
-          <span aria-hidden="true" className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-ink-faint" />
+        <li key={index} className="flex gap-3">
+          {/* One line of callout text tall, so the dot centres on the first line. */}
+          <span aria-hidden="true" className="flex h-6 shrink-0 items-center">
+            <span className="h-1 w-1 rounded-full bg-ink-faint" />
+          </span>
           <span className="min-w-0">{item}</span>
         </li>
       ))}

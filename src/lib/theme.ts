@@ -11,14 +11,25 @@ export function destinationHues(seed: string): [number, number] {
   return [hash, (hash + 48) % 360];
 }
 
+/*
+ * Drawn in OKLCH rather than HSL, so every hue is equally light. In HSL a
+ * yellow or an orange at the same lightness as a blue is far brighter, and the
+ * hero's white text fell to about 2.3:1 on half the hues. At OKLCH lightness
+ * 0.45, white stays above 6.4:1 and the hero's 80% white above 4.5:1 for every
+ * hue, through the hero's hue drift too (hue-rotate and saturate both keep
+ * luminance).
+ */
+function gradientFrom(hue: number): string {
+  return `linear-gradient(135deg, oklch(0.45 0.13 ${hue}), oklch(0.34 0.12 ${(hue + 48) % 360}))`;
+}
+
 export function heroGradient(seed: string): string {
-  const [from, to] = destinationHues(seed || "trip");
-  return `linear-gradient(135deg, hsl(${from} 52% 42%), hsl(${to} 58% 30%))`;
+  return gradientFrom(destinationHues(seed || "trip")[0]);
 }
 
 /** The same gradient shape, from a hue the traveller picked rather than derived. */
 export function hueGradient(hue: number): string {
-  return `linear-gradient(135deg, hsl(${hue} 52% 42%), hsl(${(hue + 48) % 360} 58% 30%))`;
+  return gradientFrom(hue);
 }
 
 /** ISO 3166-1 alpha-2 to its flag emoji, by regional indicator offset. */

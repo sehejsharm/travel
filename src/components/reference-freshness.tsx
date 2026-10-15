@@ -7,6 +7,7 @@ import {
   referenceFreshness,
   type UpdateOutcome,
 } from "@/lib/reference/freshness";
+import { SecondaryButton } from "./form";
 import { Card } from "./ui";
 
 const OUTCOMES: Record<UpdateOutcome["status"], string> = {
@@ -32,30 +33,28 @@ export function ReferenceFreshness() {
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-medium">Reference data</p>
+        <p className="text-headline">Reference data</p>
         <span
-          className={`font-mono text-[10px] tabular ${
-            freshness.stale ? "text-warning" : "text-ink-faint"
-          }`}
+          className={`text-caption tabular ${freshness.stale ? "text-warning" : "text-ink-soft"}`}
         >
           verified {freshness.verifiedOn} · {freshness.ageDays} days old
         </span>
       </div>
 
-      <p className="mt-1.5 text-xs leading-relaxed text-ink-soft">
+      <p className="mt-2 text-footnote text-ink-soft">
         Entry rules, health advice, allowances and exchange rates ship inside the app rather than
         being fetched, which is what lets the checks run with no signal. Re-checking pulls a newer
         build of Manifest if one exists; it cannot make the numbers newer than the build.
       </p>
 
       {freshness.stale && (
-        <p className="mt-2 rounded-lg bg-[var(--warning-soft)] px-2.5 py-1.5 text-xs text-warning">
+        <p className="mt-2 rounded-control bg-warning-soft px-3 py-2 text-footnote text-warning">
           This data is more than 90 days old. Treat every visa and health finding as a prompt to
           confirm, not as an answer.
         </p>
       )}
 
-      <button
+      <SecondaryButton
         type="button"
         disabled={busy}
         onClick={async () => {
@@ -63,25 +62,25 @@ export function ReferenceFreshness() {
           setOutcome(await checkForUpdate());
           setBusy(false);
         }}
-        className="press mt-3 rounded-xl border border-line px-3.5 py-2 font-mono text-[11px] text-ink-soft disabled:opacity-50"
+        className="mt-3"
       >
         {busy ? "Checking…" : "Re-check reference data"}
-      </button>
+      </SecondaryButton>
 
-      {outcome && <p className="mt-2 text-xs text-ink-soft">{OUTCOMES[outcome.status]}</p>}
+      {outcome && <p className="mt-2 text-footnote text-ink-soft">{OUTCOMES[outcome.status]}</p>}
 
-      <ul className="mt-3 flex flex-col gap-1.5 border-t border-line pt-3">
+      <ul className="mt-3 flex flex-col gap-3 border-t border-line pt-3">
         {OFFICIAL_SOURCES.map((source) => (
-          <li key={source.label}>
+          <li key={source.label} className="flex flex-col items-start">
             <a
               href={source.url}
               target="_blank"
               rel="noreferrer"
-              className="press block text-xs text-accent-strong underline underline-offset-2"
+              className="press tap text-subheadline text-accent-strong underline underline-offset-2"
             >
               {source.label} ↗
             </a>
-            <span className="font-mono text-[10px] text-ink-faint">{source.covers}</span>
+            <span className="text-caption text-ink-soft">{source.covers}</span>
           </li>
         ))}
       </ul>

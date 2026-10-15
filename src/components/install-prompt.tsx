@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { BorderlessButton, SecondaryButton } from "./form";
 import { Card } from "./ui";
 
 interface InstallEvent extends Event {
@@ -70,34 +71,30 @@ export function InstallPrompt() {
   return (
     <Card className="flex items-start gap-3 border-accent/40 p-4">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">Put Manifest on your home screen</p>
-        <p className="mt-0.5 text-sm leading-relaxed text-ink-soft">
+        <p className="text-headline">Put Manifest on your home screen</p>
+        <p className="mt-1 text-subheadline text-ink-soft">
           {iosHint
             ? "Tap the share button, then “Add to Home Screen”. It opens instantly and works with no signal."
             : "It opens instantly, runs full screen, and works with no signal."}
         </p>
 
-        <div className="mt-2.5 flex items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {event && (
-            <button
+            <SecondaryButton
               type="button"
               onClick={async () => {
                 await event.prompt();
                 await event.userChoice;
                 setDismissed(true);
               }}
-              className="press rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-accent-ink"
             >
               Install
-            </button>
+            </SecondaryButton>
           )}
-          <button
-            type="button"
-            onClick={dismiss}
-            className="press font-mono text-[10px] text-ink-faint underline"
-          >
-            no thanks
-          </button>
+          {/* Alone on iOS, it pulls back by its own padding to line up with the text. */}
+          <BorderlessButton type="button" onClick={dismiss} className={event ? "" : "-ml-3"}>
+            No thanks
+          </BorderlessButton>
         </div>
       </div>
     </Card>

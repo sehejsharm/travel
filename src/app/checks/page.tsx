@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Checklist } from "@/components/checklist";
+import { PrimaryButton } from "@/components/form";
+import { PRIMARY_BUTTON_CLASSES } from "@/components/styles";
 import { Offers } from "@/components/offers";
 import { ReferenceFreshness } from "@/components/reference-freshness";
 import { FlagCard, SeveritySummary } from "@/components/flag-card";
@@ -28,6 +31,11 @@ export default function ChecksScreen() {
       <EmptyState
         title="No trip yet"
         body="Create a trip and the checks start running against it."
+        action={
+          <Link href="/trip/new" className={PRIMARY_BUTTON_CLASSES}>
+            Start a trip
+          </Link>
+        }
       />
     );
   }
@@ -54,9 +62,9 @@ export default function ChecksScreen() {
         eyebrow="Checks"
         title="What needs attention"
         meta={
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <SeveritySummary flags={flags} settledIds={settled} />
-            <span className="font-mono text-[11px] text-ink-faint tabular">
+            <span className="text-footnote text-ink-soft tabular">
               {progress.done}/{progress.total} done
               {progress.criticalSettled > 0 &&
                 ` · ${progress.criticalSettled} critical ticked off`}
@@ -90,7 +98,8 @@ export default function ChecksScreen() {
       <section>
         <SectionTitle trailing={`${flags.length} checks`}>Findings</SectionTitle>
 
-        <div className="no-scrollbar -mx-5 mb-3 flex gap-2 overflow-x-auto px-5">
+        {/* The vertical padding keeps each chip's 44px hit area and focus ring inside the scroller, which clips. */}
+        <div className="no-scrollbar -mx-5 -mt-2 mb-1 flex gap-2 overflow-x-auto px-5 py-2">
           {FILTERS.map((option) => {
             const count =
               option.value === "all"
@@ -104,14 +113,14 @@ export default function ChecksScreen() {
                 type="button"
                 onClick={() => setFilter(option.value)}
                 aria-pressed={active}
-                className={`press shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium ${
+                className={`press tap flex min-h-8 shrink-0 items-center gap-1 rounded-badge border px-3 text-footnote ${
                   active
                     ? "border-accent bg-accent-soft text-accent-strong"
                     : "border-line bg-surface text-ink-soft"
                 }`}
               >
                 {option.label}
-                <span className="ml-1.5 font-mono text-[10px] tabular opacity-70">{count}</span>
+                <span className="text-caption tabular">{count}</span>
               </button>
             );
           })}
@@ -121,6 +130,19 @@ export default function ChecksScreen() {
           <EmptyState
             title="Nothing to flag"
             body="Every check passed against what is filed so far."
+            action={
+              // Filtered to one severity, the rest are a tap away; unfiltered, the checks only
+              // have more to say once more is filed.
+              filter === "all" ? (
+                <Link href="/add" className={PRIMARY_BUTTON_CLASSES}>
+                  Add something
+                </Link>
+              ) : (
+                <PrimaryButton type="button" onClick={() => setFilter("all")}>
+                  Show all checks
+                </PrimaryButton>
+              )
+            }
           />
         ) : (
           <ul key={filter} className="stagger flex flex-col gap-3">

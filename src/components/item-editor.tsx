@@ -8,7 +8,18 @@ import { CURRENCY_SYMBOLS } from "@/lib/reference/fx";
 import { groundPlace, suggestPlaces } from "@/lib/reference/places";
 import { mapEmbedUrl, openInMapsUrl } from "@/lib/maps";
 import { removeItem, unscheduleItem, updateItem } from "@/lib/store/state";
-import { Field, SecondaryButton, PrimaryButton, Segmented, Select, TextArea, TextInput } from "./form";
+import {
+  BorderlessButton,
+  DestructiveButton,
+  Field,
+  PrimaryButton,
+  SecondaryButton,
+  Segmented,
+  Select,
+  TextArea,
+  TextInput,
+} from "./form";
+import { BORDERLESS_BUTTON_CLASSES } from "./styles";
 import { Sheet } from "./sheet";
 
 const CATEGORIES: { value: ItemCategory; label: string }[] = [
@@ -197,23 +208,17 @@ function ItemEditorForm({
           </Field>
         )}
 
-        <div className="rounded-2xl border border-line bg-surface p-3.5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-              When
-            </p>
+        <div className="rounded-card border border-line bg-surface p-3">
+          <div className="flex min-h-11 items-center justify-between gap-2">
+            <p className="section-label">When</p>
             {!draft.startsAt && (
-              <button
-                type="button"
-                onClick={scheduleForFirstDay}
-                className="press font-mono text-[10px] text-accent-strong underline"
-              >
-                put on day one
-              </button>
+              <BorderlessButton type="button" onClick={scheduleForFirstDay}>
+                Put on day one
+              </BorderlessButton>
             )}
           </div>
 
-          <div className="mt-2.5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <Field label="Starts">
               <TextInput
                 type="datetime-local"
@@ -232,20 +237,20 @@ function ItemEditorForm({
           </div>
 
           {draft.startsAt && (
-            <button
+            <BorderlessButton
               type="button"
               onClick={() => {
                 set("startsAt", "");
                 set("endsAt", "");
               }}
-              className="press mt-2 font-mono text-[10px] text-ink-faint underline"
+              className="-ml-3 mt-2"
             >
-              clear — send back to ideas
-            </button>
+              Clear — send back to ideas
+            </BorderlessButton>
           )}
         </div>
 
-        <div className="rounded-2xl border border-line bg-surface p-3.5">
+        <div className="rounded-card border border-line bg-surface p-3">
           <Field
             label="Place"
             hint={
@@ -263,16 +268,17 @@ function ItemEditorForm({
           </Field>
 
           {suggestions.length > 0 && (
-            <ul className="mt-2 flex flex-wrap gap-1.5">
+            // Rows sit 44px apart, so each chip's hit area meets the next row's without overlapping.
+            <ul className="mt-2 flex flex-wrap gap-x-2 gap-y-3">
               {suggestions.map((suggestion) => (
                 <li key={`${suggestion.name}-${suggestion.detail}`}>
                   <button
                     type="button"
                     onClick={() => set("placeName", suggestion.name)}
-                    className="press rounded-full border border-line px-2.5 py-1 font-mono text-[10px] text-ink-soft hover:border-accent hover:text-accent-strong"
+                    className="press tap flex min-h-8 items-center rounded-badge border border-line px-3 text-footnote text-ink hover:border-accent hover:text-accent-strong"
                   >
                     {suggestion.name}
-                    <span className="text-ink-faint"> · {suggestion.detail}</span>
+                    <span className="whitespace-pre text-ink-soft"> · {suggestion.detail}</span>
                   </button>
                 </li>
               ))}
@@ -280,7 +286,8 @@ function ItemEditorForm({
           )}
 
           {grounded && (
-            <div className="mt-3 overflow-hidden rounded-xl border border-line">
+            // Nested in the panel's corner: the card radius less the panel's 12px padding.
+            <div className="mt-3 overflow-hidden rounded-[calc(var(--radius-card)-12px)] border border-line">
               <iframe
                 key={grounded.name}
                 src={mapEmbedUrl(grounded)}
@@ -289,8 +296,8 @@ function ItemEditorForm({
                 referrerPolicy="no-referrer-when-downgrade"
                 className="h-40 w-full border-0"
               />
-              <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2">
-                <span className="min-w-0 truncate font-mono text-[10px] text-ink-faint">
+              <div className="flex items-center justify-between gap-2 border-t border-line py-1 pr-1 pl-3">
+                <span className="min-w-0 truncate text-footnote text-ink-soft">
                   Pinned to {grounded.name}
                   {grounded.city && grounded.city !== grounded.name ? `, ${grounded.city}` : ""}
                 </span>
@@ -298,7 +305,7 @@ function ItemEditorForm({
                   href={openInMapsUrl(grounded)}
                   target="_blank"
                   rel="noreferrer"
-                  className="press shrink-0 font-mono text-[10px] text-accent-strong underline"
+                  className={`${BORDERLESS_BUTTON_CLASSES} shrink-0`}
                 >
                   Open in Maps ↗
                 </a>
@@ -393,7 +400,7 @@ function ItemEditorForm({
               Unschedule
             </SecondaryButton>
           )}
-          <SecondaryButton
+          <DestructiveButton
             onClick={() => {
               if (!confirmDelete) {
                 setConfirmDelete(true);
@@ -402,10 +409,9 @@ function ItemEditorForm({
               removeItem(item.id);
               onClose();
             }}
-            className={confirmDelete ? "border-critical text-critical" : ""}
           >
             {confirmDelete ? "Tap again to delete" : "Delete"}
-          </SecondaryButton>
+          </DestructiveButton>
         </div>
       </div>
     </Sheet>

@@ -215,7 +215,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="nav-surface pt-safe sticky top-0 z-30 border-b border-line lg:hidden">
           <div className="flex h-14 items-center gap-2 px-5">
-            <Link href="/" aria-label="Manifest home">
+            <Link href="/" aria-label="Manifest home" className="press tap rounded-control">
               <Wordmark compact />
             </Link>
 

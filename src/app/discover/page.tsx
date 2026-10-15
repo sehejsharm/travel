@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { InterestPicker } from "@/components/interest-picker";
-import { PrimaryButton, TextInput } from "@/components/form";
+import { Field, PrimaryButton, TextInput } from "@/components/form";
+import {
+  BORDERLESS_BUTTON_CLASSES,
+  PRIMARY_BUTTON_CLASSES,
+  SECONDARY_BUTTON_CLASSES,
+} from "@/components/styles";
 import {
   Card,
   Chip,
@@ -45,10 +50,7 @@ export default function DiscoverScreen() {
         title="No trip yet"
         body="Start a trip and I can go looking for things to do on it."
         action={
-          <Link
-            href="/"
-            className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
-          >
+          <Link href="/trip/new" className={PRIMARY_BUTTON_CLASSES}>
             Start a trip
           </Link>
         }
@@ -73,7 +75,7 @@ export default function DiscoverScreen() {
           meta="You marked this a business trip, so suggestions are off by default."
         />
         <Card className="p-4">
-          <p className="text-sm leading-relaxed text-ink-soft">
+          <p className="text-subheadline text-ink-soft">
             Pick a few interests and Discover starts suggesting things to do around your meetings.
           </p>
           <div className="mt-3">
@@ -177,10 +179,7 @@ export default function DiscoverScreen() {
         title="Things to do"
         meta={`${interests.length} interest${interests.length === 1 ? "" : "s"} · every suggestion names where it came from`}
         action={
-          <Link
-            href="/trip"
-            className="press rounded-xl border border-line px-3 py-1.5 font-mono text-[11px] text-ink-soft"
-          >
+          <Link href="/trip" className={BORDERLESS_BUTTON_CLASSES}>
             Edit interests
           </Link>
         }
@@ -188,16 +187,15 @@ export default function DiscoverScreen() {
 
       <Card className="p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-              Where
-            </span>
-            <TextInput
-              value={destination}
-              placeholder={defaultDestination(trip, items)}
-              onChange={(event) => setDestination(event.target.value)}
-            />
-          </label>
+          <div className="flex-1">
+            <Field label="Where">
+              <TextInput
+                value={destination}
+                placeholder={defaultDestination(trip, items)}
+                onChange={(event) => setDestination(event.target.value)}
+              />
+            </Field>
+          </div>
           <div className="shrink-0 sm:w-48">
             <PrimaryButton onClick={() => void find()} disabled={loading}>
               {loading ? "Looking…" : advice ? "Look again" : "Find things to do"}
@@ -205,7 +203,7 @@ export default function DiscoverScreen() {
           </div>
         </div>
 
-        <ul className="mt-3 flex flex-wrap gap-1.5">
+        <ul className="mt-3 flex flex-wrap gap-2">
           {interests.map((id) => {
             const interest = getInterest(id);
             if (!interest) return null;
@@ -221,9 +219,7 @@ export default function DiscoverScreen() {
       </Card>
 
       {error && (
-        <Card className="border-critical p-4">
-          <p className="text-sm font-medium text-critical">{error}</p>
-        </Card>
+        <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">{error}</div>
       )}
 
       {loading && !advice && <LoadingSections count={interests.length} />}
@@ -241,7 +237,7 @@ export default function DiscoverScreen() {
                   {interest ? `${interest.emoji} ${interest.label}` : section.interestId}
                 </SectionTitle>
 
-                <ul className="flex flex-col gap-2.5">
+                <ul className="flex flex-col gap-3">
                   {section.suggestions.map((suggestion, index) => (
                     <li
                       key={suggestion.id}
@@ -259,14 +255,23 @@ export default function DiscoverScreen() {
       )}
 
       {!advice && !loading && !error && (
-        <EmptyState
-          title="Nothing looked up yet"
-          body="Tap find, and I will work down from your own saves to published trips before spending anything on a search."
-        />
+        // The search card's own button above is the action that fills this, so
+        // the note does not repeat it.
+        <Card className="p-5 text-center">
+          <p className="text-title-3">Nothing looked up yet</p>
+          <p className="mt-2 text-subheadline text-ink-soft">
+            Tap Find things to do, and I will work down from your own saves to published trips
+            before spending anything on a search.
+          </p>
+        </Card>
       )}
     </div>
   );
 }
+
+/** "Filed": the secondary button's shape in the ok tone, left undimmed though it is disabled. */
+const FILED_BUTTON_CLASSES =
+  "press inline-flex min-h-11 items-center justify-center gap-2 rounded-control bg-ok-soft px-4 py-2 text-subheadline font-medium text-ok";
 
 function SuggestionCard({ suggestion, tripId }: { suggestion: Suggestion; tripId: string }) {
   const [filed, setFiled] = useState(false);
@@ -287,24 +292,22 @@ function SuggestionCard({ suggestion, tripId }: { suggestion: Suggestion; tripId
   }
 
   return (
-    <Card as="div" className="liftable raised p-4">
+    <Card as="div" className="raised p-4">
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-[15px] leading-snug font-medium">{suggestion.name}</h3>
-        <Chip tone={TIER_TONE[suggestion.tier] ?? "neutral"}>{suggestion.tier}</Chip>
+        <h3 className="text-headline">{suggestion.name}</h3>
+        <Chip tone={TIER_TONE[suggestion.tier] ?? "neutral"}>
+          {suggestion.tier.charAt(0).toUpperCase() + suggestion.tier.slice(1)}
+        </Chip>
       </div>
 
-      <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{suggestion.why}</p>
+      <p className="mt-1 text-subheadline text-ink-soft">{suggestion.why}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={file}
           disabled={filed}
-          className={`press rounded-lg px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide ${
-            filed
-              ? "bg-[var(--ok-soft)] text-ok"
-              : "bg-accent text-accent-ink"
-          }`}
+          className={filed ? FILED_BUTTON_CLASSES : SECONDARY_BUTTON_CLASSES}
         >
           {filed ? "Filed ✓" : "Add to trip"}
         </button>
@@ -313,7 +316,7 @@ function SuggestionCard({ suggestion, tripId }: { suggestion: Suggestion; tripId
           href={openInMapsUrl(suggestion.place)}
           target="_blank"
           rel="noreferrer"
-          className="press rounded-lg border border-line px-3 py-1.5 font-mono text-[10px] text-ink-soft hover:border-accent hover:text-accent-strong"
+          className={BORDERLESS_BUTTON_CLASSES}
         >
           Maps ↗
         </a>
@@ -323,14 +326,14 @@ function SuggestionCard({ suggestion, tripId }: { suggestion: Suggestion; tripId
             href={suggestion.url}
             target="_blank"
             rel="noreferrer"
-            className="press font-mono text-[10px] text-ink-faint underline"
+            className="press tap inline-flex items-center text-footnote text-ink-soft underline underline-offset-2 hover:text-ink"
           >
             {suggestion.attribution ?? "source"} ↗
           </a>
         )}
 
         {suggestion.priceHint && (
-          <span className="ml-auto font-mono text-[10px] text-ink-faint">
+          <span className="ml-auto text-footnote text-ink-soft tabular">
             {suggestion.priceHint}
           </span>
         )}
@@ -343,10 +346,8 @@ function SuggestionCard({ suggestion, tripId }: { suggestion: Suggestion; tripId
 function Sourcing({ advice }: { advice: AdviceResult }) {
   return (
     <Card className="p-4">
-      <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-        Where these came from
-      </p>
-      <ul className="mt-2 flex flex-wrap gap-1.5">
+      <p className="section-label">Where these came from</p>
+      <ul className="mt-2 flex flex-wrap gap-2">
         {advice.tiersUsed.map((tier) => (
           <li key={tier}>
             <Chip tone={TIER_TONE[tier] ?? "neutral"}>{TIER_LABELS[tier]}</Chip>
@@ -354,7 +355,7 @@ function Sourcing({ advice }: { advice: AdviceResult }) {
         ))}
       </ul>
       {advice.notes?.map((note) => (
-        <p key={note} className="mt-2 text-[11px] text-ink-faint">
+        <p key={note} className="mt-2 text-caption text-ink-soft">
           {note}
         </p>
       ))}

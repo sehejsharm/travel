@@ -26,22 +26,22 @@ const SERVICES: [string, string][] = [
 function Table({ rows, note }: { rows: [string, string, string][]; note?: string }) {
   return (
     <>
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col">
         {rows.map(([name, licence, url]) => (
           <li key={name} className="flex flex-wrap items-baseline gap-x-2">
             <a
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="text-sm text-accent-strong underline underline-offset-2"
+              className="press tap inline-flex min-h-11 items-center text-subheadline text-accent-strong underline underline-offset-2"
             >
               {name}
             </a>
-            <span className="font-mono text-[10px] text-ink-faint">{licence}</span>
+            <span className="text-caption text-ink-soft">{licence}</span>
           </li>
         ))}
       </ul>
-      {note && <p className="font-mono text-[10px] text-ink-faint">{note}</p>}
+      {note && <p className="text-caption text-ink-soft">{note}</p>}
     </>
   );
 }
@@ -97,14 +97,14 @@ export default function Licences() {
       </Section>
 
       <Section heading="Services used at runtime">
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col">
           {SERVICES.map(([name, url]) => (
             <li key={name}>
               <a
                 href={url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm text-accent-strong underline underline-offset-2"
+                className="press tap inline-flex min-h-11 items-center text-subheadline text-accent-strong underline underline-offset-2"
               >
                 {name} ↗
               </a>

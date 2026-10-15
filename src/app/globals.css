@@ -45,8 +45,8 @@
   --critical: #b23b46;
   --critical-soft: rgba(178, 59, 70, 0.11);
   /* Amber, not copper: a warning must never read as something to tap. */
-  --warning: #8a6100;
-  --warning-soft: rgba(138, 97, 0, 0.12);
+  --warning: #7a5c00;
+  --warning-soft: rgba(122, 92, 0, 0.12);
   --ok: #2f6f62;
   --ok-soft: rgba(47, 111, 98, 0.11);
 
@@ -283,10 +283,14 @@ body {
   background: var(--accent-soft);
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 6px;
+/* Layered, so a control's own rounded-* corners shape its ring; anything
+   without a radius gets a soft 6px one. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
 }
 
 .tabular {
@@ -312,18 +316,21 @@ body {
   }
 }
 
-/* Navigation bars and floating headers: a heavy blur the page shows through. */
+/*
+ * Navigation bars and floating headers: a heavy blur the page shows through.
+ * The blur goes through Tailwind's utilities, which emit the standard and the
+ * -webkit- declarations both. Written out by hand, the minifier folds the pair
+ * into the prefixed one alone, which Chromium ignores: no blur on Android.
+ */
 .nav-surface {
   background: var(--material);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  @apply backdrop-blur-[20px] backdrop-saturate-[180%];
 }
 
 /* Sheets and dialogs: the same material, a little more opaque for reading. */
 .material-thick {
   background: var(--material-thick);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  @apply backdrop-blur-[20px] backdrop-saturate-[180%];
 }
 
 /*
@@ -347,14 +354,17 @@ body {
   transform: translate(-50%, -50%);
 }
 
-/* Section labels over grouped content, Apple's uppercase footnote header. */
-.section-label {
-  font-size: var(--text-caption);
-  line-height: var(--text-caption--line-height);
-  letter-spacing: var(--text-caption--letter-spacing);
-  font-weight: 400;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+/* Section labels over grouped content, Apple's uppercase footnote header.
+   Layered, so a text-* colour utility can tint one. */
+@layer components {
+  .section-label {
+    font-size: var(--text-caption);
+    line-height: var(--text-caption--line-height);
+    letter-spacing: var(--text-caption--letter-spacing);
+    font-weight: 400;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
 }
 
 /* Horizontal chip rows scroll without a visible bar. */
@@ -647,13 +657,16 @@ body {
   }
 }
 
+/* The ring sits behind the button's own icon, never over it. */
 .fab-ring {
   position: relative;
+  isolation: isolate;
 }
 .fab-ring::before {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: -1;
   border-radius: 9999px;
   background: var(--accent);
   animation: fab-breathe 1.6s var(--ease-soft) infinite;
@@ -736,6 +749,11 @@ body {
 
   .animate-drift {
     opacity: 0.2;
+  }
+
+  /* Without its animation the ring would sit as a solid disc: hide it. */
+  .fab-ring::before {
+    opacity: 0;
   }
 
   /* Movement is removed, not accelerated. Opacity still carries the change. */

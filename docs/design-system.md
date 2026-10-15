@@ -4,7 +4,9 @@ Manifest follows Apple's Human Interface Guidelines, translated to the web,
 with Manifest's own brand in place of Apple's palette. This file is the
 standard every screen is built and reviewed against. The tokens live in
 `src/app/globals.css`; the shared controls live in `src/components/form.tsx`,
-`src/components/ui.tsx` and `src/components/sheet.tsx`.
+`src/components/ui.tsx` and `src/components/sheet.tsx`, and their looks as
+class strings in `src/components/styles.ts` (a plain module, so server
+components can use them too).
 
 ## Colour: the brand in Apple's semantic layers
 
@@ -24,7 +26,7 @@ token, so light and dark come from the same class names.
 | Secondary text | `ink-soft` | brand ink at 60% | paper at 60% |
 | Tertiary (placeholders, disabled, decoration only) | `ink-faint` | brand ink at 30% | paper at 30% |
 | Hairlines | `line` | brand ink at 10% | paper at 10% |
-| Critical / warning / success | `critical`, `warning`, `ok` | `#b23b46` / amber `#8a6100` / teal `#2f6f62` | `#e5808a` / `#e8b84a` / `#59a595` |
+| Critical / warning / success | `critical`, `warning`, `ok` | `#b23b46` / amber `#7a5c00` / teal `#2f6f62` | `#e5808a` / `#e8b84a` / `#59a595` |
 | Frosted bars, sheets | `.nav-surface`, `.material-thick` | paper at 72%, white at 80% | ink at 72%, surface at 80% |
 
 Rules:
@@ -139,11 +141,18 @@ Rules:
 ## Components
 
 - Buttons (`form.tsx`): `PrimaryButton` (copper fill, white text, 10px
-  radius, 48px tall, full width) for the one thing a screen is for;
-  `SecondaryButton` (copper wash, copper text) for supporting actions;
-  `BorderlessButton` (copper text, a wash under a pointer) for quiet ones. A
-  link styled as a button copies the same classes.
+  radius, 48px tall, full width) for the one thing a screen is for, and only
+  one on screen at a time; `SecondaryButton` (copper wash, copper text) for
+  supporting actions; `BorderlessButton` (copper text, a wash under a pointer)
+  for quiet ones; `DestructiveButton` (red wash, red text, red from the first
+  tap) for deleting or replacing; `RemoveButton` (secondary text, red under a
+  pointer) for taking one entry out of a list. A link styled as a button uses
+  the matching class string from `styles.ts`.
+- Overriding a colour by adding a utility next to one already in a class
+  string does not work reliably: Tailwind decides which of two same-property
+  utilities wins, not the order they are written in. Use the right variant.
 - Inputs: `TextInput`, `TextArea`, `Select`. They use 17px text, because
-  Safari zooms into any field under 16px. Labels sit above, from `Field`.
+  Safari zooms into any field under 16px. Labels sit above, from `Field`,
+  which also shows a validation `error` in the critical tone.
 - Empty states (`EmptyState`): a thin-stroke icon, a bold title, a sentence on
   why it is empty, and a required action that fills it.

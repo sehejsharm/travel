@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { BorderlessButton, PrimaryButton, SecondaryButton, TextArea } from "@/components/form";
 import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { prepareImage, requestExtraction, sourceForText, type CaptureImage } from "@/lib/capture";
 import { SOURCE_LABELS, type TripItem } from "@/lib/domain/types";
@@ -207,17 +208,11 @@ function AddScreenInner() {
         <Card className="animate-pop overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={image.previewUrl} alt="Screenshot to read" className="max-h-72 w-full object-contain bg-surface-2" />
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="min-w-0 truncate font-mono text-[11px] text-ink-faint">
-              {image.name}
-            </span>
-            <button
-              type="button"
-              onClick={() => setImage(null)}
-              className="press font-mono text-[11px] text-ink-faint underline hover:text-critical"
-            >
-              remove
-            </button>
+          <div className="flex items-center justify-between gap-3 py-1 pr-1 pl-4">
+            <span className="min-w-0 truncate text-footnote text-ink-soft">{image.name}</span>
+            <BorderlessButton type="button" onClick={() => setImage(null)} className="shrink-0">
+              Remove
+            </BorderlessButton>
           </div>
         </Card>
       ) : (
@@ -233,7 +228,7 @@ function AddScreenInner() {
             const dropped = event.dataTransfer.files?.[0];
             if (dropped) void loadImage(dropped);
           }}
-          className={`rounded-2xl border-2 border-dashed p-5 transition-colors ${
+          className={`rounded-card border-2 border-dashed p-5 transition-colors duration-300 ease-[var(--ease-spring)] ${
             dragging ? "border-accent bg-accent-soft" : "border-line bg-surface"
           }`}
         >
@@ -271,46 +266,48 @@ function AddScreenInner() {
             />
           </div>
 
-          <p className="mt-3 text-center text-xs text-ink-faint">
+          <p className="mt-3 text-center text-caption text-ink-soft">
             Drop a screenshot here, or paste one straight onto this screen
           </p>
         </div>
       )}
 
       <Card className="p-4">
-        <textarea
+        <TextArea
           value={text}
           onChange={(event) => setText(event.target.value)}
           rows={5}
           aria-label="Content to extract"
           placeholder="…or paste a link, an email, or just type what you want to remember"
-          className="w-full resize-y bg-transparent text-sm leading-relaxed outline-none"
         />
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+        <div className="mt-3 flex flex-col items-start gap-3 border-t border-line pt-3">
           <Chip tone={image ? "accent" : "neutral"}>
-            {image ? "screenshot" : SOURCE_LABELS[sourceForText(text)]}
+            {image ? "Screenshot" : SOURCE_LABELS[sourceForText(text)]}
           </Chip>
 
-          <button
-            type="button"
-            onClick={run}
-            disabled={busy || !ready}
-            className="press ml-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink disabled:opacity-40"
-          >
-            {busy ? "Reading…" : image ? "Read the screenshot" : "Extract"}
-          </button>
+          {/* Once something has been read, filing it is the screen's one primary action. */}
+          {result ? (
+            <SecondaryButton type="button" onClick={run} disabled={busy || !ready} className="w-full">
+              {busy ? "Reading…" : image ? "Read the screenshot again" : "Extract again"}
+            </SecondaryButton>
+          ) : (
+            <PrimaryButton type="button" onClick={run} disabled={busy || !ready}>
+              {busy ? "Reading…" : image ? "Read the screenshot" : "Extract"}
+            </PrimaryButton>
+          )}
         </div>
       </Card>
 
       {!image && !text && (
-        <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
+        // The vertical padding keeps each chip's 44px hit area inside the scroller, which clips.
+        <div className="no-scrollbar -mx-5 -my-2 flex gap-2 overflow-x-auto px-5 py-2">
           {EXAMPLES.map((example) => (
             <button
               key={example.label}
               type="button"
               onClick={() => setText(example.text)}
-              className="press shrink-0 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs text-ink-soft hover:border-accent hover:text-accent-strong"
+              className="press tap flex min-h-8 shrink-0 items-center rounded-badge border border-line bg-surface px-3 text-footnote text-ink-soft hover:border-accent hover:text-accent-strong"
             >
               Try: {example.label}
             </button>
@@ -319,15 +316,19 @@ function AddScreenInner() {
       )}
 
       <div aria-live="polite" className="flex flex-col gap-3">
-        {error && <Card className="border-critical p-4 text-sm text-critical">{error}</Card>}
+        {error && (
+          <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">
+            {error}
+          </div>
+        )}
 
         {filed && (
-          <Card className="animate-pop border-teal p-4 text-sm">
+          <div className="animate-pop rounded-card bg-ok-soft p-4 text-subheadline">
             Filed <span className="font-medium">{filed}</span>.{" "}
             <Link href="/cabinet" className="text-accent-strong underline">
               See it in the cabinet
             </Link>
-          </Card>
+          </div>
         )}
 
         {result && duplicates.length === 0 && (
@@ -361,7 +362,7 @@ function CaptureButton({
     <button
       type="button"
       onClick={onClick}
-      className="press flex flex-col items-center gap-2 rounded-xl border border-line bg-bg-elevated px-2 py-3.5 text-xs font-medium hover:border-accent hover:text-accent-strong"
+      className="press flex min-h-11 flex-col items-center gap-2 rounded-control border border-line bg-bg-elevated px-2 py-3 text-footnote font-medium hover:border-accent hover:text-accent-strong"
     >
       <svg
         width="24"
@@ -415,18 +416,18 @@ function Preview({
   return (
     <Card className="animate-pop p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold tracking-tight">Preview</h2>
+        <h2 className="text-title-3">Preview</h2>
         <Chip tone={result.method === "llm" ? "accent" : "neutral"}>
-          {result.method === "llm" ? "model pass" : "pattern pass"}
+          {result.method === "llm" ? "Model pass" : "Pattern pass"}
         </Chip>
       </div>
 
       <div className="mt-3">
-        <div className="flex justify-between font-mono text-[11px] text-ink-soft">
+        <div className="flex justify-between text-footnote text-ink-soft">
           <span>confidence</span>
           <span className="tabular">{percent}%</span>
         </div>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2">
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2">
           <div
             className={`h-full rounded-full ${percent >= 60 ? "bg-teal" : "bg-warning"}`}
             style={{ width: `${percent}%` }}
@@ -435,11 +436,9 @@ function Preview({
       </div>
 
       {result.link && (
-        <div className="mt-3 rounded-xl bg-teal-soft px-3 py-2.5">
-          <p className="font-mono text-[10px] uppercase tracking-wide text-teal">
-            {result.link.platform} link
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        <div className="mt-3 rounded-control bg-teal-soft px-3 py-3">
+          <p className="text-footnote font-medium text-teal">{result.link.platform} link</p>
+          <p className="mt-1 text-footnote text-ink-soft">
             {result.link.metadataFetched
               ? result.link.caption
                 ? `Read the caption: “${result.link.caption.slice(0, 140)}”`
@@ -450,32 +449,33 @@ function Preview({
       )}
 
       {result.escalationReason && !result.link && (
-        <p className="mt-2 rounded-xl bg-surface-2 px-3 py-2 font-mono text-[10px] leading-relaxed text-ink-soft">
+        <p className="mt-3 rounded-control bg-surface-2 px-3 py-2 text-footnote text-ink-soft">
           {result.escalationReason}
         </p>
       )}
 
       <dl className="mt-4 divide-y divide-line border-y border-line">
         {rows.map(([label, value]) => (
-          <div key={label} className="flex gap-3 py-2">
-            <dt className="w-28 shrink-0 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-              {label}
-            </dt>
-            <dd className="min-w-0 flex-1 text-xs break-words">{value}</dd>
+          <div key={label} className="flex items-baseline gap-3 py-2">
+            <dt className="w-28 shrink-0 text-footnote text-ink-soft">{label}</dt>
+            {/* A booking reference is machine data, so it gets the monospace face. */}
+            <dd
+              className={`min-w-0 flex-1 text-subheadline break-words tabular ${
+                label === "Confirmation" && value !== "—" ? "font-mono" : ""
+              }`}
+            >
+              {value}
+            </dd>
           </div>
         ))}
       </dl>
 
-      <button
-        type="button"
-        onClick={onFile}
-        className="press mt-4 w-full rounded-xl bg-teal px-4 py-2.5 text-sm font-medium text-white"
-      >
+      <PrimaryButton type="button" onClick={onFile} className="mt-4">
         {startsTrip ? "Start a new trip from this" : "File it"}
-      </button>
+      </PrimaryButton>
 
       {startsTrip && (
-        <p className="mt-2 text-center font-mono text-[10px] leading-relaxed text-ink-faint">
+        <p className="mt-2 text-center text-footnote text-ink-soft">
           You have no trip open. This builds one around what was found — you can rename it and
           fill in the dates after.
         </p>
@@ -503,11 +503,11 @@ function DuplicateChoice({
   onCancel: () => void;
 }) {
   return (
-    <Card className="animate-rise border-accent p-4">
-      <p className="text-sm font-medium">
+    <Card className="animate-rise border-warning p-4">
+      <p className="text-headline">
         You may already have {matches.length === 1 ? "this" : "one of these"}
       </p>
-      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+      <p className="mt-1 text-footnote text-ink-soft">
         “{draft.title}” looks like something already filed. Merging keeps what you have and fills
         in anything it was missing.
       </p>
@@ -516,38 +516,30 @@ function DuplicateChoice({
         {matches.map((match) => (
           <li
             key={match.item.id}
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface-2 p-3"
+            className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-surface-2 p-3"
           >
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{match.item.title}</span>
-              <span className="block font-mono text-[10px] text-ink-faint">{match.reason}</span>
+              <span className="block truncate text-headline">{match.item.title}</span>
+              <span className="block text-footnote text-ink-soft">{match.reason}</span>
             </span>
-            <button
+            <SecondaryButton
               type="button"
               onClick={() => onMerge(match.item)}
-              className="press shrink-0 rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-accent-ink"
+              className="shrink-0"
             >
               Merge into this
-            </button>
+            </SecondaryButton>
           </li>
         ))}
       </ul>
 
       <div className="mt-3 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onKeepBoth}
-          className="press rounded-lg border border-line px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-ink-soft"
-        >
+        <SecondaryButton type="button" onClick={onKeepBoth}>
           Keep both
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="press font-mono text-[10px] text-ink-faint underline"
-        >
-          back
-        </button>
+        </SecondaryButton>
+        <BorderlessButton type="button" onClick={onCancel}>
+          Back
+        </BorderlessButton>
       </div>
     </Card>
   );
