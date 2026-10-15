@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Traveler } from "@/lib/domain/types";
 import { COUNTRIES } from "@/lib/reference/countries";
 import { addTraveler, removeTraveler, updateTraveler } from "@/lib/store/state";
-import { Field, GhostButton, PrimaryButton, Select, TextInput } from "./form";
+import { DestructiveButton, Field, PrimaryButton, SecondaryButton, Select, TextInput } from "./form";
 import { Sheet } from "./sheet";
 
 const COUNTRY_OPTIONS = Object.values(COUNTRIES).sort((a, b) => a.name.localeCompare(b.name));
@@ -97,7 +97,7 @@ function TravelerEditorForm({
       title={traveler ? "Edit traveller" : "Add traveller"}
       footer={
         <div className="flex gap-2">
-          <GhostButton onClick={onClose}>Cancel</GhostButton>
+          <SecondaryButton onClick={onClose}>Cancel</SecondaryButton>
           <PrimaryButton onClick={save} disabled={!draft.name.trim()}>
             Save
           </PrimaryButton>
@@ -157,16 +157,16 @@ function TravelerEditorForm({
           </Select>
         </Field>
 
-        <label className="flex items-start gap-2.5">
+        <label className="flex min-h-11 items-start gap-3">
           <input
             type="checkbox"
             checked={Boolean(draft.needsVisaHelp)}
             onChange={(event) => set("needsVisaHelp", event.target.checked)}
-            className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]"
+            className="press mt-1 size-4 shrink-0 accent-[var(--accent)]"
           />
-          <span className="text-sm">
+          <span className="text-subheadline">
             Needs a hand with the visa
-            <span className="mt-0.5 block font-mono text-[10px] leading-relaxed text-ink-faint">
+            <span className="block text-caption text-ink-soft">
               Adds a check that spells out the paperwork, in order, for every destination that
               needs it.
             </span>
@@ -193,7 +193,7 @@ function TravelerEditorForm({
 
         {traveler && (
           <div className="border-t border-line pt-4">
-            <GhostButton
+            <DestructiveButton
               onClick={() => {
                 if (!confirmDelete) {
                   setConfirmDelete(true);
@@ -202,10 +202,9 @@ function TravelerEditorForm({
                 removeTraveler(tripId, traveler.id);
                 onClose();
               }}
-              className={confirmDelete ? "border-critical text-critical" : ""}
             >
               {confirmDelete ? "Tap again to remove" : "Remove traveller"}
-            </GhostButton>
+            </DestructiveButton>
           </div>
         )}
       </div>

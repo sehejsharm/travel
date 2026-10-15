@@ -42,21 +42,21 @@ export default function PrivacyPolicy() {
         <Bullets
           items={[
             <>
-              <strong className="text-ink">What is sent:</strong> the text or image you supplied,
+              <strong className="font-medium text-ink">What is sent:</strong> the text or image you supplied,
               and nothing else about you. No device identifier, no trip history, no other item.
             </>,
             <>
-              <strong className="text-ink">Who receives it:</strong> Anthropic, as a processor, under
+              <strong className="font-medium text-ink">Who receives it:</strong> Anthropic, as a processor, under
               their API terms. They do not train models on API inputs by default.
             </>,
             <>
-              <strong className="text-ink">If you paste a link</strong> to Instagram, TikTok or
+              <strong className="font-medium text-ink">If you paste a link</strong> to Instagram, TikTok or
               YouTube, our server also requests that public page to read its title, description and
               preview image. That request comes from our server, not your device, so your IP address
               is not revealed to those sites.
             </>,
             <>
-              <strong className="text-ink">Screenshots are not retained anywhere.</strong> The image
+              <strong className="font-medium text-ink">Screenshots are not retained anywhere.</strong> The image
               is downscaled in your browser, sent for extraction, and discarded. Only the extracted
               fields are saved, on your device.
             </>,
@@ -76,12 +76,12 @@ export default function PrivacyPolicy() {
               entirely without contacting anyone.
             </>,
             <>
-              The <strong className="text-ink">Google Places API</strong>, which receives the
+              The <strong className="font-medium text-ink">Google Places API</strong>, which receives the
               destination and a description of what you are looking for. It does not receive your
               identity, your trip, or your location.
             </>,
             <>
-              <strong className="text-ink">Web search through the Anthropic API</strong>, which
+              <strong className="font-medium text-ink">Web search through the Anthropic API</strong>, which
               issues search queries containing the destination and your interests. Those queries
               reach a search provider through Anthropic.
             </>,
@@ -97,9 +97,10 @@ export default function PrivacyPolicy() {
       <Section heading="3. Maps">
         <p>
           Where a map is shown — on the cabinet map view, in an item&rsquo;s editor, and under a
-          place you type in on the Add screen — it is a Google Maps embed loaded by your browser. That is a direct connection from your device to
-          Google, which means Google receives your IP address, your browser details, and the
-          coordinates or place name being displayed, under{" "}
+          place you type in on the Add screen — it is a Google Maps embed loaded by your browser.
+          That is a direct connection from your device to Google, which means Google receives your
+          IP address, your browser details, and the coordinates or place name being displayed,
+          under{" "}
           <a
             href="https://policies.google.com/privacy"
             target="_blank"
@@ -127,18 +128,18 @@ export default function PrivacyPolicy() {
         <Bullets
           items={[
             <>
-              <strong className="text-ink">Camera</strong> — only if you tap Camera on the Add
+              <strong className="font-medium text-ink">Camera</strong> — only if you tap Camera on the Add
               screen, to photograph a booking. The photo goes to extraction and is not stored.
             </>,
             <>
-              <strong className="text-ink">Photo library</strong> — only if you choose Screenshot,
+              <strong className="font-medium text-ink">Photo library</strong> — only if you choose Screenshot,
               to pick an existing image. We receive the one file you select.
             </>,
             <>
-              <strong className="text-ink">Clipboard</strong> — only when you tap Paste, read once.
+              <strong className="font-medium text-ink">Clipboard</strong> — only when you tap Paste, read once.
             </>,
             <>
-              <strong className="text-ink">Storage</strong> — to keep your trip on the device. This
+              <strong className="font-medium text-ink">Storage</strong> — to keep your trip on the device. This
               is the whole product.
             </>,
           ]}
@@ -161,7 +162,7 @@ export default function PrivacyPolicy() {
       <Section heading="Sharing a trip">
         <p>
           A share link puts a compressed copy of the trip in the part of the URL after the{" "}
-          <code className="rounded bg-surface-2 px-1 font-mono text-[11px]">#</code>, which browsers
+          <code className="rounded-badge bg-surface-2 px-1 font-mono text-footnote">#</code>, which browsers
           never transmit to a server — including ours. Prices, confirmation numbers, traveller names
           and refund deadlines are stripped before the link is made. Anyone you give the link to can
           read the trip, so treat it like a document, not a password.

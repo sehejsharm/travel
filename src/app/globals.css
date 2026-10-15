@@ -1,56 +1,77 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------- tokens */
+/*
+ * Apple's semantic layers, filled with Manifest's brand rather than Apple's
+ * palette. docs/design-system.md has the full mapping and the rules every
+ * screen follows; the short version:
+ *
+ *   accent      brand primary: filled buttons, active states, progress, focus
+ *   bg          the grouped background (paper; brand ink in the dark)
+ *   surface     cards and cells raised on it
+ *   ink         labels: brand ink at 90 / 60 / 30% for primary / soft / faint
+ *   line        hairlines: brand ink at 10%
+ *   material    the frosted bars and sheets, 72-80% over a heavy blur
+ */
 :root {
+  /* The mark and decorative fills keep the bright brand copper. */
+  --brand: #c1793d;
+
   --bg: #f4f6f3;
   --bg-elevated: #ffffff;
   --surface: #ffffff;
   --surface-2: #eaeee8;
   --surface-3: #dfe5dc;
 
-  --ink: #131c22;
-  --ink-soft: #4f6069;
-  --ink-faint: #84969c;
+  /* Faint is for placeholders, disabled controls and decoration only: at 30%
+     it is not readable text. Anything a person needs to read is ink-soft. */
+  --ink: rgba(11, 17, 22, 0.9);
+  --ink-soft: rgba(11, 17, 22, 0.6);
+  --ink-faint: rgba(11, 17, 22, 0.3);
 
-  --line: #dbe2d8;
-  --line-strong: #c5cfc1;
+  --line: rgba(11, 17, 22, 0.1);
+  --line-strong: rgba(11, 17, 22, 0.2);
 
-  --accent: #c1793d;
+  /* The deeper copper, so white text on a filled button reads at 5.2:1. */
+  --accent: #9c5e2c;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(193, 121, 61, 0.12);
-  --accent-strong: #9c5e2c;
+  --accent-soft: rgba(156, 94, 44, 0.12);
+  /* Copper text on a tinted fill, which the button copper only manages at 4.4:1. */
+  --accent-strong: #87501f;
 
   --teal: #2f6f62;
   --teal-soft: rgba(47, 111, 98, 0.12);
 
   --critical: #b23b46;
   --critical-soft: rgba(178, 59, 70, 0.11);
-  --warning: #9c5e2c;
-  --warning-soft: rgba(156, 94, 44, 0.11);
+  /* Amber, not copper: a warning must never read as something to tap. */
+  --warning: #7a5c00;
+  --warning-soft: rgba(122, 92, 0, 0.12);
   --ok: #2f6f62;
   --ok-soft: rgba(47, 111, 98, 0.11);
 
-  --shadow-sm: 0 1px 2px rgba(19, 28, 34, 0.05);
-  --shadow-md: 0 1px 2px rgba(19, 28, 34, 0.05), 0 6px 16px -6px rgba(19, 28, 34, 0.1);
-  --shadow-lg: 0 2px 4px rgba(19, 28, 34, 0.05), 0 16px 40px -12px rgba(19, 28, 34, 0.18);
+  --shadow-sm: 0 1px 2px rgba(11, 17, 22, 0.05);
+  --shadow-md: 0 1px 2px rgba(11, 17, 22, 0.05), 0 6px 16px -6px rgba(11, 17, 22, 0.1);
+  --shadow-lg: 0 2px 4px rgba(11, 17, 22, 0.05), 0 16px 40px -12px rgba(11, 17, 22, 0.18);
 
-  --nav-blur: rgba(244, 246, 243, 0.82);
+  --material: rgba(244, 246, 243, 0.72);
+  --material-thick: rgba(255, 255, 255, 0.8);
 
   /* --------------------------------------------------------- motion scale */
   /*
-   * Three curves and three durations, reused everywhere, so that everything
-   * in the app accelerates the same way. Ad-hoc per-component timing is what
-   * makes an interface feel assembled rather than designed.
+   * Two curves, both Apple's spring approximations, reused everywhere: a
+   * snappy response for anything the finger moves, a long deceleration for
+   * things arriving. Nothing in the app eases linearly or in-and-out.
    */
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-spring: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --dur-micro: 120ms;
-  --dur-move: 220ms;
+  --dur-micro: 100ms;
+  --dur-move: 300ms;
   --dur-hero: 460ms;
-  /* Ambient loops: long enough to read as life, not as animation. */
-  --dur-ambient: 11s;
+  /* Ambient loops: fast enough to be seen in a glance, not a vigil. */
+  --dur-ambient: 7s;
 
   /* ------------------------------------------------------------ elevation */
   /*
@@ -59,24 +80,26 @@
    * from a painted rectangle.
    */
   --edge-highlight: rgba(255, 255, 255, 0.5);
-  --edge-shadow: rgba(19, 28, 34, 0.06);
-  --lift-shadow: 0 2px 6px rgba(19, 28, 34, 0.06), 0 12px 28px -10px rgba(19, 28, 34, 0.18);
+  --edge-shadow: rgba(11, 17, 22, 0.06);
+  --lift-shadow: 0 2px 6px rgba(11, 17, 22, 0.06), 0 12px 28px -10px rgba(11, 17, 22, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --brand: #e39a5c;
+
     --bg: #0b1116;
     --bg-elevated: #121a20;
     --surface: #141d24;
     --surface-2: #1b252c;
     --surface-3: #243038;
 
-    --ink: #eef2ef;
-    --ink-soft: #9fb0b7;
-    --ink-faint: #6b7d85;
+    --ink: rgba(244, 246, 243, 0.9);
+    --ink-soft: rgba(244, 246, 243, 0.6);
+    --ink-faint: rgba(244, 246, 243, 0.3);
 
-    --line: #222e36;
-    --line-strong: #31404a;
+    --line: rgba(244, 246, 243, 0.1);
+    --line-strong: rgba(244, 246, 243, 0.2);
 
     --accent: #e39a5c;
     --accent-ink: #1a1108;
@@ -88,8 +111,8 @@
 
     --critical: #e5808a;
     --critical-soft: rgba(229, 128, 138, 0.13);
-    --warning: #e3a85c;
-    --warning-soft: rgba(227, 168, 92, 0.13);
+    --warning: #e8b84a;
+    --warning-soft: rgba(232, 184, 74, 0.13);
     --ok: #59a595;
     --ok-soft: rgba(89, 165, 149, 0.13);
 
@@ -97,7 +120,8 @@
     --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px -8px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.35), 0 20px 48px -16px rgba(0, 0, 0, 0.65);
 
-    --nav-blur: rgba(11, 17, 22, 0.78);
+    --material: rgba(11, 17, 22, 0.72);
+    --material-thick: rgba(20, 29, 36, 0.8);
 
     /* The highlight has to do more work in the dark, where there is no
        ambient light to separate one panel from the next. */
@@ -108,6 +132,7 @@
 }
 
 @theme inline {
+  --color-brand: var(--brand);
   --color-bg: var(--bg);
   --color-bg-elevated: var(--bg-elevated);
   --color-surface: var(--surface);
@@ -130,13 +155,108 @@
   --color-warning-soft: var(--warning-soft);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
-
-  --font-display: var(--font-fraunces);
-  --font-sans: var(--font-plex-sans);
-  --font-mono: var(--font-plex-mono);
+  --color-material: var(--material);
 
   --shadow-card: var(--shadow-md);
   --shadow-float: var(--shadow-lg);
+}
+
+/*
+ * Type. San Francisco where it is installed (every Apple device; Safari picks
+ * the Text or Display cut by size on its own), then each other platform's own
+ * system face, so nothing is downloaded and nothing looks borrowed. SF cannot
+ * be served as a web font: Apple licenses it for its own platforms only.
+ *
+ * The scale is Apple's text styles with the tracking and leading rules from
+ * docs/design-system.md. Tailwind's own size names are remapped onto it too,
+ * so a stray text-sm still lands on the scale.
+ */
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro",
+    "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Mono", "Roboto Mono", Consolas,
+    monospace;
+
+  --text-caption-2: 11px;
+  --text-caption-2--line-height: 1.33;
+  --text-caption-2--letter-spacing: 0.012em;
+  --text-caption-2--font-weight: 400;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.33;
+  --text-caption--letter-spacing: 0.012em;
+  --text-caption--font-weight: 400;
+  --text-footnote: 13px;
+  --text-footnote--line-height: 1.38;
+  --text-footnote--letter-spacing: 0em;
+  --text-subheadline: 15px;
+  --text-subheadline--line-height: 1.45;
+  --text-subheadline--letter-spacing: 0em;
+  --text-callout: 16px;
+  --text-callout--line-height: 1.5;
+  --text-callout--letter-spacing: 0em;
+  --text-body: 17px;
+  --text-body--line-height: 1.5;
+  --text-body--letter-spacing: 0em;
+  --text-headline: 17px;
+  --text-headline--line-height: 1.45;
+  --text-headline--letter-spacing: 0em;
+  --text-headline--font-weight: 500;
+  --text-title-3: 20px;
+  --text-title-3--line-height: 1.2;
+  --text-title-3--letter-spacing: -0.02em;
+  --text-title-3--font-weight: 600;
+  --text-title-2: 22px;
+  --text-title-2--line-height: 1.2;
+  --text-title-2--letter-spacing: -0.02em;
+  --text-title-2--font-weight: 600;
+  --text-title-1: 28px;
+  --text-title-1--line-height: 1.2;
+  --text-title-1--letter-spacing: -0.02em;
+  --text-title-1--font-weight: 600;
+  --text-large-title: 34px;
+  --text-large-title--line-height: 1.1;
+  --text-large-title--letter-spacing: -0.025em;
+  --text-large-title--font-weight: 700;
+  --text-display: 40px;
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.025em;
+  --text-display--font-weight: 700;
+
+  --text-xs: 12px;
+  --text-xs--line-height: 1.33;
+  --text-xs--letter-spacing: 0.012em;
+  --text-sm: 15px;
+  --text-sm--line-height: 1.45;
+  --text-base: 17px;
+  --text-base--line-height: 1.5;
+  --text-lg: 20px;
+  --text-lg--line-height: 1.2;
+  --text-lg--letter-spacing: -0.02em;
+  --text-xl: 22px;
+  --text-xl--line-height: 1.2;
+  --text-xl--letter-spacing: -0.02em;
+  --text-2xl: 28px;
+  --text-2xl--line-height: 1.2;
+  --text-2xl--letter-spacing: -0.02em;
+  --text-3xl: 34px;
+  --text-3xl--line-height: 1.1;
+  --text-3xl--letter-spacing: -0.025em;
+  --text-4xl: 40px;
+  --text-4xl--line-height: 1.1;
+  --text-4xl--letter-spacing: -0.025em;
+
+  /* Continuous-curve radii by role, nested as outer minus padding. */
+  --radius-badge: 6px;
+  --radius-button-sm: 8px;
+  --radius-control: 10px;
+  --radius-input: 12px;
+  --radius-card: 16px;
+  --radius-sheet: 20px;
+  --radius-container: 24px;
+  --radius-window: 32px;
 }
 
 /* ------------------------------------------------------------------ base */
@@ -155,35 +275,96 @@ body {
   color: var(--ink);
   overscroll-behavior-y: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
   background: var(--accent-soft);
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 6px;
+/* Layered, so a control's own rounded-* corners shape its ring; anything
+   without a radius gets a soft 6px one. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
 }
 
-/* Content must clear the bottom bar and the home indicator. */
-.pb-safe {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.75rem);
+/*
+ * The tab bar: its own height plus the home indicator, never less than 16px
+ * of clearance below. Content scrolls clear of all of it.
+ */
+@layer components {
+  /* Layered, so a breakpoint utility such as lg:pb-16 can still take over. */
+  .pb-safe {
+    padding-bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 6rem);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .pb-bar {
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  }
 }
 
-.pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-
+/*
+ * Navigation bars and floating headers: a heavy blur the page shows through.
+ * The blur goes through Tailwind's utilities, which emit the standard and the
+ * -webkit- declarations both. Written out by hand, the minifier folds the pair
+ * into the prefixed one alone, which Chromium ignores: no blur on Android.
+ */
 .nav-surface {
-  background: var(--nav-blur);
-  backdrop-filter: saturate(1.6) blur(16px);
-  -webkit-backdrop-filter: saturate(1.6) blur(16px);
+  background: var(--material);
+  @apply backdrop-blur-[20px] backdrop-saturate-[180%];
+}
+
+/* Sheets and dialogs: the same material, a little more opaque for reading. */
+.material-thick {
+  background: var(--material-thick);
+  @apply backdrop-blur-[20px] backdrop-saturate-[180%];
+}
+
+/*
+ * A 44 x 44 hit area around anything drawn smaller than that. The control
+ * keeps its look; an invisible box centred on it takes the tap. Uses
+ * ::before, so it never collides with .shine (which draws on ::after).
+ */
+@layer components {
+  /* Layered, so an absolute or fixed utility on the same element still wins. */
+  .tap {
+    position: relative;
+  }
+}
+.tap::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
+/* Section labels over grouped content, Apple's uppercase footnote header.
+   Layered, so a text-* colour utility can tint one. */
+@layer components {
+  .section-label {
+    font-size: var(--text-caption);
+    line-height: var(--text-caption--line-height);
+    letter-spacing: var(--text-caption--letter-spacing);
+    font-weight: 400;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
 }
 
 /* Horizontal chip rows scroll without a visible bar. */
@@ -198,7 +379,7 @@ body {
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(22px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -228,8 +409,29 @@ body {
   }
 }
 
+/* On a phone a sheet slides up from the bottom edge; on a wide screen the
+   dialog settles in place. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
 .animate-sheet {
-  animation: sheet-in var(--dur-move) var(--ease-spring) both;
+  animation: sheet-up 420ms var(--ease-out) both;
+}
+
+@media (min-width: 640px) {
+  .animate-sheet {
+    animation: sheet-in var(--dur-move) var(--ease-spring) both;
+  }
+}
+
+.animate-fade {
+  animation: fade-only var(--dur-move) var(--ease-out) both;
 }
 
 @keyframes shimmer {
@@ -254,8 +456,8 @@ body {
  * a 200-item cabinet does not end up with a four-second cascade.
  */
 .stagger > * {
-  animation: rise var(--dur-move) var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 28ms);
+  animation: rise var(--dur-hero) var(--ease-spring) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
 }
 
 /* ----------------------------------------------------------- elevation */
@@ -272,14 +474,16 @@ body {
 
 .liftable {
   transition:
-    transform var(--dur-micro) var(--ease-out),
-    box-shadow var(--dur-move) var(--ease-soft),
-    border-color var(--dur-micro) var(--ease-soft);
+    transform var(--dur-move) var(--ease-spring),
+    opacity var(--dur-move) var(--ease-spring),
+    box-shadow var(--dur-move) var(--ease-spring),
+    border-color var(--dur-move) var(--ease-spring);
 }
 
+/* Hover only where there is a pointer: a tap on a phone must not leave it stuck. */
 @media (hover: hover) {
   .liftable:hover {
-    transform: translateY(-2px);
+    transform: scale(1.015);
     box-shadow:
       inset 0 1px 0 0 var(--edge-highlight),
       var(--lift-shadow);
@@ -287,7 +491,8 @@ body {
 }
 
 .liftable:active {
-  transform: scale(0.985);
+  transform: scale(0.96);
+  opacity: 0.8;
   transition-duration: var(--dur-micro);
 }
 
@@ -299,12 +504,12 @@ body {
 @keyframes drift {
   0%,
   100% {
-    transform: scale(1) translate3d(0, 0, 0);
-    opacity: 0.18;
+    transform: scale(1) translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0.22;
   }
   50% {
-    transform: scale(1.055) translate3d(-1.5%, 1%, 0);
-    opacity: 0.26;
+    transform: scale(1.16) translate3d(-4%, 3%, 0) rotate(2.5deg);
+    opacity: 0.4;
   }
 }
 
@@ -330,15 +535,15 @@ body {
 /* --------------------------------------------------------- celebration */
 @keyframes bounce-in {
   0% {
-    transform: scale(0.2);
+    transform: scale(0.2) rotate(-25deg);
     opacity: 0;
   }
-  60% {
-    transform: scale(1.15);
+  55% {
+    transform: scale(1.35) rotate(8deg);
     opacity: 1;
   }
   100% {
-    transform: scale(1);
+    transform: scale(1) rotate(0deg);
     opacity: 1;
   }
 }
@@ -385,18 +590,134 @@ body {
     var(--surface-2) 63%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
+  animation: shimmer 1.4s var(--ease-soft) infinite;
 }
 
+/*
+ * Every control: a 1.5% swell under a pointer, an immediate dip to 96% and
+ * 80% opacity under a finger, and a spring back on release. Transform,
+ * opacity and colour only, so nothing reflows while it moves.
+ */
 .press {
   transition:
-    transform var(--dur-micro) var(--ease-out),
-    background-color var(--dur-micro) var(--ease-soft),
-    border-color var(--dur-micro) var(--ease-soft),
-    box-shadow var(--dur-micro) var(--ease-soft);
+    transform var(--dur-move) var(--ease-spring),
+    opacity var(--dur-move) var(--ease-spring),
+    color var(--dur-move) var(--ease-spring),
+    background-color var(--dur-move) var(--ease-spring),
+    border-color var(--dur-move) var(--ease-spring),
+    box-shadow var(--dur-move) var(--ease-spring);
 }
-.press:active {
-  transform: scale(0.94);
+@media (hover: hover) {
+  .press:hover:not(:disabled) {
+    transform: scale(1.015);
+  }
+}
+.press:active:not(:disabled) {
+  transform: scale(0.96);
+  opacity: 0.8;
+  transition-duration: var(--dur-micro);
+}
+
+/* ----------------------------------------------------------- nav feedback */
+/*
+ * The pill already slides between tabs; the icon itself gets a small spring
+ * pop the frame it becomes current, so landing on a tab reads as arriving
+ * rather than a colour swap.
+ */
+@keyframes tab-pop {
+  0% {
+    transform: scale(0.6) rotate(-8deg);
+  }
+  55% {
+    transform: scale(1.3) rotate(4deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+[aria-current="page"] .tab-icon {
+  animation: tab-pop var(--dur-move) var(--ease-spring) both;
+}
+
+/*
+ * The Add tab is where every visit eventually leads. A slow breathing ring
+ * behind it keeps it feeling live without asking for attention — the loop
+ * is barely faster than a resting heartbeat, not a notification badge.
+ */
+@keyframes fab-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.85);
+    opacity: 0;
+  }
+}
+
+/* The ring sits behind the button's own icon, never over it. */
+.fab-ring {
+  position: relative;
+  isolation: isolate;
+}
+.fab-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 9999px;
+  background: var(--accent);
+  animation: fab-breathe 1.6s var(--ease-soft) infinite;
+  pointer-events: none;
+}
+
+/*
+ * A light sweep across a primary action on hover. One gradient, transform
+ * only, so it costs nothing — and it reads as "this does something" before
+ * the click on the surfaces that matter (Create trip, Save).
+ */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  transition: left var(--dur-hero) var(--ease-soft);
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .shine:hover::after {
+    left: 130%;
+  }
+}
+
+/*
+ * The hero's gradient rotates hue by a few degrees over a slow, long loop.
+ * White text and white strokes carry no saturation, so hue-rotate leaves
+ * them untouched — only the gradient itself drifts, which is what makes the
+ * hero read as alive rather than a static swatch behind static content.
+ */
+@keyframes hue-drift {
+  0%,
+  100% {
+    filter: hue-rotate(0deg) saturate(1);
+  }
+  50% {
+    filter: hue-rotate(32deg) saturate(1.25);
+  }
+}
+.animate-hue-drift {
+  animation: hue-drift 8s var(--ease-soft) infinite;
+  will-change: filter;
 }
 
 /*
@@ -420,6 +741,8 @@ body {
   .animate-drift,
   .animate-float,
   .animate-pulse-dot,
+  .animate-hue-drift,
+  .fab-ring::before,
   .skeleton {
     animation: none !important;
   }
@@ -428,9 +751,15 @@ body {
     opacity: 0.2;
   }
 
+  /* Without its animation the ring would sit as a solid disc: hide it. */
+  .fab-ring::before {
+    opacity: 0;
+  }
+
   /* Movement is removed, not accelerated. Opacity still carries the change. */
   .liftable:hover,
   .liftable:active,
+  .press:hover,
   .press:active {
     transform: none !important;
   }
@@ -451,15 +780,15 @@ body {
   place-items: center;
   gap: 1rem;
   background: var(--bg);
-  animation: splash-out 0.4s ease 2.2s forwards;
+  animation: splash-out 0.4s var(--ease-out) 2.2s forwards;
 }
 
 #splash[data-ready="true"] {
-  animation: splash-out 0.32s ease forwards;
+  animation: splash-out 0.32s var(--ease-out) forwards;
 }
 
 #splash .splash-mark {
-  animation: splash-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: splash-in 0.5s var(--ease-out) both;
 }
 
 @keyframes splash-in {
@@ -482,7 +811,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   #splash {
-    animation: splash-out 0.001ms ease 0.4s forwards;
+    animation: splash-out 0.001ms var(--ease-out) 0.4s forwards;
   }
 }
 
@@ -541,7 +870,7 @@ html[data-first-run="true"] #splash {
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(22px) scale(0.97);
   }
   to {
     opacity: 1;
@@ -550,7 +879,7 @@ html[data-first-run="true"] #splash {
 }
 
 .animate-page {
-  animation: page-in var(--dur-move) var(--ease-out) both;
+  animation: page-in var(--dur-hero) var(--ease-spring) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

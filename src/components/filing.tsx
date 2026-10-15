@@ -5,6 +5,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import type { TripItem } from "@/lib/domain/types";
 import type { ItemDraft } from "@/lib/extract/types";
 import type { DuplicateMatch } from "@/lib/dedupe";
+import { BorderlessButton, SecondaryButton } from "./form";
 import { Card } from "./ui";
 
 /**
@@ -16,7 +17,7 @@ import { Card } from "./ui";
 export function DraftHeading({ title, chip }: { title: string; chip?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
+      <h2 className="text-title-3">{title}</h2>
       {chip}
     </div>
   );
@@ -48,19 +49,18 @@ const CLEAR_OF_BARS = {
  */
 export function FiledNotice({ label }: { label: string }) {
   const { focus } = useFocusOnMount<HTMLDivElement>();
+  // The notice is its own focus target, so the shared copper outline follows its corners.
   return (
     <div
       ref={focus}
       tabIndex={-1}
       style={CLEAR_OF_BARS}
-      className="rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="animate-pop rounded-card bg-ok-soft p-4 text-subheadline"
     >
-      <Card className="animate-pop border-teal p-4 text-sm">
-        Filed <span className="font-medium">{label}</span>.{" "}
-        <Link href="/cabinet" className="text-accent-strong underline">
-          See it in the cabinet
-        </Link>
-      </Card>
+      Filed <span className="font-medium">{label}</span>.{" "}
+      <Link href="/cabinet" className="text-accent-strong underline">
+        See it in the cabinet
+      </Link>
     </div>
   );
 }
@@ -88,11 +88,12 @@ export function DuplicateChoice({
 
   return (
     <div ref={scroll} style={CLEAR_OF_BARS}>
-      <Card className="animate-rise border-accent p-4">
-        <p ref={focus} tabIndex={-1} className="text-sm font-medium outline-none">
+      {/* Amber, not copper: a likely repeat is a warning, not something to tap. */}
+      <Card className="animate-rise border-warning p-4">
+        <p ref={focus} tabIndex={-1} className="text-headline">
           You may already have {matches.length === 1 ? "this" : "one of these"}
         </p>
-        <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        <p className="mt-1 text-footnote text-ink-soft">
           “{draft.title}” looks like something already filed. Merging keeps what you have and fills
           in anything it was missing.
         </p>
@@ -101,38 +102,30 @@ export function DuplicateChoice({
           {matches.map((match) => (
             <li
               key={match.item.id}
-              className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface-2 p-3"
+              className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-surface-2 p-3"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{match.item.title}</span>
-                <span className="block font-mono text-[10px] text-ink-faint">{match.reason}</span>
+                <span className="block truncate text-headline">{match.item.title}</span>
+                <span className="block text-footnote text-ink-soft">{match.reason}</span>
               </span>
-              <button
+              <SecondaryButton
                 type="button"
                 onClick={() => onMerge(match.item)}
-                className="press shrink-0 rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-accent-ink"
+                className="shrink-0"
               >
                 Merge into this
-              </button>
+              </SecondaryButton>
             </li>
           ))}
         </ul>
 
         <div className="mt-3 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onKeepBoth}
-            className="press rounded-lg border border-line px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-ink-soft"
-          >
+          <SecondaryButton type="button" onClick={onKeepBoth}>
             Keep both
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="press font-mono text-[10px] text-ink-faint underline"
-          >
-            back
-          </button>
+          </SecondaryButton>
+          <BorderlessButton type="button" onClick={onCancel}>
+            Back
+          </BorderlessButton>
         </div>
       </Card>
     </div>
@@ -142,7 +135,7 @@ export function DuplicateChoice({
 /** Under the file button when there is no trip yet, so starting one is never a surprise. */
 export function StartsTripNote({ what }: { what: string }) {
   return (
-    <p className="mt-2 text-center font-mono text-[10px] leading-relaxed text-ink-faint">
+    <p className="mt-2 text-center text-footnote text-ink-soft">
       You have no trip open. This builds one around {what} — you can rename it and fill in the
       dates after.
     </p>

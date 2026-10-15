@@ -12,6 +12,7 @@ import { GroupStatusCard } from "@/components/divert/group-status-card";
 import { Onboarding } from "@/components/onboarding";
 import { ReviewPrompt } from "@/components/review-prompt";
 import { TripHero } from "@/components/trip-hero";
+import { PRIMARY_BUTTON_CLASSES } from "@/components/styles";
 import {
   Card,
   Chip,
@@ -64,7 +65,7 @@ export default function TripScreen() {
 
       <DeferredPrompts trip={trip} items={items} />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="stagger grid grid-cols-3 gap-3">
         <Stat label="Scheduled" value={String(scheduled.length)} />
         <Stat label="Ideas" value={String(unscheduled.length)} />
         <Stat
@@ -78,11 +79,11 @@ export default function TripScreen() {
       {(trip.travelers.length >= 2 || state.divert?.tripId === trip.id) && <GroupStatusCard />}
 
       {flags.length > 0 && (
-        <Link href="/checks" className="press block">
-          <Card className="flex items-center justify-between gap-3 p-4">
+        <Link href="/checks" className="liftable block rounded-card">
+          <Card className="raised flex items-center justify-between gap-3 p-4">
             <SeveritySummary flags={flags} settledIds={settledFlagIds(checklist)} />
-            <span className="flex shrink-0 items-center gap-1 font-mono text-[11px] text-ink-faint">
-              open checks <span aria-hidden="true">›</span>
+            <span className="flex shrink-0 items-center gap-1 text-footnote text-ink-soft">
+              Open checks <span aria-hidden="true" className="text-ink-faint">›</span>
             </span>
           </Card>
         </Link>
@@ -94,17 +95,15 @@ export default function TripScreen() {
           <button
             type="button"
             onClick={() => setEditing(nextUp)}
-            className="press block w-full text-left"
+            className="liftable block w-full rounded-card text-left"
           >
-            <Card className="p-5">
+            <Card className="raised p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <Chip tone="accent">{formatDay(nextUp.startsAt!)}</Chip>
                 {formatTime(nextUp.startsAt!) && <Chip>{formatTime(nextUp.startsAt!)}</Chip>}
               </div>
-              <h3 className="mt-3 font-display text-xl font-semibold tracking-tight">
-                {nextUp.title}
-              </h3>
-              <p className="mt-1 text-sm text-ink-soft">
+              <h3 className="mt-3 text-title-2">{nextUp.title}</h3>
+              <p className="mt-1 text-subheadline text-ink-soft">
                 {[
                   nextUp.place?.name,
                   nextUp.cost && formatMoney(nextUp.cost.amount, nextUp.cost.currency),
@@ -127,21 +126,21 @@ export default function TripScreen() {
                 key={item.id}
                 type="button"
                 onClick={() => setEditing(item)}
-                className="press flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-surface-2"
+                className="press flex w-full items-center justify-between gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2"
               >
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">{item.title}</span>
-                  <span className="mt-0.5 block font-mono text-[11px] text-ink-faint">
+                  <span className="block text-headline">{item.title}</span>
+                  <span className="mt-1 block text-footnote text-ink-soft">
                     {item.place?.city ?? item.place?.name ?? "No place set"}
                   </span>
                 </span>
-                <Chip tone="accent">schedule</Chip>
+                <Chip tone="accent">Schedule</Chip>
               </button>
             ))}
             {unscheduled.length > 5 && (
               <Link
                 href="/cabinet"
-                className="press block px-4 py-3 font-mono text-[11px] text-accent-strong"
+                className="press flex min-h-11 items-center px-4 py-3 text-subheadline font-medium text-accent-strong last:rounded-b-card hover:bg-surface-2"
               >
                 See all {unscheduled.length} →
               </Link>
@@ -162,10 +161,7 @@ export default function TripScreen() {
             title="Nothing scheduled yet"
             body="File something in the Add tab, then tap it to put it on a day."
             action={
-              <Link
-                href="/add"
-                className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
-              >
+              <Link href="/add" className={PRIMARY_BUTTON_CLASSES}>
                 Add something
               </Link>
             }

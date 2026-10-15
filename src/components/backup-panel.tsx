@@ -11,6 +11,7 @@ import {
 } from "@/lib/store/backup";
 import { storageFootprint, wipeEverything } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
+import { BorderlessButton, DestructiveButton, PrimaryButton, SecondaryButton } from "./form";
 import { Card } from "./ui";
 
 function formatBytes(bytes: number): string {
@@ -92,26 +93,26 @@ export function BackupPanel() {
   return (
     <Card className="flex flex-col gap-3 p-4">
       <div>
-        <p className="text-sm font-medium">Back up your trips</p>
-        <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        <p className="text-headline">Back up your trips</p>
+        <p className="mt-1 text-footnote text-ink-soft">
           Everything is stored in this browser and nowhere else. Clearing site data, reinstalling,
           or switching phones takes it with them — a backup file is how it survives.
         </p>
       </div>
 
-      <dl className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-[10px] text-ink-faint tabular">
-        <div className="flex gap-1.5">
+      <dl className="flex flex-wrap gap-x-5 gap-y-1 text-caption text-ink-soft tabular">
+        <div className="flex gap-1">
           <dt>this trip data</dt>
-          <dd className="text-ink-soft">{formatBytes(footprint.bytes)}</dd>
+          <dd className="text-ink">{formatBytes(footprint.bytes)}</dd>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1">
           <dt>items filed</dt>
-          <dd className="text-ink-soft">{footprint.items}</dd>
+          <dd className="text-ink">{footprint.items}</dd>
         </div>
         {quota && (
-          <div className="flex gap-1.5">
+          <div className="flex gap-1">
             <dt>site total</dt>
-            <dd className={nearFull ? "text-critical" : "text-ink-soft"}>
+            <dd className={nearFull ? "text-critical" : "text-ink"}>
               {formatBytes(quota.usage)} of {formatBytes(quota.quota)}
             </dd>
           </div>
@@ -119,27 +120,19 @@ export function BackupPanel() {
       </dl>
 
       {nearFull && (
-        <p className="rounded-lg bg-[var(--critical-soft)] px-2.5 py-1.5 text-xs text-critical">
+        <p className="rounded-control bg-critical-soft px-3 py-2 text-footnote text-critical">
           This site is near its storage limit. Export a backup now — the browser may start evicting
           data.
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={download}
-          className="press rounded-xl bg-accent px-3.5 py-2 font-mono text-[11px] text-accent-ink"
-        >
+      <div className="flex flex-wrap items-center gap-2">
+        <SecondaryButton type="button" onClick={download}>
           Export backup
-        </button>
-        <button
-          type="button"
-          onClick={() => input.current?.click()}
-          className="press rounded-xl border border-line px-3.5 py-2 font-mono text-[11px] text-ink-soft"
-        >
+        </SecondaryButton>
+        <BorderlessButton type="button" onClick={() => input.current?.click()}>
           Restore from file
-        </button>
+        </BorderlessButton>
         <input
           ref={input}
           type="file"
@@ -154,42 +147,30 @@ export function BackupPanel() {
       </div>
 
       {pending && (
-        <div className="rounded-xl border border-accent bg-accent-soft p-3">
-          <p className="text-xs leading-relaxed">
+        <div className="rounded-control border border-accent bg-accent-soft p-3">
+          <p className="text-footnote">
             That backup holds {pending.state.trips.length} trip(s) and {pending.state.items.length}{" "}
             filed item(s)
             {pending.exportedAt && `, saved ${pending.exportedAt.slice(0, 10)}`}.
           </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => apply("merge")}
-              className="press rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase text-accent-ink"
-            >
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <PrimaryButton type="button" onClick={() => apply("merge")} className="sm:w-auto">
               Add to what I have
-            </button>
-            <button
-              type="button"
-              onClick={() => apply("replace")}
-              className="press rounded-lg border border-critical px-3 py-1.5 font-mono text-[10px] uppercase text-critical"
-            >
+            </PrimaryButton>
+            <DestructiveButton type="button" onClick={() => apply("replace")}>
               Replace everything
-            </button>
-            <button
-              type="button"
-              onClick={() => setPending(null)}
-              className="press font-mono text-[10px] text-ink-faint underline"
-            >
-              cancel
-            </button>
+            </DestructiveButton>
+            <BorderlessButton type="button" onClick={() => setPending(null)}>
+              Cancel
+            </BorderlessButton>
           </div>
         </div>
       )}
 
-      {message && <p className="text-xs text-ok">{message}</p>}
-      {error && <p className="text-xs text-critical">{error}</p>}
+      {message && <p className="text-footnote text-ok">{message}</p>}
+      {error && <p className="text-footnote text-critical">{error}</p>}
 
-      <div className="border-t border-line pt-3">
+      <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
         <button
           type="button"
           onClick={() => {
@@ -201,20 +182,16 @@ export function BackupPanel() {
             setConfirmWipe(false);
             setMessage("Everything on this device has been deleted.");
           }}
-          className={`press font-mono text-[10px] underline ${
-            confirmWipe ? "text-critical" : "text-ink-faint hover:text-critical"
+          className={`press -ml-3 inline-flex min-h-11 items-center rounded-control px-3 py-2 text-left text-subheadline font-medium hover:bg-critical-soft ${
+            confirmWipe ? "text-critical" : "text-ink-soft hover:text-critical"
           }`}
         >
           {confirmWipe ? "Tap again to delete every trip on this device" : "Delete all my data"}
         </button>
         {confirmWipe && (
-          <button
-            type="button"
-            onClick={() => setConfirmWipe(false)}
-            className="press ml-3 font-mono text-[10px] text-ink-faint underline"
-          >
-            cancel
-          </button>
+          <BorderlessButton type="button" onClick={() => setConfirmWipe(false)}>
+            Cancel
+          </BorderlessButton>
         )}
       </div>
     </Card>

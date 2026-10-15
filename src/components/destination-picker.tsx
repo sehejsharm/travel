@@ -54,26 +54,27 @@ export function DestinationPicker({
       />
 
       {results.length > 0 && (
-        <ul className="overflow-hidden rounded-xl border border-line bg-surface">
+        // Rows are inset and rounded rather than clipped, so their focus rings stay visible.
+        <ul className="rounded-card border border-line bg-surface p-1">
           {results.map((destination) => (
             <li key={destination.id}>
               <button
                 type="button"
                 onClick={() => add(destination)}
-                className="press flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-surface-2"
+                className="press flex min-h-11 w-full items-center gap-3 rounded-control px-3 py-2 text-left hover:bg-surface-2"
               >
-                <span aria-hidden="true" className="text-base leading-none">
+                <span aria-hidden="true" className="text-body">
                   {flagEmoji(destination.countryCode)}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm">{destination.label}</span>
+                  <span className="block truncate text-subheadline">{destination.label}</span>
                   {destination.kind === "city" && (
-                    <span className="block truncate font-mono text-[10px] text-ink-faint">
+                    <span className="block truncate text-footnote text-ink-soft">
                       {destination.countryName}
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 font-mono text-[10px] text-ink-faint">
+                <span className="shrink-0 text-caption text-ink-soft">
                   {destination.kind}
                 </span>
               </button>
@@ -83,14 +84,15 @@ export function DestinationPicker({
       )}
 
       {chosen.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5">
+        // gap-y-3 keeps the 44px hit areas of chips on wrapped lines from overlapping.
+        <ul className="flex flex-wrap gap-x-2 gap-y-3">
           {chosen.map((destination) => (
             <li key={destination.id}>
               <button
                 type="button"
                 onClick={() => onChange(selected.filter((id) => id !== destination.id))}
                 aria-label={`Remove ${destination.label}`}
-                className="press flex items-center gap-1.5 rounded-full border border-accent bg-accent-soft px-2.5 py-1 text-xs text-accent-strong"
+                className="press tap flex min-h-8 items-center gap-1 rounded-badge border border-accent bg-accent-soft px-3 text-footnote text-accent-strong"
               >
                 <span aria-hidden="true">{flagEmoji(destination.countryCode)}</span>
                 {destination.label}

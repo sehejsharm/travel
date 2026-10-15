@@ -6,6 +6,7 @@ import { mapEmbedUrl, openInMapsUrl } from "@/lib/maps";
 import { CURRENCY_SYMBOLS } from "@/lib/reference/fx";
 import { groundPlace, suggestAirports, suggestPlaces, type PlaceSuggestion } from "@/lib/reference/places";
 import { Field, Segmented, Select, TextArea, TextInput } from "./form";
+import { BORDERLESS_BUTTON_CLASSES } from "./styles";
 
 /**
  * The fields an item is made of, shared by the editor sheet and by typing an
@@ -26,14 +27,14 @@ export function FieldGroup({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-surface p-3.5">
+    <div className="rounded-card border border-line bg-surface p-3">
       {(label || action) && (
-        <div className="mb-2.5 flex items-center justify-between gap-2">
-          {label && (
-            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-              {label}
-            </p>
-          )}
+        // Where an action can appear, as tall as a button, so the row keeps its
+        // height when the action comes and goes. A label alone sits snug.
+        <div
+          className={`mb-2 flex items-center justify-between gap-2 ${action === undefined ? "" : "min-h-11"}`}
+        >
+          {label && <p className="section-label">{label}</p>}
           {action}
         </div>
       )}
@@ -183,16 +184,17 @@ export function PlaceField({
       </Field>
 
       {suggestions.length > 0 && (
-        <ul className="mt-2 flex flex-wrap gap-1.5">
+        // Rows sit 44px apart, so each chip's hit area meets the next row's without overlapping.
+        <ul className="mt-2 flex flex-wrap gap-x-2 gap-y-3">
           {suggestions.map((suggestion) => (
             <li key={`${suggestion.name}-${suggestion.detail}`}>
               <button
                 type="button"
                 onClick={() => onChange(suggestion.name)}
-                className="press rounded-full border border-line px-2.5 py-1 font-mono text-[10px] text-ink-soft hover:border-accent hover:text-accent-strong"
+                className="press tap flex min-h-8 items-center rounded-badge border border-line px-3 text-footnote text-ink hover:border-accent hover:text-accent-strong"
               >
                 {suggestion.name}
-                <span className="text-ink-faint"> · {suggestion.detail}</span>
+                <span className="whitespace-pre text-ink-soft"> · {suggestion.detail}</span>
               </button>
             </li>
           ))}
@@ -200,7 +202,8 @@ export function PlaceField({
       )}
 
       {grounded && map && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-line">
+        // Nested in the panel's corner: the card radius less the panel's 12px padding.
+        <div className="mt-3 overflow-hidden rounded-[calc(var(--radius-card)-12px)] border border-line">
           <iframe
             key={grounded.name}
             src={mapEmbedUrl(grounded)}
@@ -209,15 +212,13 @@ export function PlaceField({
             referrerPolicy="no-referrer-when-downgrade"
             className="h-40 w-full border-0"
           />
-          <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2">
-            <span className="min-w-0 truncate font-mono text-[10px] text-ink-faint">
-              Pinned to {pinLabel}
-            </span>
+          <div className="flex items-center justify-between gap-2 border-t border-line py-1 pr-1 pl-3">
+            <span className="min-w-0 truncate text-footnote text-ink-soft">Pinned to {pinLabel}</span>
             <a
               href={openInMapsUrl(grounded)}
               target="_blank"
               rel="noreferrer"
-              className="press shrink-0 font-mono text-[10px] text-accent-strong underline"
+              className={`${BORDERLESS_BUTTON_CLASSES} shrink-0`}
             >
               Open in Maps ↗
             </a>
@@ -226,7 +227,8 @@ export function PlaceField({
       )}
 
       {grounded && !map && (
-        <p className="mt-2 truncate font-mono text-[10px] text-ink-faint">Pinned to {pinLabel}</p>
+        // Read like the field's hint, which it sits under.
+        <p className="mt-2 truncate text-caption text-ink-soft">Pinned to {pinLabel}</p>
       )}
     </div>
   );

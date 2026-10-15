@@ -163,8 +163,8 @@ Ship at `/press` or as a zip:
 - The 1024 store tile (`/icons/store`)
 - The OpenGraph card (`/opengraph-image`)
 - Five device screenshots, framed and unframed
-- Palette: `#0b1116` ink, `#c1793d` accent, `#f4f6f3` paper
-- Typefaces: Fraunces (display), IBM Plex Sans, IBM Plex Mono
+- Palette: `#0b1116` ink, `#c1793d` brand copper (`#9c5e2c` on filled buttons), `#f4f6f3` paper
+- Typefaces: none bundled. The app uses each device's system face: San Francisco on Apple devices, Segoe UI on Windows, Roboto on Android
 
 **One-paragraph description for press and review sites:**
 

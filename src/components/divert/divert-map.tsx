@@ -61,8 +61,11 @@ interface PlacedLabel {
 
 /** Labels are cut to this many characters, with an ellipsis. */
 const LABEL_CHARS = 26;
-/** Plex Mono advances 0.6em a character; the labels are 9px. */
-const CHAR_WIDTH = 5.4;
+/**
+ * The labels are 11px in the system face, which averages under 0.6em a
+ * character; budgeting 0.6em keeps even a wide name whole inside the frame.
+ */
+const CHAR_WIDTH = 6.6;
 
 function shorten(text: string): string {
   return text.length > LABEL_CHARS ? `${text.slice(0, LABEL_CHARS - 1)}…` : text;
@@ -74,15 +77,15 @@ function shorten(text: string): string {
  */
 function labelAt(marker: Projected, below: boolean, width: number): Projected {
   const half = width / 2 + 4;
-  const y = below ? marker.y + 18 : marker.y - 11;
+  const y = below ? marker.y + 20 : marker.y - 12;
   return {
     x: Math.max(half, Math.min(WIDTH - half, marker.x)),
-    y: Math.max(12, Math.min(HEIGHT - 6, y)),
+    y: Math.max(13, Math.min(HEIGHT - 6, y)),
   };
 }
 
 function collide(a: PlacedLabel, b: PlacedLabel): boolean {
-  return Math.abs(a.at.x - b.at.x) < (a.width + b.width) / 2 + 6 && Math.abs(a.at.y - b.at.y) < 14;
+  return Math.abs(a.at.x - b.at.x) < (a.width + b.width) / 2 + 6 && Math.abs(a.at.y - b.at.y) < 16;
 }
 
 /**
@@ -119,8 +122,8 @@ function Label({ at, text, tone }: PlacedLabel) {
       x={at.x}
       y={at.y}
       textAnchor="middle"
-      fontSize="9"
-      fontFamily="var(--font-plex-mono), monospace"
+      fontSize="11"
+      className="text-caption-2"
       fill={tone}
       stroke="var(--surface-2)"
       strokeWidth="3"

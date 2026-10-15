@@ -61,7 +61,7 @@ export function Sheet({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+        className="animate-fade absolute inset-0 bg-black/45"
       />
 
       <div
@@ -70,49 +70,38 @@ export function Sheet({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="animate-sheet relative flex max-h-[90dvh] w-full flex-col rounded-t-3xl border border-line bg-bg-elevated shadow-float outline-none sm:max-w-lg sm:rounded-3xl"
+        className="animate-sheet material-thick relative flex max-h-[90dvh] w-full flex-col rounded-t-sheet border border-line shadow-float outline-none sm:max-w-lg sm:rounded-sheet"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-line px-5 pt-4 pb-3">
+        <div className="flex items-center justify-between gap-3 border-b border-line px-5 pt-5 pb-3">
+          {/* Apple's grabber: 36 x 5, fully rounded, label colour at 30%. */}
           <div className="absolute inset-x-0 top-2 flex justify-center sm:hidden">
-            <span className="h-1 w-9 rounded-full bg-line-strong" aria-hidden="true" />
+            <span className="h-[5px] w-9 rounded-full bg-ink-faint" aria-hidden="true" />
           </div>
-          <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
+          <h2 className="text-headline">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="press -mr-1.5 rounded-full p-1.5 text-ink-faint hover:bg-surface-2 hover:text-ink"
+            className="press tap -mr-1 flex h-8 w-8 items-center justify-center rounded-full bg-surface-2 text-ink-soft hover:text-ink"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="m6 6 12 12M18 6 6 18"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1.8"
+                strokeWidth="2.4"
                 strokeLinecap="round"
               />
             </svg>
           </button>
         </div>
 
-        <div
-          className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
-          // With no footer, the last row would otherwise sit under the home indicator.
-          style={
-            footer ? undefined : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }
-          }
-        >
+        {/* With no footer, the last row would otherwise sit under the home indicator. */}
+        <div className={`min-h-0 flex-1 overflow-y-auto px-5 pt-4 ${footer ? "pb-4" : "pb-bar"}`}>
           {children}
         </div>
 
-        {footer && (
-          <div
-            className="border-t border-line px-5 py-3"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
-          >
-            {footer}
-          </div>
-        )}
+        {footer && <div className="pb-bar border-t border-line px-5 pt-3">{footer}</div>}
       </div>
     </div>,
     document.body,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Mark } from "@/components/mark";
 import { useEffect, useState } from "react";
+import { PRIMARY_BUTTON_CLASSES } from "@/components/styles";
 import { Card, ScreenSkeleton } from "@/components/ui";
 import { CATEGORY_LABELS, type ItemCategory, type TripItem } from "@/lib/domain/types";
 import { decodeTrip, type SharedTrip } from "@/lib/share";
@@ -59,14 +60,11 @@ export default function SharedTripPage() {
   if (state === null) {
     return (
       <Card className="p-8 text-center">
-        <h1 className="font-display text-xl font-semibold">This link has nothing in it</h1>
-        <p className="mt-2 text-sm text-ink-soft">
+        <h1 className="text-title-3">This link has nothing in it</h1>
+        <p className="mt-2 text-subheadline text-ink-soft">
           A shared trip travels inside the link itself, so it has to be copied whole.
         </p>
-        <Link
-          href="/"
-          className="press mt-4 inline-block rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
-        >
+        <Link href="/" className={`${PRIMARY_BUTTON_CLASSES} mx-auto mt-4 max-w-xs`}>
           Open Manifest
         </Link>
       </Card>
@@ -83,32 +81,32 @@ export default function SharedTripPage() {
   return (
     <article className="flex flex-col gap-10">
       <header className="border-b border-line pb-8">
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent-strong">
+        <p className="text-footnote font-medium text-accent-strong">
           {briefs.map((brief) => brief.country.name).join(" · ") || "Trip"}
         </p>
-        <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight">{trip.name}</h1>
-        <p className="mt-2 font-mono text-xs text-ink-soft tabular">
+        <h1 className="mt-2 text-large-title lg:text-display">{trip.name}</h1>
+        <p className="mt-2 text-footnote text-ink-soft tabular">
           {formatDay(trip.startDate)} – {formatDay(trip.endDate)} ·{" "}
           {trip.travelers.map((traveler) => traveler.name).join(" & ")}
         </p>
-        <p className="mt-4 max-w-prose text-sm text-ink-soft">
+        <p className="mt-4 max-w-prose text-subheadline text-ink-soft">
           A read-only view. Prices and confirmation numbers were left behind — this is the plan,
           not the paperwork.
         </p>
       </header>
 
       <section className="flex flex-col gap-6">
-        <h2 className="font-display text-xl font-semibold tracking-tight">The plan</h2>
+        <h2 className="text-title-3">The plan</h2>
         {days.map(([day, dayItems]) => (
-          <div key={day} className="grid gap-3 sm:grid-cols-[110px_minmax(0,1fr)]">
-            <h3 className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-faint">
+          <div key={day} className="grid gap-3 sm:grid-cols-[112px_minmax(0,1fr)]">
+            <h3 className="section-label">
               {formatDay(dayItems[0].startsAt!)}
             </h3>
             <ul className="flex flex-col gap-3 border-l border-line pl-4">
               {dayItems.map((item) => (
                 <li key={item.id}>
-                  <p className="text-sm font-medium">{item.title}</p>
-                  <p className="font-mono text-[11px] text-ink-faint">
+                  <p className="text-headline">{item.title}</p>
+                  <p className="text-footnote text-ink-soft tabular">
                     {formatTime(item.startsAt!)}
                     {item.place ? ` · ${item.place.city ?? item.place.name}` : ""}
                   </p>
@@ -121,12 +119,12 @@ export default function SharedTripPage() {
 
       {ideas.length > 0 && (
         <section>
-          <h2 className="font-display text-xl font-semibold tracking-tight">Still on the list</h2>
+          <h2 className="text-title-3">Still on the list</h2>
           <ul className="mt-4 grid gap-2 sm:grid-cols-2">
             {ideas.map((item) => (
               <Card as="li" key={item.id} className="p-3">
-                <p className="text-sm">{item.title}</p>
-                <p className="font-mono text-[11px] text-ink-faint">
+                <p className="text-subheadline">{item.title}</p>
+                <p className="text-footnote text-ink-soft">
                   {CATEGORY_LABELS[item.category]}
                   {item.place?.city ? ` · ${item.place.city}` : ""}
                 </p>
@@ -138,18 +136,18 @@ export default function SharedTripPage() {
 
       {briefs.length > 0 && (
         <Card className="p-5">
-          <h2 className="font-display text-lg font-semibold tracking-tight">Good to know</h2>
+          <h2 className="text-title-3">Good to know</h2>
           <dl className="mt-3 grid gap-3 sm:grid-cols-2">
             {briefs.map(({ country }) => (
               <div key={country.code}>
-                <dt className="font-mono text-[10px] uppercase tracking-wide text-teal">
+                <dt className="text-subheadline font-medium text-teal">
                   {country.name}
                 </dt>
-                <dd className="text-sm text-ink-soft">
+                <dd className="text-subheadline text-ink-soft">
                   Emergency {country.emergency} · {country.currency} · plugs Type{" "}
                   {country.plugTypes.join("/")}
                 </dd>
-                <dd className="text-sm text-ink-soft">{country.tipping}</dd>
+                <dd className="text-subheadline text-ink-soft">{country.tipping}</dd>
               </div>
             ))}
           </dl>
@@ -162,23 +160,20 @@ export default function SharedTripPage() {
         somebody's itinerary, not an advertising slot.
       */}
       <footer className="mt-2 border-t border-line pt-5">
-        <p className="font-mono text-[11px] text-ink-faint">
+        <p className="text-caption text-ink-soft tabular">
           {items.length} items · read-only · prices and booking references were left behind
         </p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-4">
           <Mark size={28} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Made with Manifest</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
+            <p className="text-subheadline font-medium">Made with Manifest</p>
+            <p className="mt-1 text-footnote text-ink-soft">
               Send it a booking email or a screenshot and it files itself — then it checks the plan
               for the things that ruin trips. Free, no account, works offline.
             </p>
           </div>
-          <Link
-            href="/trip/new"
-            className="press shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
-          >
+          <Link href="/trip/new" className={`${PRIMARY_BUTTON_CLASSES} shrink-0 sm:w-auto`}>
             Start your own
           </Link>
         </div>

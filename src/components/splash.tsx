@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { BRAND, CHECK_PATH, STUB_PATH } from "@/lib/brand";
+import { CHECK_PATH, STUB_PATH } from "@/lib/brand";
 import { useHydrated } from "@/lib/store/use-store";
 
 /**
@@ -22,7 +22,7 @@ export function Splash() {
     <div id="splash" aria-hidden="true">
       <div className="splash-mark flex flex-col items-center gap-3">
         <svg width="56" height="56" viewBox="0 0 64 64">
-          <path d={STUB_PATH} fill={BRAND.accent} />
+          <path d={STUB_PATH} fill="var(--brand)" />
           <path
             d={CHECK_PATH}
             fill="none"
@@ -32,7 +32,7 @@ export function Splash() {
             strokeLinejoin="round"
           />
         </svg>
-        <span className="font-display text-lg font-semibold tracking-tight">Manifest</span>
+        <span className="text-title-3">Manifest</span>
 
         {/*
           A returning user sees the mark and nothing else — they know what this
@@ -42,7 +42,7 @@ export function Splash() {
           storage during render would mean a different first paint on the
           server and the client.
         */}
-        <span className="splash-intro max-w-[16rem] px-6 text-center font-mono text-[10px] leading-relaxed text-ink-faint">
+        <span className="splash-intro max-w-64 px-6 text-center text-footnote text-ink-soft">
           Your bookings, filed and checked. On this device, with or without signal.
         </span>
       </div>

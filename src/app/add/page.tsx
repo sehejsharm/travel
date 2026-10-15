@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "@/components/filing";
+import { BorderlessButton, PrimaryButton, SecondaryButton, TextArea } from "@/components/form";
 import { ManualAddTripItem } from "@/components/manual-add-trip-item";
 import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { editReadText, setAddMode, takeShare, useAddDraft, type AddMode } from "@/lib/add-draft";
@@ -244,17 +245,11 @@ function AddScreenInner() {
         <Card className="animate-pop overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={image.previewUrl} alt="Screenshot to read" className="max-h-72 w-full object-contain bg-surface-2" />
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <span className="min-w-0 truncate font-mono text-[11px] text-ink-faint">
-              {image.name}
-            </span>
-            <button
-              type="button"
-              onClick={() => setImage(null)}
-              className="press font-mono text-[11px] text-ink-faint underline hover:text-critical"
-            >
-              remove
-            </button>
+          <div className="flex items-center justify-between gap-3 py-1 pr-1 pl-4">
+            <span className="min-w-0 truncate text-footnote text-ink-soft">{image.name}</span>
+            <BorderlessButton type="button" onClick={() => setImage(null)} className="shrink-0">
+              Remove
+            </BorderlessButton>
           </div>
         </Card>
       ) : (
@@ -270,7 +265,7 @@ function AddScreenInner() {
             const dropped = event.dataTransfer.files?.[0];
             if (dropped) void loadImage(dropped);
           }}
-          className={`rounded-2xl border-2 border-dashed p-5 transition-colors ${
+          className={`rounded-card border-2 border-dashed p-5 transition-colors duration-300 ease-[var(--ease-spring)] ${
             dragging ? "border-accent bg-accent-soft" : "border-line bg-surface"
           }`}
         >
@@ -320,7 +315,7 @@ function AddScreenInner() {
             />
           </div>
 
-          <p className="mt-3 text-center text-xs text-ink-faint">
+          <p className="mt-3 text-center text-caption text-ink-soft">
             {typing
               ? "Or drop a screenshot here to have it read instead"
               : "Drop a screenshot here, or paste one straight onto this screen"}
@@ -333,39 +328,41 @@ function AddScreenInner() {
       ) : (
         <>
           <Card className="p-4">
-            <textarea
+            <TextArea
               value={text}
               onChange={(event) => setText(event.target.value)}
               rows={5}
               aria-label="Content to extract"
               placeholder="…or paste a link, an email, or just type what you want to remember"
-              className="w-full resize-y bg-transparent text-sm leading-relaxed outline-none"
             />
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+            <div className="mt-3 flex flex-col items-start gap-3 border-t border-line pt-3">
               <Chip tone={image ? "accent" : "neutral"}>
-                {image ? "screenshot" : SOURCE_LABELS[sourceForText(text)]}
+                {image ? "Screenshot" : SOURCE_LABELS[sourceForText(text)]}
               </Chip>
 
-              <button
-                type="button"
-                onClick={run}
-                disabled={busy || !ready}
-                className="press ml-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink disabled:opacity-40"
-              >
-                {busy ? "Reading…" : image ? "Read the screenshot" : "Extract"}
-              </button>
+              {/* Once something has been read, filing it is the screen's one primary action. */}
+              {result ? (
+                <SecondaryButton type="button" onClick={run} disabled={busy || !ready} className="w-full">
+                  {busy ? "Reading…" : image ? "Read the screenshot again" : "Extract again"}
+                </SecondaryButton>
+              ) : (
+                <PrimaryButton type="button" onClick={run} disabled={busy || !ready}>
+                  {busy ? "Reading…" : image ? "Read the screenshot" : "Extract"}
+                </PrimaryButton>
+              )}
             </div>
           </Card>
 
           {!image && !text && (
-            <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
+            // The vertical padding keeps each chip's 44px hit area inside the scroller, which clips.
+            <div className="no-scrollbar -mx-5 -my-2 flex gap-2 overflow-x-auto px-5 py-2">
               {EXAMPLES.map((example) => (
                 <button
                   key={example.label}
                   type="button"
                   onClick={() => setText(example.text)}
-                  className="press shrink-0 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs text-ink-soft hover:border-accent hover:text-accent-strong"
+                  className="press tap flex min-h-8 shrink-0 items-center rounded-badge border border-line bg-surface px-3 text-footnote text-ink-soft hover:border-accent hover:text-accent-strong"
                 >
                   Try: {example.label}
                 </button>
@@ -374,7 +371,11 @@ function AddScreenInner() {
           )}
 
           <div aria-live="polite" className="flex flex-col gap-3">
-            {error && <Card className="border-critical p-4 text-sm text-critical">{error}</Card>}
+            {error && (
+              <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">
+                {error}
+              </div>
+            )}
 
             {filed && <FiledNotice label={filed} />}
 
@@ -410,13 +411,16 @@ function CaptureButton({
   /** Set only on a way in that stays chosen, like typing it in. */
   pressed?: boolean;
 }) {
+  // Pressed, it is drawn as a selected chip is: the copper wash and border.
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={pressed}
-      className={`press flex flex-col items-center gap-2 rounded-xl border px-2 py-3.5 text-xs font-medium hover:border-accent hover:text-accent-strong ${
-        pressed ? "border-accent bg-accent-soft text-accent-strong" : "border-line bg-bg-elevated"
+      className={`press flex min-h-11 flex-col items-center gap-2 rounded-control border px-2 py-3 text-footnote font-medium ${
+        pressed
+          ? "border-accent bg-accent-soft text-accent-strong"
+          : "border-line bg-bg-elevated hover:border-accent hover:text-accent-strong"
       }`}
     >
       <svg
@@ -474,17 +478,17 @@ function Preview({
         title="Preview"
         chip={
           <Chip tone={result.method === "llm" ? "accent" : "neutral"}>
-            {result.method === "llm" ? "model pass" : "pattern pass"}
+            {result.method === "llm" ? "Model pass" : "Pattern pass"}
           </Chip>
         }
       />
 
       <div className="mt-3">
-        <div className="flex justify-between font-mono text-[11px] text-ink-soft">
+        <div className="flex justify-between text-footnote text-ink-soft">
           <span>confidence</span>
           <span className="tabular">{percent}%</span>
         </div>
-        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2">
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2">
           <div
             className={`h-full rounded-full ${percent >= 60 ? "bg-teal" : "bg-warning"}`}
             style={{ width: `${percent}%` }}
@@ -493,11 +497,9 @@ function Preview({
       </div>
 
       {result.link && (
-        <div className="mt-3 rounded-xl bg-teal-soft px-3 py-2.5">
-          <p className="font-mono text-[10px] uppercase tracking-wide text-teal">
-            {result.link.platform} link
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        <div className="mt-3 rounded-control bg-teal-soft px-3 py-3">
+          <p className="text-footnote font-medium text-teal">{result.link.platform} link</p>
+          <p className="mt-1 text-footnote text-ink-soft">
             {result.link.metadataFetched
               ? result.link.caption
                 ? `Read the caption: “${result.link.caption.slice(0, 140)}”`
@@ -508,29 +510,30 @@ function Preview({
       )}
 
       {result.escalationReason && !result.link && (
-        <p className="mt-2 rounded-xl bg-surface-2 px-3 py-2 font-mono text-[10px] leading-relaxed text-ink-soft">
+        <p className="mt-3 rounded-control bg-surface-2 px-3 py-2 text-footnote text-ink-soft">
           {result.escalationReason}
         </p>
       )}
 
       <dl className="mt-4 divide-y divide-line border-y border-line">
         {rows.map(([label, value]) => (
-          <div key={label} className="flex gap-3 py-2">
-            <dt className="w-28 shrink-0 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-              {label}
-            </dt>
-            <dd className="min-w-0 flex-1 text-xs break-words">{value}</dd>
+          <div key={label} className="flex items-baseline gap-3 py-2">
+            <dt className="w-28 shrink-0 text-footnote text-ink-soft">{label}</dt>
+            {/* A booking reference is machine data, so it gets the monospace face. */}
+            <dd
+              className={`min-w-0 flex-1 text-subheadline break-words tabular ${
+                label === "Confirmation" && value !== "—" ? "font-mono" : ""
+              }`}
+            >
+              {value}
+            </dd>
           </div>
         ))}
       </dl>
 
-      <button
-        type="button"
-        onClick={onFile}
-        className="press mt-4 w-full rounded-xl bg-teal px-4 py-2.5 text-sm font-medium text-white"
-      >
+      <PrimaryButton type="button" onClick={onFile} className="mt-4">
         {startsTrip ? "Start a new trip from this" : "File it"}
-      </button>
+      </PrimaryButton>
 
       {startsTrip && <StartsTripNote what="what was found" />}
     </Card>

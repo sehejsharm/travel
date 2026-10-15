@@ -9,7 +9,9 @@ import {
   setChecklistAssignee,
   setChecklistDone,
 } from "@/lib/store/state";
-import { Card } from "./ui";
+import { RemoveButton, SecondaryButton, TextInput } from "./form";
+import { POPUP_BUTTON_CLASSES } from "./styles";
+import { Card, Chip } from "./ui";
 
 export function Checklist({
   tripId,
@@ -53,16 +55,17 @@ export function Checklist({
   return (
     <Card className="p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
-        <span className="font-mono text-[11px] text-ink-faint tabular">
+        <h2 className="text-title-3">{title}</h2>
+        <span className="text-footnote text-ink-soft tabular">
           {done}/{entries.length}
         </span>
       </div>
 
-      {note && <p className="mt-1 text-xs text-ink-faint">{note}</p>}
+      {note && <p className="mt-1 text-caption text-ink-soft">{note}</p>}
 
       {travelers.length > 1 && (
-        <div className="no-scrollbar mt-3 flex gap-1.5 overflow-x-auto">
+        // The padding keeps each chip's 44px hit area and focus ring inside the scroller, which clips.
+        <div className="no-scrollbar -mx-1 mt-1 -mb-2 flex gap-2 overflow-x-auto px-1 py-2">
           {[
             { value: "everyone", label: "Everyone" },
             ...travelers.map((traveler) => ({ value: traveler.id, label: traveler.name })),
@@ -73,10 +76,10 @@ export function Checklist({
               type="button"
               onClick={() => setWhose(option.value)}
               aria-pressed={whose === option.value}
-              className={`press shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] ${
+              className={`press tap flex min-h-8 shrink-0 items-center rounded-badge border px-3 text-footnote ${
                 whose === option.value
                   ? "border-accent bg-accent-soft text-accent-strong"
-                  : "border-line text-ink-soft"
+                  : "border-line bg-surface text-ink-soft"
               }`}
             >
               {option.label}
@@ -85,28 +88,25 @@ export function Checklist({
         </div>
       )}
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2">
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-2">
         {/*
           Scaled rather than resized: width animations relayout the bar on
           every frame, and this one moves on every tick of a checkbox.
         */}
         <div
-          className="h-full origin-left rounded-full bg-teal transition-transform duration-[var(--dur-move)] ease-[var(--ease-out)]"
+          className="h-full origin-left rounded-full bg-teal transition-transform duration-300 ease-[var(--ease-spring)]"
           style={{ transform: `scaleX(${progress / 100})`, width: "100%" }}
         />
       </div>
 
       {entries.length === 0 ? (
-        <p className="mt-4 text-sm text-ink-soft">
+        <p className="mt-4 text-subheadline text-ink-soft">
           {allEntries.length > 0 ? "Nothing on this person's list." : emptyLabel}
         </p>
       ) : (
         <ul className="mt-4 flex flex-col gap-1">
           {entries.map((entry) => (
-            <li
-              key={entry.id}
-              className="flex items-start gap-3 rounded-lg px-1 py-1.5 transition-colors duration-200"
-            >
+            <li key={entry.id} className="flex items-start gap-3 rounded-control px-1 py-2">
               <Checkbox
                 checked={entry.done}
                 label={entry.label}
@@ -115,21 +115,19 @@ export function Checklist({
 
               <div className="min-w-0 flex-1">
                 <p
-                  className={`text-sm leading-snug transition-[color,opacity] duration-[var(--dur-move)] ease-[var(--ease-soft)] ${
-                    entry.done ? "text-ink-faint line-through opacity-70" : ""
+                  className={`text-subheadline transition-colors duration-300 ease-[var(--ease-spring)] ${
+                    entry.done ? "text-ink-soft line-through" : ""
                   }`}
                 >
                   {entry.label}
                 </p>
                 {entry.detail && !entry.done && !compact && (
-                  <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">{entry.detail}</p>
+                  <p className="mt-1 text-footnote text-ink-soft">{entry.detail}</p>
                 )}
 
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   {entry.generatedFrom && !compact && (
-                    <span className="rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-ink-faint">
-                      {entry.generatedFrom}
-                    </span>
+                    <Chip>{entry.generatedFrom.charAt(0).toUpperCase() + entry.generatedFrom.slice(1)}</Chip>
                   )}
                   {/*
                     Only worth asking while it is still someone's job. On a
@@ -137,15 +135,16 @@ export function Checklist({
                     a dropdown per line.
                   */}
                   {travelers.length > 1 && !entry.done && (
+                    // A pop-up button inside the row, not a full form field.
                     <select
                       value={entry.assigneeId ?? ""}
                       onChange={(event) =>
                         setChecklistAssignee(entry.id, event.target.value || undefined)
                       }
                       aria-label={`Whose job: ${entry.label}`}
-                      className="press rounded-full border border-line bg-surface px-2 py-0.5 font-mono text-[10px] text-ink-faint outline-none hover:border-line-strong focus:border-accent"
+                      className={`-ml-2 ${POPUP_BUTTON_CLASSES}`}
                     >
-                      <option value="">whose job?</option>
+                      <option value="">Whose job?</option>
                       {travelers.map((traveler) => (
                         <option key={traveler.id} value={traveler.id}>
                           {traveler.name}
@@ -154,18 +153,14 @@ export function Checklist({
                     </select>
                   )}
                   {entry.done && entry.assigneeId && (
-                    <span className="font-mono text-[10px] text-ink-faint">
+                    <span className="text-caption text-ink-soft">
                       {travelers.find((traveler) => traveler.id === entry.assigneeId)?.name}
                     </span>
                   )}
                   {!entry.generatedFrom && (
-                    <button
-                      type="button"
-                      onClick={() => removeChecklistEntry(entry.id)}
-                      className="font-mono text-[10px] text-ink-faint underline hover:text-critical"
-                    >
-                      remove
-                    </button>
+                    <RemoveButton type="button" onClick={() => removeChecklistEntry(entry.id)}>
+                      Remove
+                    </RemoveButton>
                   )}
                 </div>
               </div>
@@ -182,20 +177,20 @@ export function Checklist({
           setDraft("");
         }}
       >
-        <input
+        <TextInput
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           aria-label={`Add to ${title.toLowerCase()}`}
           placeholder="Add your own…"
-          className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+          className="min-w-0 flex-1"
         />
-        <button
+        <SecondaryButton
           type="submit"
           disabled={draft.trim().length === 0}
-          className="press rounded-xl border border-line px-3.5 py-2 font-mono text-[11px] text-ink-soft disabled:opacity-40"
+          className="shrink-0"
         >
           Add
-        </button>
+        </SecondaryButton>
       </form>
     </Card>
   );
@@ -216,18 +211,19 @@ function Checkbox({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <span className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+    // A label, so a tap anywhere in its 44 x 44 hit area (.tap) reaches the input.
+    <label className="press tap relative flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center">
       <input
         type="checkbox"
         checked={checked}
         aria-label={label}
         onChange={(event) => onChange(event.target.checked)}
-        className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
+        className="peer absolute inset-0 z-10 cursor-pointer accent-[var(--accent)] opacity-0"
       />
 
       <span
         aria-hidden="true"
-        className={`flex h-[18px] w-[18px] items-center justify-center rounded-[6px] border transition-all duration-[var(--dur-micro)] ease-[var(--ease-spring)] peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-1 ${
+        className={`flex h-5 w-5 items-center justify-center rounded-badge border transition-[background-color,border-color] duration-300 ease-[var(--ease-spring)] peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-1 ${
           checked
             ? "scale-100 border-teal bg-teal"
             : "border-line-strong bg-surface peer-hover:border-teal"
@@ -236,7 +232,7 @@ function Checkbox({
         <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
           <path
             d="M2 6.2 4.6 8.8 10 3.4"
-            stroke="white"
+            stroke="var(--surface)"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -244,6 +240,6 @@ function Checkbox({
           />
         </svg>
       </span>
-    </span>
+    </label>
   );
 }

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { Trip, TripItem } from "@/lib/domain/types";
 import { dismissPrompt } from "@/lib/store/state";
+import { BorderlessButton } from "./form";
+import { SECONDARY_BUTTON_CLASSES } from "./styles";
 import { Card } from "./ui";
 
 interface Prompt {
@@ -73,23 +75,16 @@ export function DeferredPrompts({ trip, items }: { trip: Trip; items: TripItem[]
   return (
     <Card className="animate-rise flex items-start gap-3 border-accent/40 p-4">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{prompt.title}</p>
-        <p className="mt-0.5 text-sm leading-relaxed text-ink-soft">{prompt.body}</p>
+        <p className="text-headline">{prompt.title}</p>
+        <p className="mt-1 text-subheadline text-ink-soft">{prompt.body}</p>
 
-        <div className="mt-2.5 flex items-center gap-3">
-          <Link
-            href={prompt.href}
-            className="press rounded-lg bg-accent px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-accent-ink"
-          >
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Link href={prompt.href} className={SECONDARY_BUTTON_CLASSES}>
             {prompt.cta}
           </Link>
-          <button
-            type="button"
-            onClick={() => dismissPrompt(trip.id, prompt.id)}
-            className="press font-mono text-[10px] text-ink-faint underline"
-          >
-            not now
-          </button>
+          <BorderlessButton type="button" onClick={() => dismissPrompt(trip.id, prompt.id)}>
+            Not now
+          </BorderlessButton>
         </div>
       </div>
     </Card>

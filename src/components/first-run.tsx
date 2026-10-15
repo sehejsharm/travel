@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { loadSampleTrip } from "@/lib/store/state";
 import { heroGradient } from "@/lib/theme";
+import { BorderlessButton } from "./form";
+import { PRIMARY_BUTTON_CLASSES } from "./styles";
 import { Card } from "./ui";
 
 const BEATS: [string, string][] = [
@@ -23,7 +25,7 @@ export function FirstRun() {
   return (
     <div className="flex flex-col gap-5 py-2">
       <section
-        className="animate-rise relative isolate overflow-hidden rounded-3xl p-6 text-white shadow-float sm:p-8"
+        className="animate-rise relative isolate overflow-hidden rounded-container p-6 text-white shadow-float sm:p-8"
         style={{ backgroundImage: heroGradient("manifest") }}
       >
         <svg
@@ -47,19 +49,16 @@ export function FirstRun() {
         </svg>
 
         <div className="relative">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/70">Manifest</p>
-          <h1 className="mt-2 font-display text-[30px] leading-tight font-semibold tracking-tight sm:text-4xl">
+          <p className="text-footnote font-medium text-white/80">Manifest</p>
+          <h1 className="mt-2 text-title-1 sm:text-display">
             Everything about your trip, in one file.
           </h1>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80">
+          <p className="mt-3 max-w-md text-subheadline text-white/80">
             Manifest files your bookings automatically and catches the admin that ruins trips —
             privately, on this device, with or without signal.
           </p>
 
-          <Link
-            href="/trip/new"
-            className="press mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-card"
-          >
+          <Link href="/trip/new" className={`${PRIMARY_BUTTON_CLASSES} mt-5 sm:max-w-xs`}>
             Create your first trip
             <span aria-hidden="true">→</span>
           </Link>
@@ -69,28 +68,28 @@ export function FirstRun() {
       <Card className="divide-y divide-line">
         {BEATS.map(([title, body], index) => (
           <div key={title} className="flex gap-3 p-4">
-            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft font-mono text-[10px] text-accent-strong">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-footnote font-medium text-accent-strong tabular">
               {index + 1}
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-medium">{title}</p>
-              <p className="mt-0.5 text-sm leading-relaxed text-ink-soft">{body}</p>
+              <p className="text-headline">{title}</p>
+              <p className="mt-1 text-subheadline text-ink-soft">{body}</p>
             </div>
           </div>
         ))}
       </Card>
 
-      <button
+      <BorderlessButton
         type="button"
         disabled={loading}
         onClick={() => {
           setLoading(true);
           loadSampleTrip();
         }}
-        className="press mx-auto font-mono text-[11px] text-accent-strong underline disabled:opacity-50"
+        className="mx-auto"
       >
         {loading ? "Loading…" : "or look around a sample trip first"}
-      </button>
+      </BorderlessButton>
     </div>
   );
 }

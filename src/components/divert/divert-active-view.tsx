@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GhostButton, PrimaryButton } from "@/components/form";
+import { SecondaryButton, PrimaryButton } from "@/components/form";
 import { Chip, ScreenHeader, SectionTitle } from "@/components/ui";
 import type { Trip } from "@/lib/domain/types";
 import { divertedName } from "@/lib/divert";
@@ -67,7 +67,7 @@ export function DivertActiveView({
         action={
           // "Since" is a real time only against a real clock.
           !route.simulated && (
-            <Chip tone="accent">since {wallClock(new Date(session.startedAt), route.offset)}</Chip>
+            <Chip tone="accent">Since {wallClock(new Date(session.startedAt), route.offset)}</Chip>
           )
         }
       />
@@ -95,9 +95,9 @@ export function DivertActiveView({
 
       <div className="flex flex-col gap-2">
         <PrimaryButton onClick={onRejoin}>Rejoin group</PrimaryButton>
-        <GhostButton onClick={() => setEditing(true)} className="w-full">
+        <SecondaryButton onClick={() => setEditing(true)} className="w-full">
           Change what I am after
-        </GhostButton>
+        </SecondaryButton>
       </div>
     </div>
   );
@@ -129,16 +129,17 @@ function Alternatives({
   return (
     <section>
       <SectionTitle>Somewhere else instead</SectionTitle>
-      <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5">
+      {/* Padded so the scroller, which clips both ways, leaves room for focus rings. */}
+      <div className="no-scrollbar -mx-5 -my-1 flex gap-2 overflow-x-auto px-5 py-1">
         {alternatives.map((candidate) => (
           <button
             key={candidate.id}
             type="button"
             onClick={() => updateDivert(respot(route, session, candidate))}
-            className="press shrink-0 rounded-xl border border-line bg-surface px-3.5 py-2 text-left"
+            className="press min-h-11 shrink-0 rounded-control border border-line bg-surface px-4 py-2 text-left"
           >
-            <span className="block text-sm font-medium">{candidate.name}</span>
-            <span className="block font-mono text-[10px] text-ink-faint tabular">
+            <span className="block text-subheadline font-medium">{candidate.name}</span>
+            <span className="block text-footnote text-ink-soft tabular">
               {formatDistance(distanceM(where.position, candidate.point))}
               {candidate.synthetic && " · stand-in"}
             </span>

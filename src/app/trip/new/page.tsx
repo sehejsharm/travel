@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BORDERLESS_BUTTON_CLASSES } from "@/components/styles";
 import { TripForm } from "@/components/trip-form";
 import { Card, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { duplicateTrip } from "@/lib/store/state";
@@ -21,10 +22,7 @@ export default function NewTripScreen() {
         meta="Where, when and who. Everything else can wait."
         action={
           state.trips.length > 0 ? (
-            <Link
-              href="/"
-              className="press rounded-xl border border-line px-3 py-1.5 font-mono text-[11px] text-ink-soft"
-            >
+            <Link href="/" className={BORDERLESS_BUTTON_CLASSES}>
               Cancel
             </Link>
           ) : undefined
@@ -37,9 +35,7 @@ export default function NewTripScreen() {
 
       {state.trips.length > 0 && (
         <section>
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-            Or start from one you have
-          </p>
+          <p className="section-label mb-2">Or start from one you have</p>
           <Card className="divide-y divide-line">
             {state.trips.map((trip) => (
               <button
@@ -49,13 +45,14 @@ export default function NewTripScreen() {
                   const id = duplicateTrip(trip.id, `${trip.name} again`);
                   if (id) router.push("/trip");
                 }}
-                className="press flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-surface-2"
+                // The first and last rows take the card's corners, so the hover wash fits inside it.
+                className="press flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-surface-2 first:rounded-t-card last:rounded-b-card"
               >
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">
+                  <span className="block truncate text-headline">
                     Another trip like {trip.name}
                   </span>
-                  <span className="mt-0.5 block font-mono text-[10px] text-ink-faint">
+                  <span className="block text-footnote text-ink-soft">
                     Keeps who is going and what you are into · clears dates, bookings and checks
                   </span>
                 </span>

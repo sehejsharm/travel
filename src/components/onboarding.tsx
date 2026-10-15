@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { BRAND, CHECK_PATH, STUB_PATH } from "@/lib/brand";
+import { BorderlessButton, PrimaryButton } from "./form";
 import { Sheet } from "./sheet";
 
 const SEEN = "manifest.onboarding.v1";
@@ -73,36 +74,32 @@ export function Onboarding() {
       title={`${step + 1} of ${STEPS.length}`}
       footer={
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={finish}
-            className="press font-mono text-[11px] text-ink-faint underline"
-          >
-            skip
-          </button>
-          <button
+          <BorderlessButton type="button" onClick={finish} className="-ml-3 shrink-0">
+            Skip
+          </BorderlessButton>
+          <PrimaryButton
             type="button"
             onClick={() => (last ? finish() : setStep(step + 1))}
-            className="press ml-auto rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink"
+            className="flex-1"
           >
             {last ? "Start my trip" : "Next"}
-          </button>
+          </PrimaryButton>
         </div>
       }
     >
       <div className="flex flex-col items-center gap-4 py-2 text-center">
         <StepArt kind={current.art} />
 
-        <h3 className="font-display text-xl font-semibold tracking-tight">{current.title}</h3>
-        <p className="max-w-sm text-sm leading-relaxed text-ink-soft">{current.body}</p>
+        <h3 className="text-title-2">{current.title}</h3>
+        <p className="max-w-sm text-subheadline text-ink-soft">{current.body}</p>
 
-        <ol className="mt-1 flex gap-1.5" aria-label="Progress">
+        <ol className="mt-1 flex gap-2" aria-label="Progress">
           {STEPS.map((entry, index) => (
             <li
               key={entry.title}
               aria-current={index === step ? "step" : undefined}
-              className={`h-1.5 rounded-full transition-all ${
-                index === step ? "w-6 bg-accent" : "w-1.5 bg-line-strong"
+              className={`h-2 rounded-full transition-colors duration-300 ease-[var(--ease-spring)] ${
+                index === step ? "w-6 bg-accent" : "w-2 bg-line-strong"
               }`}
             />
           ))}
@@ -123,7 +120,7 @@ function StepArt({ kind }: { kind: "add" | "cabinet" | "checks" | "ready" }) {
   };
 
   return (
-    <div className="flex h-28 w-28 items-center justify-center rounded-3xl bg-accent-soft">
+    <div className="flex h-28 w-28 items-center justify-center rounded-container bg-accent-soft">
       <svg width="56" height="56" viewBox="0 0 48 48" aria-hidden="true">
         {kind === "add" && (
           <>

@@ -1,9 +1,19 @@
 "use client";
 
 import type { ReactNode } from "react";
+import {
+  BORDERLESS_BUTTON_CLASSES,
+  DESTRUCTIVE_BUTTON_CLASSES,
+  INPUT_CLASSES,
+  PRIMARY_BUTTON_CLASSES,
+  REMOVE_BUTTON_CLASSES,
+  SECONDARY_BUTTON_CLASSES,
+} from "./styles";
 
-const CONTROL =
-  "w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent";
+/*
+ * The shared form controls. Their looks live in styles.ts, so links and
+ * server components can share them.
+ */
 
 export function Field({
   label,
@@ -14,7 +24,7 @@ export function Field({
 }: {
   label: string;
   hint?: string;
-  /** What is wrong with the value, shown in place of the hint. */
+  /** Shown in place of the hint, in the critical tone, while the value is wrong. */
   error?: string;
   /**
    * For a control that labels itself, like a Segmented group. Wrapped in a
@@ -25,32 +35,35 @@ export function Field({
 }) {
   const Tag = group ? "div" : "label";
   return (
-    <Tag className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
-        {label}
-      </span>
+    <Tag className="flex flex-col gap-2">
+      <span className="text-footnote font-medium text-ink-soft">{label}</span>
       {children}
       {error ? (
-        <span className="text-[11px] text-critical">{error}</span>
+        <span className="text-caption text-critical">{error}</span>
       ) : (
-        hint && <span className="text-[11px] text-ink-faint">{hint}</span>
+        hint && <span className="text-caption text-ink-soft">{hint}</span>
       )}
     </Tag>
   );
 }
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`${CONTROL} ${props.className ?? ""}`} />;
+  return <input {...props} className={`${INPUT_CLASSES} ${props.className ?? ""}`} />;
 }
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`${CONTROL} resize-y ${props.className ?? ""}`} />;
+  return <textarea {...props} className={`${INPUT_CLASSES} resize-y ${props.className ?? ""}`} />;
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`${CONTROL} ${props.className ?? ""}`} />;
+  return <select {...props} className={`${INPUT_CLASSES} ${props.className ?? ""}`} />;
 }
 
+/**
+ * Apple's segmented control: a pill track tinted with the brand, and the
+ * chosen segment raised on it as a solid, shadowed pill. The track is 44px
+ * tall, and each segment's hit area fills it.
+ */
 export function Segmented<T extends string>({
   value,
   options,
@@ -63,11 +76,7 @@ export function Segmented<T extends string>({
   label: string;
 }) {
   return (
-    <div
-      role="radiogroup"
-      aria-label={label}
-      className="flex gap-1 rounded-xl border border-line bg-surface-2 p-1"
-    >
+    <div role="radiogroup" aria-label={label} className="flex gap-1 rounded-full bg-accent/8 p-1">
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -77,8 +86,8 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(option.value)}
-            className={`press flex-1 rounded-lg px-2 py-1.5 text-xs font-medium ${
-              active ? "bg-surface text-ink shadow-sm" : "text-ink-soft"
+            className={`press tap h-9 flex-1 rounded-full px-3 text-footnote font-medium ${
+              active ? "bg-surface text-ink shadow-sm" : "text-ink-soft hover:text-ink"
             }`}
           >
             {option.label}
@@ -89,6 +98,7 @@ export function Segmented<T extends string>({
   );
 }
 
+/** The one action a screen is for: filled with the brand, full width. */
 export function PrimaryButton({
   children,
   ...props
@@ -96,21 +106,60 @@ export function PrimaryButton({
   return (
     <button
       {...props}
-      className={`press w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-ink disabled:opacity-40 ${props.className ?? ""}`}
+      className={`${PRIMARY_BUTTON_CLASSES} ${props.className ?? ""}`}
     >
       {children}
     </button>
   );
 }
 
-export function GhostButton({
+/** A supporting action: a translucent wash of the brand under brand-tinted text. */
+export function SecondaryButton({
   children,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...props}
-      className={`press rounded-xl border border-line px-3.5 py-2 text-sm text-ink-soft disabled:opacity-40 ${props.className ?? ""}`}
+      className={`${SECONDARY_BUTTON_CLASSES} ${props.className ?? ""}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Deleting or replacing something: the tinted shape in the critical tone. */
+export function DestructiveButton({
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button {...props} className={`${DESTRUCTIVE_BUTTON_CLASSES} ${props.className ?? ""}`}>
+      {children}
+    </button>
+  );
+}
+
+export function RemoveButton({
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button {...props} className={`${REMOVE_BUTTON_CLASSES} ${props.className ?? ""}`}>
+      {children}
+    </button>
+  );
+}
+
+/** A quiet action: brand-tinted text only, with a wash under a pointer. */
+export function BorderlessButton({
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...props}
+      className={`${BORDERLESS_BUTTON_CLASSES} ${props.className ?? ""}`}
     >
       {children}
     </button>

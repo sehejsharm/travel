@@ -36,19 +36,19 @@ export function InterestPicker({
               type="button"
               onClick={() => toggle(interest.id)}
               aria-pressed={active}
-              className={`press flex flex-col items-start gap-1 rounded-2xl border p-3 text-left transition-colors ${
+              className={`press flex flex-col items-start gap-1 rounded-card border p-3 text-left ${
                 active
                   ? "border-accent bg-accent-soft"
                   : "border-line bg-surface hover:border-line-strong"
               }`}
             >
               <span className="flex w-full items-center justify-between gap-2">
-                <span aria-hidden="true" className="text-xl leading-none">
+                <span aria-hidden="true" className="text-title-3">
                   {interest.emoji}
                 </span>
                 <span
                   aria-hidden="true"
-                  className={`flex h-4 w-4 items-center justify-center rounded-full border text-[9px] ${
+                  className={`flex h-5 w-5 items-center justify-center rounded-full border text-caption-2 ${
                     active
                       ? "border-accent bg-accent text-accent-ink"
                       : "border-line-strong text-transparent"
@@ -58,11 +58,11 @@ export function InterestPicker({
                 </span>
               </span>
               <span
-                className={`text-sm font-medium ${active ? "text-accent-strong" : "text-ink"}`}
+                className={`text-subheadline font-medium ${active ? "text-accent-strong" : "text-ink"}`}
               >
                 {interest.label}
               </span>
-              <span className="font-mono text-[10px] leading-snug text-ink-faint">
+              <span className="text-caption text-ink-soft">
                 {interest.blurb}
               </span>
             </button>
@@ -70,7 +70,7 @@ export function InterestPicker({
         })}
       </div>
 
-      <p className="font-mono text-[10px] text-ink-faint">
+      <p className="text-caption text-ink-soft tabular">
         {selected.length === 0
           ? `Pick at least ${min}.`
           : `${selected.length} picked — each becomes a section of your suggestions.`}

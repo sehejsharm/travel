@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
-import { PrimaryButton } from "@/components/form";
+import { BorderlessButton, PrimaryButton } from "@/components/form";
+import { BORDERLESS_BUTTON_CLASSES } from "@/components/styles";
 import { Card, Chip, ScreenHeader, SectionTitle } from "@/components/ui";
 import type { GeoPoint, Trip } from "@/lib/domain/types";
 import { formatDistance, formatMinutes, inSentence } from "@/lib/divert/format";
@@ -134,18 +135,11 @@ export function DivertPreferencesView({
         }
         action={
           editing ? (
-            <button
-              type="button"
-              onClick={onDone}
-              className="press rounded-xl border border-line px-3 py-1.5 font-mono text-[11px] text-ink-soft"
-            >
+            <BorderlessButton type="button" onClick={onDone}>
               Back
-            </button>
+            </BorderlessButton>
           ) : (
-            <Link
-              href="/"
-              className="press rounded-xl border border-line px-3 py-1.5 font-mono text-[11px] text-ink-soft"
-            >
+            <Link href="/" className={BORDERLESS_BUTTON_CLASSES}>
               Back
             </Link>
           )
@@ -156,8 +150,8 @@ export function DivertPreferencesView({
 
       {!group && (
         <Card className="p-4">
-          <p className="text-sm font-medium">Diverting needs at least two people on the trip.</p>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="text-headline">Diverting needs at least two people on the trip.</p>
+          <p className="mt-1 text-subheadline text-ink-soft">
             There is no group to break off from yet.{" "}
             <Link href="/trip" className="text-accent-strong underline underline-offset-2">
               Add the others in Trip settings
@@ -169,8 +163,8 @@ export function DivertPreferencesView({
 
       {group && route.demo && (
         <Card className="p-4">
-          <p className="text-sm font-medium">This is the sample walk, not your day.</p>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="text-headline">This is the sample walk, not your day.</p>
+          <p className="mt-1 text-subheadline text-ink-soft">
             Your timeline has no timed, placed stops yet, so there is no route to meet the group
             on. Look around here, then put times and places on your timeline to break off for real.
           </p>
@@ -180,7 +174,7 @@ export function DivertPreferencesView({
       {group && (
         <section>
           <SectionTitle>Who is breaking off</SectionTitle>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-x-2 gap-y-3">
             {trip.travelers.map((traveler, index) => {
               const active = traveler.id === selected;
               return (
@@ -189,9 +183,9 @@ export function DivertPreferencesView({
                   type="button"
                   aria-pressed={active}
                   onClick={() => setTravelerId(traveler.id)}
-                  className={`press rounded-full border px-3.5 py-1.5 text-sm ${
+                  className={`press tap flex min-h-8 items-center rounded-badge border px-3 text-footnote ${
                     active
-                      ? "border-accent bg-accent-soft font-medium text-accent-strong"
+                      ? "border-accent bg-accent-soft text-accent-strong"
                       : "border-line bg-surface text-ink-soft"
                   }`}
                 >
@@ -216,20 +210,20 @@ export function DivertPreferencesView({
                   type="button"
                   aria-pressed={active}
                   onClick={() => toggle(interest.id)}
-                  className={`press raised flex h-full w-full flex-col items-start gap-2 rounded-2xl border p-4 text-left ${
+                  className={`press raised flex h-full w-full flex-col items-start gap-2 rounded-card border p-4 text-left ${
                     active ? "border-accent bg-accent-soft" : "border-line bg-surface"
                   }`}
                 >
                   <span
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-control ${
                       active ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-soft"
                     }`}
                   >
                     <DivertIconGlyph icon={interest.icon} />
                   </span>
-                  <span className="text-sm font-medium">{interest.title}</span>
-                  <span className="text-xs leading-snug text-ink-soft">{interest.blurb}</span>
-                  <span className="mt-auto font-mono text-[10px] text-ink-faint tabular">
+                  <span className="text-subheadline font-medium">{interest.title}</span>
+                  <span className="text-caption text-ink-soft">{interest.blurb}</span>
+                  <span className="mt-auto text-caption text-ink-soft tabular">
                     ~{interest.dwellMinutes} min
                   </span>
                 </button>
@@ -253,22 +247,22 @@ export function DivertPreferencesView({
                   type="button"
                   aria-pressed={active}
                   onClick={() => setChosen(candidate)}
-                  className={`press flex w-full items-center justify-between gap-3 px-4 py-3 text-left ${
+                  className={`press flex w-full items-center justify-between gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card ${
                     active ? "bg-accent-soft" : "hover:bg-surface-2"
                   }`}
                 >
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium">{candidate.name}</span>
-                    <span className="mt-0.5 block truncate font-mono text-[11px] text-ink-faint">
+                    <span className="block text-headline">{candidate.name}</span>
+                    <span className="block truncate text-footnote text-ink-soft">
                       {candidate.detail ?? candidate.category}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
-                    {candidate.synthetic && <Chip tone="warning">stand-in</Chip>}
-                    {route.demo && !candidate.synthetic && <Chip tone="warning">sample</Chip>}
+                    {candidate.synthetic && <Chip tone="warning">Stand-in</Chip>}
+                    {route.demo && !candidate.synthetic && <Chip tone="warning">Sample</Chip>}
                     <span
-                      className={`font-mono text-[11px] tabular ${
-                        active ? "text-accent-strong" : "text-ink-faint"
+                      className={`text-footnote tabular ${
+                        active ? "text-accent-strong" : "text-ink-soft"
                       }`}
                     >
                       {formatDistance(distanceM(origin.position, candidate.point))}
@@ -285,7 +279,7 @@ export function DivertPreferencesView({
         <PrimaryButton onClick={go} disabled={!ready}>
           {editing ? "Update rejoin route" : "Find rejoin route"}
         </PrimaryButton>
-        <p className="text-center font-mono text-[11px] text-ink-faint">
+        <p className="text-center text-caption text-ink-soft">
           {route.demo
             ? "Sample only: put timed, placed stops on your timeline to break off for real"
             : spot

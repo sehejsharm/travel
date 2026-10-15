@@ -32,9 +32,11 @@ export function CoverPicker({
   const background = accentHue === undefined ? heroGradient(seed) : hueGradient(accentHue);
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
+      {/* rounded-card, not the hero's rounded-container: it sits inside a card and
+          must not be rounder than the card around it. */}
       <div
-        className="relative isolate overflow-hidden rounded-2xl p-4 text-white shadow-card"
+        className="relative isolate overflow-hidden rounded-card p-4 text-white shadow-card"
         style={{ backgroundImage: background }}
       >
         <svg
@@ -58,17 +60,16 @@ export function CoverPicker({
         </svg>
 
         <div className="relative">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/70">Preview</p>
-          <p className="mt-1 font-display text-xl leading-tight font-semibold tracking-tight">
-            {name || "Your trip"}
-          </p>
-          <p className="mt-0.5 text-xs text-white/80">{dates}</p>
+          {/* The same label the trip hero carries over its title. */}
+          <p className="text-footnote font-medium text-white/80">Preview</p>
+          <p className="mt-1 text-title-2">{name || "Your trip"}</p>
+          <p className="mt-1 text-footnote text-white/80">{dates}</p>
           {countries.length > 0 && (
             <p className="mt-2 flex flex-wrap gap-1">
               {countries.map((code) => (
                 <span
                   key={code}
-                  className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 font-mono text-[9px]"
+                  className="rounded-badge border border-white/20 bg-white/10 px-2 py-1 text-caption"
                 >
                   {flagEmoji(code)} {code}
                 </span>
@@ -78,12 +79,13 @@ export function CoverPicker({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      {/* Each swatch is drawn at 32px with .tap; gap-3 keeps their 44px hit areas apart. */}
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => onChange(undefined)}
           aria-pressed={accentHue === undefined}
-          className={`press rounded-full border px-2.5 py-1 font-mono text-[10px] ${
+          className={`press tap flex min-h-8 items-center rounded-badge border px-3 text-footnote ${
             accentHue === undefined
               ? "border-accent bg-accent-soft text-accent-strong"
               : "border-line text-ink-soft"
@@ -99,7 +101,7 @@ export function CoverPicker({
             onClick={() => onChange(choice.hue)}
             aria-pressed={accentHue === choice.hue}
             aria-label={choice.label}
-            className={`press h-7 w-7 rounded-full border-2 ${
+            className={`press tap h-8 w-8 rounded-full border-2 ${
               accentHue === choice.hue ? "border-accent" : "border-transparent"
             }`}
             style={{ backgroundImage: hueGradient(choice.hue) }}

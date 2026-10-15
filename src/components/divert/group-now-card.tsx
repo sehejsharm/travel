@@ -12,23 +12,23 @@ export function GroupNowCard({ route }: { route: GroupRoute }) {
 
   return (
     <Card className="p-4">
-      <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-faint">
+      <p className="section-label tabular">
         The group · {time()}
         {route.simulated && " · simulated"}
       </p>
-      <p className="mt-1 text-sm font-medium">
+      <p className="mt-1 text-headline">
         {route.nowLabel}
         {at && at.departMin > 0 && ` · leaves ${time(at.departMin, at.offset)}`}
       </p>
       {next && (
-        <p className="mt-0.5 text-sm text-ink-soft">
+        <p className="mt-1 text-subheadline text-ink-soft">
           {route.phase === "free-time"
             ? `${next.name} starts at ${time(next.arriveMin, next.offset)}`
             : `Next: ${next.name} at ${time(next.arriveMin, next.offset)}, ${MODE_LABELS[next.mode]}`}
         </p>
       )}
       {(route.demo || route.simulated) && (
-        <p className="mt-2 font-mono text-[11px] leading-relaxed text-ink-faint">
+        <p className="mt-2 text-caption text-ink-soft">
           {route.demo
             ? `${DEMO_GROUP}. Put timed places on your timeline to plan around your own day.`
             : "Simulated from your timeline: the day is not under way, and Manifest never reads your location."}

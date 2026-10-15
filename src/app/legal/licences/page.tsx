@@ -3,7 +3,7 @@ import { LegalPage, Section } from "@/components/legal";
 
 export const metadata: Metadata = {
   title: "Licences and attribution — Manifest",
-  description: "The open-source software, fonts and data Manifest is built on.",
+  description: "The open-source software and data Manifest is built on.",
 };
 
 const SOFTWARE: [string, string, string][] = [
@@ -17,12 +17,6 @@ const SOFTWARE: [string, string, string][] = [
   ["Vitest", "MIT", "https://github.com/vitest-dev/vitest"],
 ];
 
-const FONTS: [string, string, string][] = [
-  ["Fraunces", "SIL Open Font License 1.1", "https://github.com/undercasetype/Fraunces"],
-  ["IBM Plex Sans", "SIL Open Font License 1.1", "https://github.com/IBM/plex"],
-  ["IBM Plex Mono", "SIL Open Font License 1.1", "https://github.com/IBM/plex"],
-];
-
 const SERVICES: [string, string][] = [
   ["Google Maps embeds and links", "https://cloud.google.com/maps-platform/terms"],
   ["Google Places API", "https://cloud.google.com/maps-platform/terms"],
@@ -32,22 +26,22 @@ const SERVICES: [string, string][] = [
 function Table({ rows, note }: { rows: [string, string, string][]; note?: string }) {
   return (
     <>
-      <ul className="flex flex-col gap-1.5">
+      <ul className="flex flex-col">
         {rows.map(([name, licence, url]) => (
           <li key={name} className="flex flex-wrap items-baseline gap-x-2">
             <a
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="text-sm text-accent-strong underline underline-offset-2"
+              className="press tap inline-flex min-h-11 items-center text-subheadline text-accent-strong underline underline-offset-2"
             >
               {name}
             </a>
-            <span className="font-mono text-[10px] text-ink-faint">{licence}</span>
+            <span className="text-caption text-ink-soft">{licence}</span>
           </li>
         ))}
       </ul>
-      {note && <p className="font-mono text-[10px] text-ink-faint">{note}</p>}
+      {note && <p className="text-caption text-ink-soft">{note}</p>}
     </>
   );
 }
@@ -67,10 +61,10 @@ export default function Licences() {
 
       <Section heading="Typefaces">
         <p>
-          Served from our own origin rather than fetched from a font CDN, so using Manifest does not
-          announce you to a third party on every page load.
+          None are bundled. Manifest sets its text in your device&rsquo;s own system typeface (San
+          Francisco on Apple devices), so no font is downloaded and nothing is fetched from a font
+          service.
         </p>
-        <Table rows={FONTS} />
       </Section>
 
       <Section heading="Icons and the mark">
@@ -103,14 +97,14 @@ export default function Licences() {
       </Section>
 
       <Section heading="Services used at runtime">
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col">
           {SERVICES.map(([name, url]) => (
             <li key={name}>
               <a
                 href={url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm text-accent-strong underline underline-offset-2"
+                className="press tap inline-flex min-h-11 items-center text-subheadline text-accent-strong underline underline-offset-2"
               >
                 {name} ↗
               </a>

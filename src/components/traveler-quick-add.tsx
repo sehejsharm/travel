@@ -4,7 +4,7 @@ import { useState } from "react";
 import { COUNTRY_LIST, getCountry } from "@/lib/reference/countries";
 import type { TravelerInput } from "@/lib/store/state";
 import { flagEmoji } from "@/lib/theme";
-import { Select, TextInput } from "./form";
+import { Field, RemoveButton, SecondaryButton, Select, TextInput } from "./form";
 
 /**
  * Names are enough, and always were. But the compliance checks need a passport
@@ -41,7 +41,7 @@ export function TravelerQuickAdd({
   }
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
       <div className="flex gap-2">
         <TextInput
           value={draft}
@@ -55,14 +55,14 @@ export function TravelerQuickAdd({
             }
           }}
         />
-        <button
+        <SecondaryButton
           type="button"
           onClick={add}
           disabled={!draft.trim()}
-          className="press shrink-0 rounded-xl border border-line px-3.5 py-2 font-mono text-[11px] text-ink-soft disabled:opacity-40"
+          className="shrink-0"
         >
           Add
-        </button>
+        </SecondaryButton>
       </div>
 
       {travelers.length > 0 && (
@@ -74,11 +74,13 @@ export function TravelerQuickAdd({
             const flyingElsewhere = origin.toUpperCase() !== homeCountry.toUpperCase();
 
             return (
-              <li key={traveler.name} className="rounded-xl border border-line bg-surface-2 p-2.5">
+              <li key={traveler.name} className="rounded-card border border-line bg-surface-2 p-3">
+                {/* The two actions are drawn small so the name keeps its room on a
+                    phone; .tap gives each a 44px hit area, and gap-2 keeps them apart. */}
                 <div className="flex items-center gap-2">
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm">{traveler.name}</span>
-                    <span className="block font-mono text-[10px] text-ink-faint">
+                    <span className="block truncate text-subheadline">{traveler.name}</span>
+                    <span className="block text-footnote text-ink-soft">
                       {[
                         hasDocs
                           ? `${flagEmoji(traveler.passportCountry)} passport, expires ${traveler.passportExpiry}`
@@ -95,29 +97,26 @@ export function TravelerQuickAdd({
                     type="button"
                     onClick={() => setExpanded(open ? undefined : traveler.name)}
                     aria-expanded={open}
-                    className="press shrink-0 rounded-lg border border-line px-2 py-1 font-mono text-[10px] text-ink-soft"
+                    className="press tap flex min-h-8 shrink-0 items-center rounded-button-sm bg-accent-soft px-3 text-footnote font-medium text-accent-strong"
                   >
-                    {open ? "done" : hasDocs ? "edit" : "+ passport"}
+                    {open ? "Done" : hasDocs ? "Edit" : "+ Passport"}
                   </button>
 
-                  <button
+                  <RemoveButton
                     type="button"
                     onClick={() =>
                       onChange(travelers.filter((entry) => entry.name !== traveler.name))
                     }
                     aria-label={`Remove ${traveler.name}`}
-                    className="press shrink-0 font-mono text-[10px] text-ink-faint underline hover:text-critical"
+                    className="-mr-3 shrink-0"
                   >
-                    remove
-                  </button>
+                    Remove
+                  </RemoveButton>
                 </div>
 
                 {open && (
-                  <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1">
-                      <span className="font-mono text-[9px] uppercase tracking-wide text-ink-faint">
-                        Passport country
-                      </span>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <Field label="Passport country">
                       <Select
                         value={traveler.passportCountry ?? ""}
                         onChange={(event) =>
@@ -131,12 +130,9 @@ export function TravelerQuickAdd({
                           </option>
                         ))}
                       </Select>
-                    </label>
+                    </Field>
 
-                    <label className="flex flex-col gap-1">
-                      <span className="font-mono text-[9px] uppercase tracking-wide text-ink-faint">
-                        Expires
-                      </span>
+                    <Field label="Expires">
                       <TextInput
                         type="date"
                         value={traveler.passportExpiry ?? ""}
@@ -144,51 +140,49 @@ export function TravelerQuickAdd({
                           update(traveler.name, { passportExpiry: event.target.value })
                         }
                       />
-                    </label>
+                    </Field>
 
                     {/* Nationality and origin are different questions. Asked
                         only once there is a second person, because with one
                         traveller the trip's own origin already is the answer. */}
                     {travelers.length > 1 && (
-                      <label className="flex flex-col gap-1 sm:col-span-2">
-                        <span className="font-mono text-[9px] uppercase tracking-wide text-ink-faint">
-                          Flying from
-                        </span>
-                        <Select
-                          aria-label={`Flying from, for ${traveler.name}`}
-                          value={traveler.originCountry ?? ""}
-                          onChange={(event) =>
-                            update(traveler.name, { originCountry: event.target.value || undefined })
-                          }
+                      <div className="sm:col-span-2">
+                        <Field
+                          label="Flying from"
+                          hint="Sets their plugs, voltage, jet lag and the customs allowance they come home to. The passport above still decides the visa."
                         >
-                          <option value="">
-                            Same as the trip ({getCountry(homeCountry)?.name ?? homeCountry})
-                          </option>
-                          {COUNTRY_LIST.map((country) => (
-                            <option key={country.code} value={country.code}>
-                              {country.name}
+                          <Select
+                            aria-label={`Flying from, for ${traveler.name}`}
+                            value={traveler.originCountry ?? ""}
+                            onChange={(event) =>
+                              update(traveler.name, { originCountry: event.target.value || undefined })
+                            }
+                          >
+                            <option value="">
+                              Same as the trip ({getCountry(homeCountry)?.name ?? homeCountry})
                             </option>
-                          ))}
-                        </Select>
-                        <span className="font-mono text-[9px] leading-relaxed text-ink-faint">
-                          Sets their plugs, voltage, jet lag and the customs allowance they come
-                          home to. The passport above still decides the visa.
-                        </span>
-                      </label>
+                            {COUNTRY_LIST.map((country) => (
+                              <option key={country.code} value={country.code}>
+                                {country.name}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                      </div>
                     )}
 
-                    <label className="flex items-start gap-2 sm:col-span-2">
+                    <label className="flex min-h-11 items-start gap-3 sm:col-span-2">
                       <input
                         type="checkbox"
                         checked={Boolean(traveler.needsVisaHelp)}
                         onChange={(event) =>
                           update(traveler.name, { needsVisaHelp: event.target.checked })
                         }
-                        className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]"
+                        className="press mt-1 size-4 shrink-0 accent-[var(--accent)]"
                       />
-                      <span className="font-mono text-[10px] leading-relaxed text-ink-soft">
+                      <span className="text-subheadline">
                         Needs a hand with the visa
-                        <span className="block text-ink-faint">
+                        <span className="block text-caption text-ink-soft">
                           Spells out the paperwork, in order, for every destination that needs it.
                         </span>
                       </span>
@@ -202,7 +196,7 @@ export function TravelerQuickAdd({
       )}
 
       {travelers.length > 1 && (
-        <p className="font-mono text-[10px] leading-relaxed text-ink-faint">
+        <p className="text-footnote text-ink-soft">
           Each person is checked against their own passport, so a group on different nationalities
           gets different visa answers for the same destination.
         </p>

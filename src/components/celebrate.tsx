@@ -10,6 +10,9 @@ import { useReducedMotion } from "@/lib/use-motion";
  */
 const SPARKS = 14;
 
+/** Brand tokens rather than raw hues, so the burst follows light and dark like everything else. */
+const SPARK_COLOURS = ["var(--brand)", "var(--teal)", "var(--warning)"];
+
 export function Celebrate({ at, onDone }: { at?: { x: number; y: number }; onDone: () => void }) {
   const reduced = useReducedMotion();
   const [pieces] = useState(() =>
@@ -19,7 +22,7 @@ export function Celebrate({ at, onDone }: { at?: { x: number; y: number }; onDon
       return {
         dx: Math.cos(angle) * distance,
         dy: Math.sin(angle) * distance - 20,
-        hue: [18, 96, 198, 268][index % 4],
+        colour: SPARK_COLOURS[index % SPARK_COLOURS.length],
         size: 5 + Math.random() * 5,
       };
     }),
@@ -45,7 +48,7 @@ export function Celebrate({ at, onDone }: { at?: { x: number; y: number }; onDon
               top: at.y,
               width: piece.size,
               height: piece.size,
-              background: `hsl(${piece.hue} 62% 55%)`,
+              background: piece.colour,
               "--dx": `${piece.dx}px`,
               "--dy": `${piece.dy}px`,
             } as React.CSSProperties

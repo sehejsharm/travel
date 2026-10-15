@@ -6,6 +6,7 @@ import { useState } from "react";
 import { DivertActiveView } from "@/components/divert/divert-active-view";
 import { DivertPreferencesView } from "@/components/divert/divert-preferences-view";
 import { useFocusOnChange } from "@/components/divert/use-focus-on-change";
+import { PRIMARY_BUTTON_CLASSES } from "@/components/styles";
 import { EmptyState, ScreenSkeleton } from "@/components/ui";
 import { useDivert } from "@/lib/divert/use-divert";
 import { rejoinGroup } from "@/lib/store/state";
@@ -37,10 +38,7 @@ export default function DivertScreen() {
         title="No trip yet"
         body="Start a trip, and once it has more than one traveller on it you can break off from the others."
         action={
-          <Link
-            href="/"
-            className="press mt-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-ink"
-          >
+          <Link href="/trip/new" className={PRIMARY_BUTTON_CLASSES}>
             Start a trip
           </Link>
         }

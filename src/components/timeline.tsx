@@ -5,6 +5,7 @@ import { estimateTravel } from "@/lib/geo";
 import { directionsUrl } from "@/lib/maps";
 import { formatDay, formatTime, localDateKey } from "@/lib/rules";
 import { convert, formatMoney } from "@/lib/reference/fx";
+import { BORDERLESS_BUTTON_CLASSES } from "./styles";
 import { Card, Chip } from "./ui";
 
 function groupByDay(items: TripItem[]): [string, TripItem[]][] {
@@ -58,13 +59,13 @@ export function Timeline({
                     onClick={() => onSelect(item)}
                     className="press flex w-full gap-3 px-4 py-3 text-left hover:bg-surface-2"
                   >
-                    <span className="w-11 shrink-0 pt-0.5 text-right font-mono text-xs text-ink-soft tabular">
+                    <span className="w-11 shrink-0 pt-1 text-right text-footnote text-ink-soft tabular">
                       {formatTime(item.startsAt!) || "—"}
                     </span>
 
-                    <span className="flex flex-col items-center pt-1.5">
+                    <span className="flex flex-col items-center pt-2">
                       <span
-                        className={`h-1.5 w-1.5 rounded-full bg-current ${
+                        className={`h-2 w-2 rounded-full bg-current ${
                           KIND_TONE[item.bookingKind ?? ""] ?? "text-ink-faint"
                         }`}
                       />
@@ -72,10 +73,10 @@ export function Timeline({
 
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="text-[15px] leading-snug font-medium">{item.title}</span>
-                        {flagged.has(item.id) && <Chip tone="critical">check</Chip>}
+                        <span className="text-headline">{item.title}</span>
+                        {flagged.has(item.id) && <Chip tone="critical">Check</Chip>}
                       </span>
-                      <span className="mt-0.5 block font-mono text-[11px] text-ink-faint">
+                      <span className="mt-1 block text-footnote text-ink-soft tabular">
                         {[
                           item.place?.city ?? item.place?.name,
                           item.cost && formatMoney(item.cost.amount, item.cost.currency),
@@ -116,8 +117,8 @@ function Hop({ from, to }: { from: TripItem; to?: TripItem }) {
   if (travel.distanceKm < 0.15) return null;
 
   return (
-    <div className="flex items-center gap-2 border-t border-dashed border-line/70 bg-surface-2/40 py-1.5 pr-4 pl-[4.25rem]">
-      <span className="font-mono text-[10px] text-ink-faint tabular">
+    <div className="flex min-h-11 items-center gap-2 border-t border-dashed border-line/70 bg-surface-2/40 pr-4 pl-17">
+      <span className="text-caption text-ink-soft tabular">
         {MODE_LABEL[travel.mode]} · {travel.minutes} min ·{" "}
         {travel.distanceKm < 10 ? travel.distanceKm.toFixed(1) : Math.round(travel.distanceKm)} km
       </span>
@@ -126,7 +127,7 @@ function Hop({ from, to }: { from: TripItem; to?: TripItem }) {
         target="_blank"
         rel="noreferrer"
         onClick={(event) => event.stopPropagation()}
-        className="press ml-auto font-mono text-[10px] text-accent-strong underline"
+        className={`${BORDERLESS_BUTTON_CLASSES} -mr-3 ml-auto shrink-0`}
       >
         Directions ↗
       </a>
@@ -148,24 +149,20 @@ function DayHeader({ day, items, index }: { day: string; items: TripItem[]; inde
   const [weekday, ...rest] = formatDay(`${day}T12:00:00Z`).split(" ");
 
   return (
-    <div className="mb-2.5 flex items-center gap-3 px-0.5">
-      <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl border border-line bg-surface shadow-card">
-        <span className="font-mono text-[9px] uppercase tracking-wide text-ink-faint">
-          {weekday.replace(",", "")}
-        </span>
-        <span className="font-display text-[15px] leading-none font-semibold tabular">
-          {day.slice(8)}
-        </span>
+    <div className="mb-2 flex items-center gap-3 px-1">
+      <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-control border border-line bg-surface shadow-card">
+        <span className="text-caption-2 text-ink-soft">{weekday.replace(",", "")}</span>
+        <span className="text-headline tabular">{day.slice(8)}</span>
       </div>
 
       <div className="min-w-0 flex-1">
-        <h3 className="font-display text-[15px] font-semibold tracking-tight">
+        <h3 className="text-headline">
           Day {index + 1}
-          <span className="ml-2 font-mono text-[11px] font-normal text-ink-faint">
+          <span className="ml-2 text-footnote font-normal text-ink-soft tabular">
             {rest.join(" ")}
           </span>
         </h3>
-        <p className="truncate font-mono text-[10px] text-ink-faint tabular">
+        <p className="truncate text-footnote text-ink-soft tabular">
           {[
             `${items.length} stop${items.length === 1 ? "" : "s"}`,
             areas.slice(0, 2).join(" · "),

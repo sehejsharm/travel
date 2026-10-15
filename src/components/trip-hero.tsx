@@ -35,12 +35,23 @@ export function TripHero({
       // Remounting on the trip id is what makes switching trips cross-fade
       // instead of hard-cutting to the next gradient.
       key={trip.id}
-      className="animate-hero-in grain relative isolate overflow-hidden rounded-3xl text-white shadow-float"
-      style={{
-        backgroundImage:
-          trip.accentHue === undefined ? heroGradient(seed) : hueGradient(trip.accentHue),
-      }}
+      className="animate-hero-in grain relative isolate overflow-hidden rounded-container text-white shadow-float"
     >
+      {/*
+        The gradient lives on its own layer so its hue-drift loop and the
+        section's one-shot entrance can both run — a single element can only
+        carry one `animation` shorthand, and the later rule would otherwise
+        silently win and drop the other.
+      */}
+      <div
+        aria-hidden="true"
+        className="animate-hue-drift pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            trip.accentHue === undefined ? heroGradient(seed) : hueGradient(trip.accentHue),
+        }}
+      />
+
       {/* Contour lines, so the block reads as a place rather than a swatch. */}
       <svg
         aria-hidden="true"
@@ -65,7 +76,7 @@ export function TripHero({
       <div className="relative p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/70">
+            <p className="text-footnote font-medium text-white/80">
               {trip.datesTbd
                 ? "No dates yet"
                 : underway
@@ -74,12 +85,13 @@ export function TripHero({
                     ? "Counting down"
                     : "Wrapped"}
             </p>
-            <h1 className="mt-1.5 font-display text-[30px] leading-tight font-semibold tracking-tight sm:text-4xl">
-              {trip.name}
-            </h1>
-            <p className="mt-1.5 text-sm text-white/80">
+            <h1 className="mt-1 text-title-1 sm:text-display">{trip.name}</h1>
+            <p className="mt-1 text-subheadline text-white/80">
               {trip.datesTbd ? (
-                <Link href="/trip" className="underline decoration-white/40 underline-offset-2">
+                <Link
+                  href="/trip"
+                  className="press tap inline-block underline decoration-white/40 underline-offset-2"
+                >
                   Add dates to switch on the rest of the checks
                 </Link>
               ) : (
@@ -93,18 +105,18 @@ export function TripHero({
 
           <Link
             href="/trip"
-            className="press shrink-0 rounded-xl border border-white/25 bg-white/10 px-3 py-1.5 font-mono text-[11px] backdrop-blur-sm hover:bg-white/20"
+            className="press tap inline-flex h-8 shrink-0 items-center rounded-button-sm border border-white/25 bg-white/10 px-3 text-footnote font-medium backdrop-blur-sm hover:bg-white/20"
           >
             Edit
           </Link>
         </div>
 
         {countries.length > 0 && (
-          <ul className="mt-4 flex flex-wrap gap-1.5">
+          <ul className="mt-4 flex flex-wrap gap-2">
             {countries.map((code) => (
               <li
                 key={code}
-                className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 font-mono text-[10px] tracking-wide"
+                className="rounded-badge border border-white/20 bg-white/10 px-2 py-1 text-caption"
               >
                 {flagEmoji(code)} {getCountry(code)?.name ?? code}
               </li>
@@ -116,12 +128,12 @@ export function TripHero({
           <ReadyRing readiness={readiness} />
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">
+            <p className="text-subheadline font-medium">
               {critical > 0
                 ? `${critical} thing${critical === 1 ? "" : "s"} to fix before you fly`
                 : "Nothing blocking — you are clear to fly"}
             </p>
-            <p className="mt-0.5 font-mono text-[11px] text-white/70 tabular">
+            <p className="mt-1 text-footnote text-white/80 tabular">
               {readiness.done}/{readiness.total} done · {items.length} filed
               {!trip.datesTbd && !underway && daysToGo > 0 && (
                 <>
@@ -135,7 +147,7 @@ export function TripHero({
           <Link
             href="/checks"
             aria-label="Open checks"
-            className="press shrink-0 rounded-xl border border-white/25 bg-white/10 px-3 py-2 font-mono text-[11px] hover:bg-white/20"
+            className="press tap inline-flex h-8 shrink-0 items-center rounded-button-sm border border-white/25 bg-white/10 px-3 text-footnote font-medium backdrop-blur-sm hover:bg-white/20"
           >
             Checks ›
           </Link>
@@ -178,7 +190,7 @@ function ReadyRing({ readiness }: { readiness: Readiness }) {
       </svg>
       <span
         aria-hidden="true"
-        className="absolute inset-0 flex items-center justify-center font-mono text-[11px] tabular"
+        className="absolute inset-0 flex items-center justify-center text-footnote font-medium tabular"
       >
         {Math.round(share * 100)}%
       </span>

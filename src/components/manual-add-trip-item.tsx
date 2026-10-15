@@ -25,7 +25,7 @@ import { suggestPlaces } from "@/lib/reference/places";
 import { updateItem } from "@/lib/store/state";
 import { Disclosure } from "./disclosure";
 import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "./filing";
-import { Field, GhostButton, PrimaryButton, Segmented, TextInput } from "./form";
+import { BorderlessButton, Field, PrimaryButton, Segmented, TextInput } from "./form";
 import {
   ConfirmationField,
   CostFields,
@@ -449,19 +449,19 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
           </Disclosure>
         </div>
 
-        <div className="mt-5 flex gap-2 border-t border-line pt-4">
-          <GhostButton onClick={clear} disabled={blank}>
+        {/* A quiet action beside the one primary, as Skip sits beside Next in onboarding. */}
+        <div className="mt-5 flex items-center gap-3 border-t border-line pt-4">
+          <BorderlessButton onClick={clear} disabled={blank} className="-ml-3 shrink-0">
             Clear
-          </GhostButton>
-          <PrimaryButton id="manual-submit" onClick={submit} disabled={blank}>
+          </BorderlessButton>
+          <PrimaryButton id="manual-submit" onClick={submit} disabled={blank} className="flex-1">
             {trip ? "Add to trip" : "Start a new trip from this"}
           </PrimaryButton>
         </div>
 
         {trip ? (
-          <p className="mt-2 text-center font-mono text-[10px] leading-relaxed text-ink-faint">
-            Adds to {trip.name}
-          </p>
+          // The same note as StartsTripNote's, so the two read alike under the button.
+          <p className="mt-2 text-center text-footnote text-ink-soft">Adds to {trip.name}</p>
         ) : (
           <StartsTripNote what="what you typed" />
         )}

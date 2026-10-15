@@ -5,7 +5,16 @@ import { addHours, fromLocalInput, offsetOf, toLocalInput } from "@/lib/datetime
 import type { BookingKind, ItemCategory, PlaceRef, Trip, TripItem } from "@/lib/domain/types";
 import { endsBeforeStart, offsetForCountry, readCost, resolvePlace } from "@/lib/item-form";
 import { removeItem, unscheduleItem, updateItem } from "@/lib/store/state";
-import { Field, GhostButton, PrimaryButton, Segmented, Select, TextInput } from "./form";
+import {
+  BorderlessButton,
+  DestructiveButton,
+  Field,
+  PrimaryButton,
+  SecondaryButton,
+  Segmented,
+  Select,
+  TextInput,
+} from "./form";
 import {
   ConfirmationField,
   CostFields,
@@ -170,7 +179,7 @@ function ItemEditorForm({
       title={item.startsAt ? "Edit" : "Schedule or edit"}
       footer={
         <div className="flex gap-2">
-          <GhostButton onClick={onClose}>Cancel</GhostButton>
+          <SecondaryButton onClick={onClose}>Cancel</SecondaryButton>
           <PrimaryButton onClick={save}>Save</PrimaryButton>
         </div>
       }
@@ -213,27 +222,23 @@ function ItemEditorForm({
           sameZone={sameZone}
           action={
             !draft.startsAt && (
-              <button
-                type="button"
-                onClick={scheduleForFirstDay}
-                className="press font-mono text-[10px] text-accent-strong underline"
-              >
-                put on day one
-              </button>
+              <BorderlessButton type="button" onClick={scheduleForFirstDay}>
+                Put on day one
+              </BorderlessButton>
             )
           }
           footer={
             draft.startsAt && (
-              <button
+              <BorderlessButton
                 type="button"
                 onClick={() => {
                   set("startsAt", "");
                   set("endsAt", "");
                 }}
-                className="press mt-2 font-mono text-[10px] text-ink-faint underline"
+                className="-ml-3 mt-2"
               >
-                clear — send back to ideas
-              </button>
+                Clear — send back to ideas
+              </BorderlessButton>
             )
           }
         />
@@ -282,16 +287,16 @@ function ItemEditorForm({
 
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           {item.startsAt && (
-            <GhostButton
+            <SecondaryButton
               onClick={() => {
                 unscheduleItem(item.id);
                 onClose();
               }}
             >
               Unschedule
-            </GhostButton>
+            </SecondaryButton>
           )}
-          <GhostButton
+          <DestructiveButton
             onClick={() => {
               if (!confirmDelete) {
                 setConfirmDelete(true);
@@ -300,10 +305,9 @@ function ItemEditorForm({
               removeItem(item.id);
               onClose();
             }}
-            className={confirmDelete ? "border-critical text-critical" : ""}
           >
             {confirmDelete ? "Tap again to delete" : "Delete"}
-          </GhostButton>
+          </DestructiveButton>
         </div>
       </div>
     </Sheet>
