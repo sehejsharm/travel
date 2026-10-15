@@ -80,7 +80,7 @@ export function remember(outcome: "asked" | "declined"): void {
 }
 
 export const STORE_LISTING_URL =
-  process.env.NEXT_PUBLIC_STORE_URL ?? "https://apps.apple.com/app/manifest-trip-planner";
+  process.env.NEXT_PUBLIC_STORE_URL || "https://apps.apple.com/app/manifest-trip-planner";
 
 /** Native first, listing second. Returns how it was handled, for telemetry-free logging. */
 export async function requestReview(): Promise<"native" | "listing"> {

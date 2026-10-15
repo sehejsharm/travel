@@ -19,16 +19,23 @@ export function Field({
   label,
   hint,
   error,
+  group = false,
   children,
 }: {
   label: string;
   hint?: string;
   /** Shown in place of the hint, in the critical tone, while the value is wrong. */
   error?: string;
+  /**
+   * For a control that labels itself, like a Segmented group. Wrapped in a
+   * <label>, its first button would take the label's text as its own name.
+   */
+  group?: boolean;
   children: ReactNode;
 }) {
+  const Tag = group ? "div" : "label";
   return (
-    <label className="flex flex-col gap-2">
+    <Tag className="flex flex-col gap-2">
       <span className="text-footnote font-medium text-ink-soft">{label}</span>
       {children}
       {error ? (
@@ -36,7 +43,7 @@ export function Field({
       ) : (
         hint && <span className="text-caption text-ink-soft">{hint}</span>
       )}
-    </label>
+    </Tag>
   );
 }
 

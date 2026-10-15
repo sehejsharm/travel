@@ -28,9 +28,10 @@ export interface Offer {
 }
 
 const AMAZON_TAG = process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG;
-const AMAZON_DOMAIN = process.env.NEXT_PUBLIC_AMAZON_DOMAIN ?? "www.amazon.com";
-const ESIM_PARTNER = process.env.NEXT_PUBLIC_ESIM_PARTNER ?? "Airalo";
-const ESIM_BASE = process.env.NEXT_PUBLIC_ESIM_URL ?? "https://www.airalo.com/search";
+// `||`, not `??`: a variable left blank in the host's settings means "use the default".
+const AMAZON_DOMAIN = process.env.NEXT_PUBLIC_AMAZON_DOMAIN || "www.amazon.com";
+const ESIM_PARTNER = process.env.NEXT_PUBLIC_ESIM_PARTNER || "Airalo";
+const ESIM_BASE = process.env.NEXT_PUBLIC_ESIM_URL || "https://www.airalo.com/search";
 const ESIM_REF = process.env.NEXT_PUBLIC_ESIM_REF;
 
 /** An Amazon search rather than a hardcoded ASIN, which goes stale. */

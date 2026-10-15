@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { AppShell } from "@/components/app-shell";
 import { ServiceWorker } from "@/components/service-worker";
 import { Splash } from "@/components/splash";
+import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 // No web fonts: every platform's own system face, San Francisco on Apple
@@ -9,7 +10,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   // Resolves the social image to an absolute URL at build time.
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://manifest.trip"),
+  metadataBase: siteUrl(),
   title: "Manifest",
   description: "Everything about your trip, in one file.",
   applicationName: "Manifest",
