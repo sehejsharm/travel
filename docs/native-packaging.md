@@ -68,7 +68,11 @@ This is the one place the local-only architecture and native packaging pull
 against each other, and it needs a decision before submission:
 
 1. **Hybrid** (recommended): bundle the app, call the hosted API for
-   extraction and Discover. Those two already require a network anyway.
+   extraction and Discover. Those two already require a network anyway. Note
+   that the API guard refuses any browser page on another origin (its
+   Sec-Fetch-Site check), and the routes send no CORS headers, so a bundled app
+   calling from `capacitor://localhost` needs a same-origin proxy or a guard and
+   CORS change first.
 2. **Fully offline**: drop both features from the native build. Manifest still
    does the thing it is actually about — checking a plan — but loses the
    headline "screenshot it and it files itself".
@@ -92,7 +96,7 @@ fingerprint exists — it cannot be written before the key is generated.
 
 ## Still required before either store accepts a build
 
-- [ ] Replace `privacy@manifest.trip` and `support@manifest.trip` with monitored addresses
+- [ ] Set `NEXT_PUBLIC_CONTACT_EMAIL` to a monitored address and rebuild. It is the one contact address (`src/lib/contact.ts`); unset, it falls back to support@manifest.trip
 - [ ] Decide hybrid vs fully-offline for iOS (above)
 - [ ] Generate the signing key and publish `assetlinks.json` for Android
 - [ ] Screenshots per device size — see `docs/store-listing.md`

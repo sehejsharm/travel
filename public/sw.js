@@ -1,7 +1,9 @@
 /* Offline support for Manifest. Deliberately conservative: API calls never
    touch the cache, and only content-hashed build assets are cached forever. */
 
-const CACHE = "manifest-v1";
+// v2: navigations are keyed by path alone, so the activate step below clears
+// v1's copies, some of which held shared text in their query.
+const CACHE = "manifest-v2";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -38,15 +40,20 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
+    // A share-target launch carries the shared text in the query. Every page
+    // reads its query on the client, so ask the network for the bare page and
+    // cache it under that: what was shared stays on the device, out of the
+    // server's request logs and out of this cache.
+    const page = url.search ? new Request(url.origin + url.pathname) : request;
     event.respondWith(
-      fetch(request)
+      fetch(page)
         .then((response) => {
-          cachePut(request, response);
+          cachePut(page, response);
           return response;
         })
         .catch(() =>
           caches
-            .match(request)
+            .match(page)
             .then((cached) => cached ?? caches.match("/"))
             .then((cached) => cached ?? Response.error()),
         ),

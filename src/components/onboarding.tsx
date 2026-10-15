@@ -25,8 +25,8 @@ const STEPS: { title: string; body: string; art: "add" | "cabinet" | "checks" | 
     art: "checks",
   },
   {
-    title: "All of it on this device",
-    body: "No account, nothing uploaded, and it works with no signal — which is exactly when you need a booking reference most.",
+    title: "Your trip stays on this device",
+    body: "No account, and it works with no signal — exactly when you need a booking reference most. Our server reads what you send it and keeps none of it.",
     art: "ready",
   },
 ];

@@ -1,9 +1,10 @@
-import type { Trip, TripItem } from "./domain/types";
+import type { PlaceRef, Trip, TripItem } from "./domain/types";
 
 /**
  * A shared trip travels inside the URL fragment, which browsers never send to
  * a server. The link works with no account and no backend, and the trip stays
- * between the people who have the link.
+ * between the people who have the link. What goes into it is the plan only:
+ * see stripPrivate below, which the privacy policy describes field for field.
  */
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -39,27 +40,85 @@ async function collect(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> 
 }
 
 export interface SharedTrip {
+  /**
+   * The trip as a link carries it. `travelers` is always empty: who is going,
+   * and their passports, insurance and visa needs, never leave the sender's
+   * device. `travellerCount` is all the reader learns about them.
+   */
   trip: Trip;
   items: TripItem[];
+  /** How many people are going, and nothing else about them. */
+  travellerCount: number;
 }
 
-/** Only the plan travels — prices and confirmation numbers are left behind. */
-function stripPrivate(trip: Trip, items: TripItem[]): SharedTrip {
+/**
+ * The plan travels; the paperwork and the people stay home. Each field is
+ * picked by name rather than everything copied and some removed, so a field
+ * added to Trip or TripItem later stays out of links until someone decides it
+ * belongs in one.
+ *
+ * Left behind: traveller names, passport countries and expiries, insurance
+ * dates, visa help and where each person flies from; the budget target, the
+ * trip's interests and purpose; and from every item its notes, price,
+ * confirmation number, traveller name, refund deadline, source link and who
+ * filed it. Stays are left behind whole: the shared page never shows them, and
+ * a hotel's exact point is where the group sleeps.
+ */
+function stripPrivate(trip: Trip, items: TripItem[], travellerCount: number): SharedTrip {
   return {
-    trip,
-    items: items.map((item) => ({
-      ...item,
-      cost: undefined,
-      costStatus: undefined,
-      confirmationCode: undefined,
-      travelerName: undefined,
-      refundableUntil: undefined,
+    trip: shareTrip(trip),
+    items: items.filter((item) => item.bookingKind !== "lodging").map(shareItem),
+    travellerCount,
+  };
+}
+
+function sharePlace(place: PlaceRef | undefined): PlaceRef | undefined {
+  if (!place) return undefined;
+  const { name, city, countryCode, point, airport } = place;
+  return { name, city, countryCode, point: point && { lat: point.lat, lng: point.lng }, airport };
+}
+
+function shareTrip(trip: Trip): Trip {
+  return {
+    id: trip.id,
+    name: trip.name,
+    // Kept so the home country is not mistaken for a destination.
+    homeCountry: trip.homeCountry,
+    destinationCountries: trip.destinationCountries,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    datesTbd: trip.datesTbd,
+    legs: trip.legs?.map(({ id, countryCode, city, startDate, endDate }) => ({
+      id,
+      countryCode,
+      city,
+      startDate,
+      endDate,
     })),
+    travelers: [],
+  };
+}
+
+function shareItem(item: TripItem): TripItem {
+  return {
+    id: item.id,
+    tripId: item.tripId,
+    title: item.title,
+    category: item.category,
+    bookingKind: item.bookingKind,
+    source: item.source,
+    place: sharePlace(item.place),
+    arrivalPlace: sharePlace(item.arrivalPlace),
+    startsAt: item.startsAt,
+    endsAt: item.endsAt,
+    confidence: item.confidence,
+    extractionMethod: item.extractionMethod,
+    createdAt: item.createdAt,
   };
 }
 
 export async function encodeTrip(trip: Trip, items: TripItem[]): Promise<string> {
-  const json = JSON.stringify(stripPrivate(trip, items));
+  const json = JSON.stringify(stripPrivate(trip, items, trip.travelers.length));
   const compressed = new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"));
   return toBase64Url(await collect(compressed));
 }
@@ -126,6 +185,50 @@ export async function buildShareLink(
   };
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Enough of a trip to draw the page without throwing. A link is anyone's to edit. */
+const optionalString = (value: unknown) => value === undefined || typeof value === "string";
+
+/** Enough of a trip, of the right types, to draw the page without throwing. */
+function isTrip(value: unknown): value is Trip {
+  return (
+    isObject(value) &&
+    typeof value.name === "string" &&
+    typeof value.homeCountry === "string" &&
+    typeof value.startDate === "string" &&
+    typeof value.endDate === "string" &&
+    (value.destinationCountries === undefined ||
+      (Array.isArray(value.destinationCountries) &&
+        value.destinationCountries.every((code) => typeof code === "string"))) &&
+    (value.legs === undefined ||
+      (Array.isArray(value.legs) &&
+        value.legs.every((leg) => isObject(leg) && typeof leg.countryCode === "string")))
+  );
+}
+
+function isPlace(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (isObject(value) && typeof value.name === "string" && optionalString(value.countryCode))
+  );
+}
+
+function isItem(value: unknown): value is TripItem {
+  return (
+    isObject(value) &&
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    typeof value.category === "string" &&
+    optionalString(value.startsAt) &&
+    optionalString(value.endsAt) &&
+    isPlace(value.place) &&
+    isPlace(value.arrivalPlace)
+  );
+}
+
 export async function decodeTrip(token: string): Promise<SharedTrip | undefined> {
   try {
     const bytes = fromBase64Url(token);
@@ -133,10 +236,24 @@ export async function decodeTrip(token: string): Promise<SharedTrip | undefined>
       .stream()
       .pipeThrough(new DecompressionStream("gzip"));
     const json = new TextDecoder().decode(await collect(stream));
-    const parsed = JSON.parse(json) as Partial<SharedTrip>;
+    const parsed: unknown = JSON.parse(json);
 
-    if (!parsed.trip || !Array.isArray(parsed.items)) return undefined;
-    return { trip: parsed.trip, items: parsed.items };
+    if (!isObject(parsed) || !isTrip(parsed.trip) || !Array.isArray(parsed.items)) {
+      return undefined;
+    }
+
+    // Links made before names were stripped still carry the whole traveller
+    // list. They open, and go through the same filter, so an old link shows
+    // no more than a new one.
+    const counted = parsed.travellerCount;
+    const travellerCount =
+      typeof counted === "number" && Number.isInteger(counted) && counted >= 0
+        ? counted
+        : Array.isArray(parsed.trip.travelers)
+          ? parsed.trip.travelers.length
+          : 0;
+
+    return stripPrivate(parsed.trip, parsed.items.filter(isItem), travellerCount);
   } catch {
     return undefined;
   }

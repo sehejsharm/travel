@@ -8,7 +8,7 @@ export type SourceTier = "saved" | "community" | "places" | "web";
 
 export const TIER_LABELS: Record<SourceTier, string> = {
   saved: "From your own saves",
-  community: "From published trips",
+  community: "From Manifest's own list",
   places: "From Google Places",
   web: "From the web",
 };

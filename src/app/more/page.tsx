@@ -8,6 +8,7 @@ import { InstallPrompt } from "@/components/install-prompt";
 import { PRIMARY_BUTTON_CLASSES } from "@/components/styles";
 import { Card, EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import { toCalendar } from "@/lib/calendar";
+import { CONTACT_EMAIL } from "@/lib/contact";
 import { buildShareLink, type ShareLink } from "@/lib/share";
 import { useTripView } from "@/lib/store/use-store";
 import { destinationBriefs } from "@/lib/rules";
@@ -184,7 +185,7 @@ export default function MoreScreen() {
         <SectionTitle>Help and legal</SectionTitle>
         <Card className="divide-y divide-line">
           <a
-            href="mailto:support@manifest.trip?subject=Manifest%20feedback"
+            href={`mailto:${CONTACT_EMAIL}?subject=Manifest%20feedback`}
             className="press flex min-h-11 items-center justify-between gap-3 px-4 py-3"
           >
             <span className="min-w-0">

@@ -18,20 +18,37 @@ npm test           # rules engine, extractor, checklists, calendar, share
 npm run typecheck
 ```
 
-Set `ANTHROPIC_API_KEY` to enable model-backed extraction. Without it the app
-still works — the pattern pass handles structured content on its own, and
-low-confidence content is filed with the reason shown rather than guessed at.
+Copy `.env.example` to `.env.local`; every variable is optional and explained
+there. `ANTHROPIC_API_KEY` turns on model-backed extraction, screenshot reading,
+and Discover's web-search and writing steps. Without it the app still works:
+the pattern pass handles structured text on its own, low-confidence text is
+filed with the reason shown rather than guessed at, screenshots are turned away
+with a prompt to paste the text instead, and Discover answers from the bundled
+corpus alone (Google Places is only asked when the write step can use what it
+finds). `NEXT_PUBLIC_CONTACT_EMAIL` is the one contact address the legal pages and
+Help & feedback show.
 
 ## Architecture
 
 The trip lives on the device, in `localStorage`, behind a small store
-(`src/lib/store/`). Nothing is uploaded, there is no account, and the app keeps
-working with no signal — which matters on a plane and in a foreign country.
+(`src/lib/store/`). The trip itself is never uploaded, there is no account, and
+the app keeps working with no signal — which matters on a plane and in a
+foreign country.
 
-That leaves exactly one server route: `POST /api/extract`, which is stateless
-and exists only to keep the API key off the client. Every page is prerendered
-static. There is no database, no filesystem write, and nothing to provision, so
-it deploys to any static-capable host.
+There are two server routes, both stateless, both there to keep API keys off
+the client, and both behind `src/lib/api/guard.ts` (same-origin check plus a
+per-IP budget):
+
+- `POST /api/extract` — reads pasted or shared text, or a screenshot, and
+  returns the fields for the device to file.
+- `POST /api/advise` — Discover's suggestions. The client sends the
+  destination, the chosen interests, the titles and place names already filed,
+  and each filed place's name, city and notes.
+
+Neither stores anything: no database, no filesystem write, no request bodies
+in logs. Every page is prerendered static, so all it needs is a host that runs
+Next.js route handlers; it is set up for Vercel. What each route sends where
+is spelled out, for users, at `/legal/privacy`.
 
 It installs as a PWA — standalone display, generated icons, and a service
 worker that caches the shell and content-hashed build assets while never
@@ -43,27 +60,31 @@ caching `/api`.
 | --- | --- | --- |
 | Trip | `/` | Countdown, what needs fixing, next up, budget, and the day-by-day timeline |
 | Cabinet | `/cabinet` | Everything filed, filterable by places, activities, purchases, bookings |
-| Add | `/add` | Paste content or a Reel/TikTok/YouTube link, watch it get extracted and grounded, file it |
+| Add | `/add` | Paste or share in text or a Reel/TikTok/YouTube link, pick a screenshot or take a photo, or type an item in by hand; watch it get extracted and grounded, file it |
 | Checks | `/checks` | Every finding, plus the packing list and pre-trip tasks |
+| Discover | `/discover` | Things to do by interest, each naming where it came from |
 | More | `/more` | Calendar export, share link, recap, destination brief |
 | Recap | `/recap` | Spend, places, and which platform each item actually came from |
-| Shared | `/share#…` | Read-only trip, carried in the URL fragment so it never reaches a server |
+| Shared | `/share#…` | Read-only plan, carried in the URL fragment so it never reaches a server |
+| Legal | `/legal/*` | Privacy policy, terms, data deletion, licences |
 
 ### Extract and ground
 
 `src/lib/extract/` runs cheapest-reliable-method-first:
 
-1. **Link pass** (`url.ts`) — a pasted Reel, TikTok or YouTube link sets the
-   source without the user picking it. Where the platform serves oEmbed without
-   a token, the title is fetched and read too; where it does not, or the network
-   is unavailable, the caption alone is used and the UI says so.
+1. **Link pass** (`url.ts`, `og.ts`) — a pasted Reel, TikTok or YouTube link
+   sets the source without the user picking it. The server fetches the page's
+   Open Graph title and caption, and YouTube's oEmbed title, and reads those
+   too; where the platform serves neither, or the network is unavailable, the
+   pasted caption alone is used and the UI says so.
 2. **Pattern pass** (`deterministic.ts`) — free and instant. Pulls prices,
    dates, flight numbers, airport codes, confirmation codes, traveller names and
    cancellation deadlines out of the text, then grounds any place name against
    the gazetteer to get coordinates.
 3. **Model pass** (`llm.ts`) — only runs when the pattern pass scores below
-   `ESCALATION_THRESHOLD` (0.6). Returns null on any failure so the cheap result
-   still stands.
+   `ESCALATION_THRESHOLD` (0.6) and a key is set. Returns null on any failure so
+   the cheap result still stands. Screenshots skip straight to the model, so
+   without a key the route refuses them.
 
 A structured booking email scores ~0.95 and never reaches the model. A caption
 like "this tiny standing sushi bar in tsukiji is unreal" scores 0.40 and does.
@@ -71,6 +92,16 @@ like "this tiny standing sushi bar in tsukiji is unreal" scores 0.40 and does.
 Grounding matters beyond tidiness: coordinates are what the feasibility checks
 run on, which is why extraction captures location, price, currency and time
 window rather than just a title.
+
+### Discover
+
+`src/lib/advisor/` works down a waterfall, cheapest first, and only moves to
+the next tier for interests still short of suggestions: the traveller's own
+filed places, a bundled, hand-picked corpus (`community.ts`), Google
+Places Text Search (`places.ts`, needs `GOOGLE_PLACES_API_KEY`), then
+Anthropic's web search (`search.ts`). With a key set, a write step
+(`write.ts`) turns everything gathered into one line per place, and `verify.ts`
+drops any name that did not come from a source.
 
 ### The checks
 
@@ -134,14 +165,20 @@ authoritative.
 - The gazetteer covers Japan; place names elsewhere file without coordinates and
   sit out the distance checks.
 - FX rates and climate normals are static, and holidays are loaded for 2026.
-- Instagram and TikTok gate oEmbed behind an app token, so a pasted link from
-  either sets the source but cannot fetch a title — the caption carries the
-  extraction. YouTube works without a key.
-- Ingestion is paste-only. Real capture would come through the device share
-  sheet — not by scraping the platforms, which would breach their terms.
+- Instagram and TikTok gate oEmbed behind an app token, so for those the
+  server reads the page's Open Graph tags, which they serve only some of the
+  time; when they do not, the pasted caption carries the extraction. YouTube
+  works without a key.
+- Ingestion is paste, the installed app's share target (text and links, via
+  `/add`), a screenshot or photo (model only), or typing it in. There is no
+  inbox or platform integration, and no scraping beyond the one public page a
+  pasted link points at.
 - The trip is per-device. There is no account and no sync, so a second device
   starts fresh, and clearing browser data clears the trip.
 - Collaboration is modelled but not authenticated: travellers can be assigned
   work and items record who filed them, but everyone on a device is everyone.
 - A share link carries the trip inside it, so it is as private as the link. It
-  strips prices, confirmation numbers and traveller names before encoding.
+  carries the plan only: `src/lib/share.ts` keeps an allowlist of fields, so
+  traveller names, passports, insurance and visa details, the budget, prices,
+  confirmation numbers, refund deadlines and notes never go in, and an older
+  link is put through the same filter when it is opened.

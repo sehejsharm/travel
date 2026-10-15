@@ -209,7 +209,7 @@ export function PlaceField({
             src={mapEmbedUrl(grounded)}
             title={`Map of ${grounded.name}`}
             loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
+            referrerPolicy="strict-origin-when-cross-origin"
             className="h-40 w-full border-0"
           />
           <div className="flex items-center justify-between gap-2 border-t border-line py-1 pr-1 pl-3">
