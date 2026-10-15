@@ -2,8 +2,54 @@
 
 import type { TripLeg } from "@/lib/domain/types";
 import { getCountry } from "@/lib/reference/countries";
+import { formatDay } from "@/lib/rules/shared";
 import { flagEmoji } from "@/lib/theme";
 import { Field, RemoveButton, SecondaryButton, Select, TextInput } from "./form";
+
+/**
+ * Why a day from a date field cannot be used, or nothing when it can. A date
+ * field gives "" until every part of it is filled in, and a year typed short
+ * ("26" for 2026) arrives as 0026, which would sort before every real date.
+ */
+export function dayError(value: string): string | undefined {
+  const match = /^(\d{4,})-\d{2}-\d{2}$/.exec(value);
+  if (!match) return "Enter a full date";
+  const year = Number(match[1]);
+  if (year < 1900 || year > 2199) return "Check the year";
+  return undefined;
+}
+
+export interface LegErrors {
+  startDate?: string;
+  endDate?: string;
+}
+
+/**
+ * A leg has to fit inside the trip, and end on or after it starts: the checks
+ * judge each country by its leg's own days, so a leg outside the trip puts
+ * its weather and visa answers on days nobody is there.
+ */
+export function legErrors(leg: TripLeg, tripStart: string, tripEnd: string): LegErrors {
+  const tripKnown = !dayError(tripStart) && !dayError(tripEnd) && tripStart <= tripEnd;
+  const startProblem = dayError(leg.startDate);
+  const errors: LegErrors = {};
+
+  if (startProblem) errors.startDate = startProblem;
+  else if (tripKnown && leg.startDate < tripStart) errors.startDate = `Before the trip starts (${formatDay(tripStart)})`;
+  else if (tripKnown && leg.startDate > tripEnd) errors.startDate = `After the trip ends (${formatDay(tripEnd)})`;
+
+  const endProblem = dayError(leg.endDate);
+  if (endProblem) errors.endDate = endProblem;
+  else if (!startProblem && leg.endDate < leg.startDate) errors.endDate = "Must be on or after you arrive";
+  else if (tripKnown && leg.endDate > tripEnd) errors.endDate = `After the trip ends (${formatDay(tripEnd)})`;
+
+  return errors;
+}
+
+/** Where each leg's date fields are, so a form can send the cursor to one. */
+export function legInputId(idPrefix: string, legId: string, field: keyof LegErrors): string {
+  return `${idPrefix}-leg-${legId}-${field}`;
+}
 
 /**
  * Splitting a multi-country trip into legs, each with its own dates. Without
@@ -16,6 +62,7 @@ export function LegsEditor({
   countries,
   tripStart,
   tripEnd,
+  idPrefix,
   onChange,
 }: {
   legs: TripLeg[];
@@ -23,6 +70,8 @@ export function LegsEditor({
   countries: string[];
   tripStart: string;
   tripEnd: string;
+  /** Unique on the page, so two open forms never share a field id. */
+  idPrefix: string;
   onChange: (legs: TripLeg[]) => void;
 }) {
   function update(id: string, patch: Partial<TripLeg>) {
@@ -31,7 +80,9 @@ export function LegsEditor({
 
   function add() {
     const last = legs[legs.length - 1];
-    const start = last?.endDate ?? tripStart;
+    // Picks up where the last leg left off, as long as that is still inside the trip.
+    const start =
+      last && last.endDate >= tripStart && last.endDate <= tripEnd ? last.endDate : tripStart;
     const unused = countries.find((code) => !legs.some((leg) => leg.countryCode === code));
 
     onChange([
@@ -61,7 +112,9 @@ export function LegsEditor({
       </p>
 
       {legs.map((leg, index) => {
-        const country = getCountry(leg.countryCode);
+        const errors = legErrors(leg, tripStart, tripEnd);
+        const startId = legInputId(idPrefix, leg.id, "startDate");
+        const endId = legInputId(idPrefix, leg.id, "endDate");
 
         return (
           <div key={leg.id} className="rounded-card border border-line bg-surface-2 p-3">
@@ -92,28 +145,29 @@ export function LegsEditor({
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Field label="Arrive">
+              <Field label="Arrive" error={errors.startDate}>
                 <TextInput
+                  id={startId}
                   type="date"
                   value={leg.startDate}
+                  min={tripStart || undefined}
+                  max={tripEnd || undefined}
+                  aria-invalid={errors.startDate ? true : undefined}
                   onChange={(event) => update(leg.id, { startDate: event.target.value })}
                 />
               </Field>
-              <Field label="Leave">
+              <Field label="Leave" error={errors.endDate}>
                 <TextInput
+                  id={endId}
                   type="date"
                   value={leg.endDate}
-                  min={leg.startDate}
+                  min={leg.startDate || tripStart || undefined}
+                  max={tripEnd || undefined}
+                  aria-invalid={errors.endDate ? true : undefined}
                   onChange={(event) => update(leg.id, { endDate: event.target.value })}
                 />
               </Field>
             </div>
-
-            {country && leg.endDate < leg.startDate && (
-              <p className="mt-2 text-caption text-critical">
-                Leaving {country.name} before arriving there.
-              </p>
-            )}
           </div>
         );
       })}

@@ -1,9 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { searchDestinations, findDestination, type Destination } from "@/lib/reference/destinations";
 import { flagEmoji } from "@/lib/theme";
 import { TextInput } from "./form";
+
+/**
+ * What text typed in the search but never picked amounts to: "pick" while it
+ * still matches something to choose, "unknown" when it matches nothing, and
+ * nothing at all when it is empty or only matches what is already picked
+ * (then nothing is lost by ignoring it).
+ */
+export function unpickedDestination(query: string, selected: string[]): "pick" | "unknown" | undefined {
+  if (!query.trim()) return undefined;
+  const matches = searchDestinations(query);
+  if (matches.length === 0) return "unknown";
+  return matches.some((entry) => !selected.includes(entry.id)) ? "pick" : undefined;
+}
 
 /**
  * Where you are going, typed rather than hunted for in a list of 117. Picking
@@ -13,38 +26,77 @@ import { TextInput } from "./form";
 export function DestinationPicker({
   selected,
   onChange,
+  query,
+  onQueryChange,
+  inputId,
+  unpicked = false,
   autoFocus = false,
 }: {
   selected: string[];
   onChange: (next: string[]) => void;
+  /**
+   * What is typed in the search, held by the form, so it can tell a
+   * destination typed but never picked from one that was never wanted.
+   */
+  query: string;
+  onQueryChange: (query: string) => void;
+  inputId: string;
+  /**
+   * Set by the form when it was submitted with text still typed here, which
+   * turns the note under the search into an error. Drawn here rather than by
+   * the Field around the picker: the search names itself, so a Field's error
+   * would not reach a screen reader.
+   */
+  unpicked?: boolean;
   autoFocus?: boolean;
 }) {
-  const [query, setQuery] = useState("");
-
   const chosen = useMemo(
     () => selected.map((id) => findDestination(id)).filter((entry): entry is Destination => Boolean(entry)),
     [selected],
   );
 
+  const matches = useMemo(() => searchDestinations(query), [query]);
   const results = useMemo(() => {
     const already = new Set(selected);
-    return searchDestinations(query).filter((entry) => !already.has(entry.id));
-  }, [query, selected]);
+    return matches.filter((entry) => !already.has(entry.id));
+  }, [matches, selected]);
+
+  // Typed text that matches nothing would otherwise just sit there, looking accepted.
+  const typed = query.trim();
+  // As unpickedDestination works it out, from the search already run.
+  const pending = !typed ? undefined : matches.length === 0 ? "unknown" : results.length > 0 ? "pick" : undefined;
+  const error = !unpicked
+    ? undefined
+    : pending === "pick"
+      ? "Not added yet. Pick it from the list, or clear it."
+      : pending === "unknown"
+        ? `Nothing called “${typed}” in the list. Clear it, or try the country it is in.`
+        : undefined;
+  const note =
+    pending === "unknown"
+      ? `Nothing called “${typed}” in the list. Try the country it is in.`
+      : typed && results.length === 0
+        ? "Already on your list."
+        : undefined;
+  const noteId = `${inputId}-note`;
 
   function add(destination: Destination) {
     onChange([...selected, destination.id]);
-    setQuery("");
+    onQueryChange("");
   }
 
   return (
     <div className="flex flex-col gap-2">
       <TextInput
+        id={inputId}
         value={query}
         autoFocus={autoFocus}
         autoComplete="off"
         aria-label="Search for a city or country"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error || note ? noteId : undefined}
         placeholder="Kyoto, Portugal, Mexico City…"
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => onQueryChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && results[0]) {
             event.preventDefault();
@@ -52,6 +104,18 @@ export function DestinationPicker({
           }
         }}
       />
+
+      {error ? (
+        <p id={noteId} className="text-caption text-critical">
+          {error}
+        </p>
+      ) : (
+        note && (
+          <p id={noteId} className="text-caption text-ink-soft">
+            {note}
+          </p>
+        )
+      )}
 
       {results.length > 0 && (
         // Rows are inset and rounded rather than clipped, so their focus rings stay visible.

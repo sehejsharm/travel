@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ChecklistEntry, ChecklistKind } from "@/lib/checklists";
 import type { Traveler } from "@/lib/domain/types";
 import {
@@ -35,6 +35,19 @@ export function Checklist({
 }) {
   const [draft, setDraft] = useState("");
   const [whose, setWhose] = useState<string>("everyone");
+  // Two lists share the Checks screen, so the field's id has to be its own.
+  const inputId = useId();
+  const errorId = `${inputId}-error`;
+
+  // The same thing twice is two boxes to tick for one job, and ticking one
+  // leaves the other looking undone. Blank is not an error: Add just waits.
+  const typed = draft.trim();
+  const twin = typed
+    ? allEntries.find((entry) => entry.label.trim().toLowerCase() === typed.toLowerCase())
+    : undefined;
+  const error = twin
+    ? `${twin.label} is already on this list${twin.done ? ", ticked off" : ""}`
+    : undefined;
 
   /**
    * There are no accounts and nothing syncs, so "assign" would be a promise
@@ -170,27 +183,39 @@ export function Checklist({
       )}
 
       <form
-        className="mt-4 flex gap-2"
+        className="mt-4 flex flex-col gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          addChecklistEntry(tripId, kind, draft);
+          if (!typed) return;
+          if (error) {
+            // From the button, the cursor goes back to the field the error is about.
+            document.getElementById(inputId)?.focus();
+            return;
+          }
+          addChecklistEntry(tripId, kind, typed);
           setDraft("");
         }}
       >
-        <TextInput
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          aria-label={`Add to ${title.toLowerCase()}`}
-          placeholder="Add your own…"
-          className="min-w-0 flex-1"
-        />
-        <SecondaryButton
-          type="submit"
-          disabled={draft.trim().length === 0}
-          className="shrink-0"
-        >
-          Add
-        </SecondaryButton>
+        <div className="flex gap-2">
+          <TextInput
+            id={inputId}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            aria-label={`Add to ${title.toLowerCase()}`}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
+            placeholder="Add your own…"
+            className="min-w-0 flex-1"
+          />
+          <SecondaryButton type="submit" disabled={!typed} className="shrink-0">
+            Add
+          </SecondaryButton>
+        </div>
+        {error && (
+          <p id={errorId} className="text-caption text-critical">
+            {error}
+          </p>
+        )}
       </form>
     </Card>
   );

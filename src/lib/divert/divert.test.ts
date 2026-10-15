@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AdviceResult } from "../advisor/types";
 import type { TripItem } from "../domain/types";
 import { formatTime } from "../rules/shared";
-import { buildBackup, parseBackup, restore } from "../store/backup";
+import { buildBackup, restore } from "../store/backup";
+import { parseBackup } from "../store/backup-parse";
 import { SEED_ITEMS } from "../store/seed";
 import {
   addTraveler,

@@ -5,6 +5,42 @@ import { COUNTRY_LIST, getCountry } from "@/lib/reference/countries";
 import type { TravelerInput } from "@/lib/store/state";
 import { flagEmoji } from "@/lib/theme";
 import { Field, RemoveButton, SecondaryButton, Select, TextInput } from "./form";
+import { dayError } from "./legs-editor";
+
+function sameName(a: string, b: string): boolean {
+  const fold = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase();
+  return fold(a) === fold(b);
+}
+
+/**
+ * Why the name being typed cannot be added. Blank is not a problem, only
+ * nothing to add yet; a name already on the list would be a second row for
+ * the same person, and the list tells people apart by name.
+ */
+export function pendingNameError(travelers: TravelerInput[], pending: string): string | undefined {
+  const name = pending.trim();
+  if (name && travelers.some((traveler) => sameName(traveler.name, name))) {
+    return `${name} is already on the list`;
+  }
+  return undefined;
+}
+
+/** A passport expiry is optional; one that was typed has to be a whole date. */
+export function expiryError(traveler: TravelerInput): string | undefined {
+  return traveler.passportExpiry ? dayError(traveler.passportExpiry) : undefined;
+}
+
+export function travelerNameInputId(idPrefix: string): string {
+  return `${idPrefix}-traveler-name`;
+}
+
+export function travelerExpiryInputId(idPrefix: string, index: number): string {
+  return `${idPrefix}-traveler-${index}-expiry`;
+}
+
+function focusSoon(id: string): void {
+  requestAnimationFrame(() => document.getElementById(id)?.focus());
+}
 
 /**
  * Names are enough, and always were. But the compliance checks need a passport
@@ -18,20 +54,40 @@ export function TravelerQuickAdd({
   travelers,
   homeCountry,
   onChange,
+  pending,
+  onPendingChange,
+  pendingError,
+  idPrefix,
 }: {
   travelers: TravelerInput[];
   /** The trip's own origin, and the default everyone inherits. */
   homeCountry: string;
   onChange: (travelers: TravelerInput[]) => void;
+  /**
+   * The name being typed, held by the form: it outlives this section being
+   * folded away, and the form can point at a name typed but never added.
+   */
+  pending: string;
+  onPendingChange: (pending: string) => void;
+  /** Set by the form, when it was submitted with a name still waiting here. */
+  pendingError?: string;
+  /** Unique on the page, so two open forms never share a field id. */
+  idPrefix: string;
 }) {
-  const [draft, setDraft] = useState("");
   const [expanded, setExpanded] = useState<string>();
 
+  const nameId = travelerNameInputId(idPrefix);
+  const nameError = pendingNameError(travelers, pending) ?? pendingError;
+
   function add() {
-    const name = draft.trim();
-    if (!name || travelers.some((traveler) => traveler.name === name)) return;
+    const name = pending.trim();
+    if (!name) return;
+    if (pendingNameError(travelers, name)) {
+      focusSoon(nameId);
+      return;
+    }
     onChange([...travelers, { name }]);
-    setDraft("");
+    onPendingChange("");
     // Open the new person straight away — they are the one you were thinking of.
     setExpanded(name);
   }
@@ -42,34 +98,48 @@ export function TravelerQuickAdd({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        <TextInput
-          value={draft}
-          placeholder="Name"
-          aria-label="Traveller name"
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              add();
-            }
-          }}
-        />
-        <SecondaryButton
-          type="button"
-          onClick={add}
-          disabled={!draft.trim()}
-          className="shrink-0"
-        >
-          Add
-        </SecondaryButton>
+      {/* gap-2, as in a Field, so the error sits as close as a field's own would. */}
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <TextInput
+            id={nameId}
+            value={pending}
+            placeholder="Name"
+            aria-label="Traveller name"
+            aria-invalid={nameError ? true : undefined}
+            aria-describedby={nameError ? `${nameId}-error` : undefined}
+            onChange={(event) => onPendingChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                add();
+              }
+            }}
+          />
+          <SecondaryButton
+            type="button"
+            onClick={add}
+            disabled={!pending.trim()}
+            className="shrink-0"
+          >
+            Add
+          </SecondaryButton>
+        </div>
+        {nameError && (
+          <p id={`${nameId}-error`} className="text-caption text-critical">
+            {nameError}
+          </p>
+        )}
       </div>
 
       {travelers.length > 0 && (
         <ul className="flex flex-col gap-2">
-          {travelers.map((traveler) => {
-            const open = expanded === traveler.name;
-            const hasDocs = Boolean(traveler.passportCountry && traveler.passportExpiry);
+          {travelers.map((traveler, index) => {
+            const expiryProblem = expiryError(traveler);
+            const expiryId = travelerExpiryInputId(idPrefix, index);
+            // A row with something wrong in it stays open, so the problem is never folded away.
+            const open = expanded === traveler.name || Boolean(expiryProblem);
+            const hasDocs = Boolean(traveler.passportCountry && traveler.passportExpiry && !expiryProblem);
             const origin = traveler.originCountry ?? homeCountry;
             const flyingElsewhere = origin.toUpperCase() !== homeCountry.toUpperCase();
 
@@ -95,7 +165,14 @@ export function TravelerQuickAdd({
 
                   <button
                     type="button"
-                    onClick={() => setExpanded(open ? undefined : traveler.name)}
+                    onClick={() => {
+                      // Done cannot fold away a date that needs fixing; it goes to it instead.
+                      if (open && expiryProblem) {
+                        focusSoon(expiryId);
+                        return;
+                      }
+                      setExpanded(open ? undefined : traveler.name);
+                    }}
                     aria-expanded={open}
                     className="press tap flex min-h-8 shrink-0 items-center rounded-button-sm bg-accent-soft px-3 text-footnote font-medium text-accent-strong"
                   >
@@ -132,10 +209,12 @@ export function TravelerQuickAdd({
                       </Select>
                     </Field>
 
-                    <Field label="Expires">
+                    <Field label="Expires" error={expiryProblem}>
                       <TextInput
+                        id={expiryId}
                         type="date"
                         value={traveler.passportExpiry ?? ""}
+                        aria-invalid={expiryProblem ? true : undefined}
                         onChange={(event) =>
                           update(traveler.name, { passportExpiry: event.target.value })
                         }
