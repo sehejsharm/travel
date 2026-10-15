@@ -1,3 +1,4 @@
+import "server-only";
 import { communityPicks } from "./community";
 import { getInterest } from "./interests";
 import { hasPlacesKey, searchPlaces } from "./places";
@@ -39,7 +40,10 @@ export async function advise(request: AdviceRequest): Promise<AdviceResult> {
   // Tier 3 — Google Places, for the sections still thin.
   let thin = thinInterests(candidates, interests.map((interest) => interest.id));
 
-  if (thin.length > 0 && hasPlacesKey()) {
+  // Only the write step (an Anthropic call) can use what Places finds: without
+  // it the answer falls back to the bundled list alone. So with no Anthropic
+  // key, nothing is sent to Google, and nothing is paid for, for no reason.
+  if (thin.length > 0 && hasPlacesKey() && hasSearchCredentials()) {
     const found = await Promise.all(
       thin.map((id) => {
         const interest = getInterest(id);
@@ -55,6 +59,8 @@ export async function advise(request: AdviceRequest): Promise<AdviceResult> {
     thin = thinInterests(candidates, interests.map((interest) => interest.id));
   } else if (thin.length > 0 && !hasPlacesKey()) {
     notes.push("Google Places is not configured, so nearby lookups were skipped.");
+  } else if (thin.length > 0) {
+    notes.push("Nearby lookups need an Anthropic API key to write them up, so they were skipped.");
   }
 
   // Tier 4 — the open web. Paid, so only for what is still missing.

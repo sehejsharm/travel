@@ -1,9 +1,13 @@
+import "server-only";
 import type { Candidate } from "./types";
 
 /**
  * Tier three: Google Places Text Search. Cheap per call but not free, so it
  * only runs when the two free tiers came up short. Returns an empty list
  * rather than throwing when there is no key — the waterfall moves on.
+ *
+ * GOOGLE_PLACES_API_KEY is read here, so the module is server-only: a client
+ * import fails the build rather than shipping the key's reader.
  */
 
 const ENDPOINT = "https://places.googleapis.com/v1/places:searchText";
