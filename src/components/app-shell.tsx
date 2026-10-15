@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { Mark } from "./mark";
 import { TripSwitcher } from "./trip-switcher";
 
@@ -93,14 +93,53 @@ function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2">
       <span className="animate-float inline-flex">
-        <Mark size={22} />
+        <Mark size={24} />
       </span>
-      {!compact && (
-        <span className="font-display text-[17px] font-semibold tracking-tight">Manifest</span>
-      )}
+      {!compact && <span className="text-headline">Manifest</span>}
     </span>
   );
 }
+
+/*
+ * Whether the sidebar is folded down to its icons. Remembered on this device
+ * only, and read through useSyncExternalStore so the server render (always
+ * open) and the first client render agree.
+ */
+const SIDEBAR_KEY = "manifest.sidebar.collapsed";
+const SIDEBAR_EVENT = "manifest:sidebar";
+
+function subscribeSidebar(onChange: () => void) {
+  window.addEventListener(SIDEBAR_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(SIDEBAR_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function readSidebar(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function setSidebar(collapsed: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, String(collapsed));
+  } catch {
+    // Storage blocked: the toggle still works until the page reloads.
+  }
+  window.dispatchEvent(new Event(SIDEBAR_EVENT));
+}
+
+const SIDEBAR_ICON = (
+  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+    <rect x="3.5" y="5" width="17" height="14" rx="3" {...stroke} />
+    <path {...stroke} d="M9.5 5v14" />
+  </svg>
+);
 
 function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -108,6 +147,7 @@ function isActive(pathname: string, href: string): boolean {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const collapsed = useSyncExternalStore(subscribeSidebar, readSidebar, () => false);
 
   // A shared trip is read by someone who is not a user of this app.
   if (pathname.startsWith("/share")) {
@@ -116,14 +156,33 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="lg:flex lg:min-h-dvh">
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line px-4 py-6 lg:flex">
-        <Link href="/" className="px-2">
-          <Wordmark />
-        </Link>
-
-        <div className="mt-4 px-2">
-          <TripSwitcher />
+      {/* Split view: the sidebar holds navigation, the pane beside it holds the
+          screen, and a hairline separates them. It folds to icons on demand. */}
+      <aside
+        className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line py-6 transition-[width] duration-300 ease-[var(--ease-out)] lg:flex ${
+          collapsed ? "w-20 px-4" : "w-64 px-4"
+        }`}
+      >
+        <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : "justify-between pl-2"}`}>
+          <Link href="/" aria-label="Manifest home" className="press tap rounded-control">
+            <Wordmark compact={collapsed} />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setSidebar(!collapsed)}
+            aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
+            aria-expanded={!collapsed}
+            className="press flex h-11 w-11 items-center justify-center rounded-control text-ink-soft hover:bg-surface-2 hover:text-ink"
+          >
+            {SIDEBAR_ICON}
+          </button>
         </div>
+
+        {!collapsed && (
+          <div className="mt-4 px-2">
+            <TripSwitcher />
+          </div>
+        )}
 
         <nav className="mt-8 flex flex-col gap-1">
           {SIDEBAR_TABS.map((tab) => {
@@ -133,7 +192,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={tab.href}
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className={`press flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm ${
+                aria-label={collapsed ? tab.label : undefined}
+                title={collapsed ? tab.label : undefined}
+                className={`press flex min-h-11 items-center gap-3 rounded-control px-3 py-2 text-subheadline ${
+                  collapsed ? "justify-center" : ""
+                } ${
                   active
                     ? "bg-accent-soft font-medium text-accent-strong"
                     : "text-ink-soft hover:bg-surface-2 hover:text-ink"
@@ -142,7 +205,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {/* tab-icon is shared with the mobile nav: [aria-current="page"]
                     .tab-icon pops on arrival regardless of which layout renders it. */}
                 <span className="tab-icon flex">{tab.icon}</span>
-                {tab.label}
+                {!collapsed && tab.label}
               </Link>
             );
           })}
@@ -162,7 +225,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 href="/more"
                 aria-label="More"
                 aria-current={isActive(pathname, "/more") ? "page" : undefined}
-                className={`press flex h-9 w-9 items-center justify-center rounded-xl ${
+                className={`press flex h-11 w-11 items-center justify-center rounded-control ${
                   isActive(pathname, "/more")
                     ? "bg-accent-soft text-accent-strong"
                     : "text-ink-soft"
@@ -184,8 +247,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <nav
           aria-label="Main"
-          className="nav-surface fixed inset-x-0 bottom-0 z-30 border-t border-line lg:hidden"
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          className="nav-surface pb-bar fixed inset-x-0 bottom-0 z-30 border-t border-line lg:hidden"
         >
           <ul className="flex items-stretch justify-around">
             {TABS.map((tab) => {
@@ -197,8 +259,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link
                     href={tab.href}
                     aria-current={active ? "page" : undefined}
-                    className={`press relative flex flex-col items-center gap-1 px-1 pt-3 pb-2 text-[10px] font-medium ${
-                      active ? "text-accent-strong" : "text-ink-faint"
+                    className={`press relative flex min-h-11 flex-col items-center gap-1 px-1 pt-2 text-caption-2 ${
+                      active ? "text-accent-strong" : "text-ink-soft"
                     }`}
                   >
                     {/*
@@ -208,7 +270,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     */}
                     <span
                       aria-hidden="true"
-                      className={`absolute top-0 h-[3px] w-8 origin-center rounded-b-full bg-accent transition-all duration-[var(--dur-move)] ease-[var(--ease-out)] ${
+                      className={`absolute top-0 h-1 w-8 origin-center rounded-b-full bg-accent transition-[transform,opacity] duration-300 ease-[var(--ease-spring)] ${
                         active && !isAdd ? "scale-x-100 opacity-100" : "scale-x-0 opacity-0"
                       }`}
                     />
@@ -219,7 +281,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       className={`tab-icon flex h-10 w-10 items-center justify-center ${
                         isAdd
                           ? "fab-ring rounded-full bg-accent text-accent-ink shadow-float ring-1 ring-white/10"
-                          : `rounded-xl ${active ? "bg-accent-soft" : ""}`
+                          : `rounded-control ${active ? "bg-accent-soft" : ""}`
                       }`}
                     >
                       {tab.icon}

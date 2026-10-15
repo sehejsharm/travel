@@ -3,7 +3,7 @@ import { LegalPage, Section } from "@/components/legal";
 
 export const metadata: Metadata = {
   title: "Licences and attribution — Manifest",
-  description: "The open-source software, fonts and data Manifest is built on.",
+  description: "The open-source software and data Manifest is built on.",
 };
 
 const SOFTWARE: [string, string, string][] = [
@@ -15,12 +15,6 @@ const SOFTWARE: [string, string, string][] = [
   ["TypeScript", "Apache-2.0", "https://github.com/microsoft/TypeScript"],
   ["ESLint", "MIT", "https://github.com/eslint/eslint"],
   ["Vitest", "MIT", "https://github.com/vitest-dev/vitest"],
-];
-
-const FONTS: [string, string, string][] = [
-  ["Fraunces", "SIL Open Font License 1.1", "https://github.com/undercasetype/Fraunces"],
-  ["IBM Plex Sans", "SIL Open Font License 1.1", "https://github.com/IBM/plex"],
-  ["IBM Plex Mono", "SIL Open Font License 1.1", "https://github.com/IBM/plex"],
 ];
 
 const SERVICES: [string, string][] = [
@@ -67,10 +61,10 @@ export default function Licences() {
 
       <Section heading="Typefaces">
         <p>
-          Served from our own origin rather than fetched from a font CDN, so using Manifest does not
-          announce you to a third party on every page load.
+          None are bundled. Manifest sets its text in your device&rsquo;s own system typeface (San
+          Francisco on Apple devices), so no font is downloaded and nothing is fetched from a font
+          service.
         </p>
-        <Table rows={FONTS} />
       </Section>
 
       <Section heading="Icons and the mark">

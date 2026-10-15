@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { GhostButton } from "@/components/form";
+import { SecondaryButton } from "@/components/form";
 import { Sheet } from "@/components/sheet";
 import { TravelerEditor } from "@/components/traveler-editor";
 import { TripForm } from "@/components/trip-form";
@@ -134,9 +134,9 @@ export default function TripSettings() {
       <section>
         <SectionTitle>Manage</SectionTitle>
         <Card className="flex flex-col gap-3 p-5">
-          <GhostButton onClick={() => setNewTripOpen(true)}>Start another trip</GhostButton>
+          <SecondaryButton onClick={() => setNewTripOpen(true)}>Start another trip</SecondaryButton>
 
-          <GhostButton
+          <SecondaryButton
             onClick={() => {
               if (!confirmDelete) {
                 setConfirmDelete(true);
@@ -150,7 +150,7 @@ export default function TripSettings() {
             {confirmDelete
               ? `Tap again to delete "${trip.name}" and its ${tripItems(state, trip.id).length} items`
               : "Delete this trip"}
-          </GhostButton>
+          </SecondaryButton>
         </Card>
       </section>
 

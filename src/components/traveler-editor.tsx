@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Traveler } from "@/lib/domain/types";
 import { COUNTRIES } from "@/lib/reference/countries";
 import { addTraveler, removeTraveler, updateTraveler } from "@/lib/store/state";
-import { Field, GhostButton, PrimaryButton, Select, TextInput } from "./form";
+import { Field, SecondaryButton, PrimaryButton, Select, TextInput } from "./form";
 import { Sheet } from "./sheet";
 
 const COUNTRY_OPTIONS = Object.values(COUNTRIES).sort((a, b) => a.name.localeCompare(b.name));
@@ -97,7 +97,7 @@ function TravelerEditorForm({
       title={traveler ? "Edit traveller" : "Add traveller"}
       footer={
         <div className="flex gap-2">
-          <GhostButton onClick={onClose}>Cancel</GhostButton>
+          <SecondaryButton onClick={onClose}>Cancel</SecondaryButton>
           <PrimaryButton onClick={save} disabled={!draft.name.trim()}>
             Save
           </PrimaryButton>
@@ -193,7 +193,7 @@ function TravelerEditorForm({
 
         {traveler && (
           <div className="border-t border-line pt-4">
-            <GhostButton
+            <SecondaryButton
               onClick={() => {
                 if (!confirmDelete) {
                   setConfirmDelete(true);
@@ -205,7 +205,7 @@ function TravelerEditorForm({
               className={confirmDelete ? "border-critical text-critical" : ""}
             >
               {confirmDelete ? "Tap again to remove" : "Remove traveller"}
-            </GhostButton>
+            </SecondaryButton>
           </div>
         )}
       </div>

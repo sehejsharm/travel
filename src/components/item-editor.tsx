@@ -8,7 +8,7 @@ import { CURRENCY_SYMBOLS } from "@/lib/reference/fx";
 import { groundPlace, suggestPlaces } from "@/lib/reference/places";
 import { mapEmbedUrl, openInMapsUrl } from "@/lib/maps";
 import { removeItem, unscheduleItem, updateItem } from "@/lib/store/state";
-import { Field, GhostButton, PrimaryButton, Segmented, Select, TextArea, TextInput } from "./form";
+import { Field, SecondaryButton, PrimaryButton, Segmented, Select, TextArea, TextInput } from "./form";
 import { Sheet } from "./sheet";
 
 const CATEGORIES: { value: ItemCategory; label: string }[] = [
@@ -162,7 +162,7 @@ function ItemEditorForm({
       title={item.startsAt ? "Edit" : "Schedule or edit"}
       footer={
         <div className="flex gap-2">
-          <GhostButton onClick={onClose}>Cancel</GhostButton>
+          <SecondaryButton onClick={onClose}>Cancel</SecondaryButton>
           <PrimaryButton onClick={save}>Save</PrimaryButton>
         </div>
       }
@@ -384,16 +384,16 @@ function ItemEditorForm({
 
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           {item.startsAt && (
-            <GhostButton
+            <SecondaryButton
               onClick={() => {
                 unscheduleItem(item.id);
                 onClose();
               }}
             >
               Unschedule
-            </GhostButton>
+            </SecondaryButton>
           )}
-          <GhostButton
+          <SecondaryButton
             onClick={() => {
               if (!confirmDelete) {
                 setConfirmDelete(true);
@@ -405,7 +405,7 @@ function ItemEditorForm({
             className={confirmDelete ? "border-critical text-critical" : ""}
           >
             {confirmDelete ? "Tap again to delete" : "Delete"}
-          </GhostButton>
+          </SecondaryButton>
         </div>
       </div>
     </Sheet>

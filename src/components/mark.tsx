@@ -6,7 +6,7 @@ import { BRAND, CHECK_PATH, STUB_PATH } from "@/lib/brand";
  */
 export function Mark({
   size = 22,
-  fill = "var(--accent)",
+  fill = "var(--brand)",
   cut = "var(--bg)",
 }: {
   size?: number;

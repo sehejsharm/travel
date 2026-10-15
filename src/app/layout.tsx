@@ -1,25 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { ServiceWorker } from "@/components/service-worker";
 import { Splash } from "@/components/splash";
 import "./globals.css";
 
-const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], display: "swap" });
-
-const plexSans = IBM_Plex_Sans({
-  variable: "--font-plex-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  display: "swap",
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  display: "swap",
-});
+// No web fonts: every platform's own system face, San Francisco on Apple
+// devices. The stack lives in globals.css.
 
 export const metadata: Metadata = {
   // Resolves the social image to an absolute URL at build time.
@@ -45,10 +31,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${fraunces.variable} ${plexSans.variable} ${plexMono.variable} antialiased`}
-    >
+    <html lang="en" className="antialiased">
       <head>
         {/*
           Runs before first paint so the splash knows which of its two states

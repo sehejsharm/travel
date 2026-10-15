@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GhostButton, PrimaryButton } from "@/components/form";
+import { SecondaryButton, PrimaryButton } from "@/components/form";
 import { Chip, ScreenHeader, SectionTitle } from "@/components/ui";
 import type { Trip } from "@/lib/domain/types";
 import { divertedName } from "@/lib/divert";
@@ -95,9 +95,9 @@ export function DivertActiveView({
 
       <div className="flex flex-col gap-2">
         <PrimaryButton onClick={onRejoin}>Rejoin group</PrimaryButton>
-        <GhostButton onClick={() => setEditing(true)} className="w-full">
+        <SecondaryButton onClick={() => setEditing(true)} className="w-full">
           Change what I am after
-        </GhostButton>
+        </SecondaryButton>
       </div>
     </div>
   );
