@@ -1,23 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Traveler } from "@/lib/domain/types";
 import { COUNTRIES } from "@/lib/reference/countries";
 import { addTraveler, removeTraveler, updateTraveler } from "@/lib/store/state";
 import { DestructiveButton, Field, PrimaryButton, SecondaryButton, Select, TextInput } from "./form";
+import { dayError } from "./legs-editor";
 import { Sheet } from "./sheet";
 
 const COUNTRY_OPTIONS = Object.values(COUNTRIES).sort((a, b) => a.name.localeCompare(b.name));
 
 type Draft = Omit<Traveler, "id">;
 
-const BLANK: Draft = {
-  name: "",
-  passportCountry: "IN",
-  passportExpiry: "",
-  insuranceFrom: "",
-  insuranceTo: "",
-};
+/**
+ * Someone new most likely holds the passport of the country the trip sets
+ * off from. A fixed default would quietly run every visa check against a
+ * passport nobody chose.
+ */
+function blank(homeCountry: string): Draft {
+  const home = homeCountry.toUpperCase();
+  return {
+    name: "",
+    passportCountry: home in COUNTRIES ? home : "",
+    passportExpiry: "",
+    insuranceFrom: "",
+    insuranceTo: "",
+  };
+}
+
+type ErrorKey = "name" | "passportExpiry" | "insuranceFrom" | "insuranceTo";
+
+/** In the order the fields are on screen, so the cursor goes to the first. */
+const ERROR_ORDER: ErrorKey[] = ["name", "passportExpiry", "insuranceFrom", "insuranceTo"];
+
+/** Every date here is optional; one that was typed has to be whole, and cover has to end after it starts. */
+function problems(draft: Draft): Partial<Record<ErrorKey, string>> {
+  const errors: Partial<Record<ErrorKey, string>> = {};
+  if (!draft.name.trim()) errors.name = "Enter a name";
+  if (draft.passportExpiry) errors.passportExpiry = dayError(draft.passportExpiry);
+  if (draft.insuranceFrom) errors.insuranceFrom = dayError(draft.insuranceFrom);
+  if (draft.insuranceTo) {
+    errors.insuranceTo =
+      dayError(draft.insuranceTo) ??
+      (draft.insuranceFrom && !errors.insuranceFrom && draft.insuranceTo < draft.insuranceFrom
+        ? "Must be on or after the cover starts"
+        : undefined);
+  }
+  return errors;
+}
 
 export function TravelerEditor({
   tripId,
@@ -59,15 +89,33 @@ function TravelerEditorForm({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() =>
-    traveler ? { ...BLANK, ...traveler } : BLANK,
+    traveler ? { ...blank(homeCountry), ...traveler } : blank(homeCountry),
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // A name is only called missing once one was typed and taken away; an
+  // empty new sheet is not a mistake, and Save waits for a name regardless.
+  const [nameTouched, setNameTouched] = useState(false);
+
+  const uid = useId();
+  const fieldId = (key: ErrorKey) => `${uid}-${key}`;
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
 
+  const errors = problems(draft);
+  const shown: Partial<Record<ErrorKey, string>> = {
+    ...errors,
+    name: nameTouched ? errors.name : undefined,
+  };
+
   function save() {
     if (!draft.name.trim()) return;
+
+    const first = ERROR_ORDER.find((key) => errors[key]);
+    if (first) {
+      document.getElementById(fieldId(first))?.focus();
+      return;
+    }
 
     const payload: Draft = {
       name: draft.name.trim(),
@@ -105,11 +153,16 @@ function TravelerEditorForm({
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label="Name">
+        <Field label="Name" error={shown.name}>
           <TextInput
+            id={fieldId("name")}
             value={draft.name}
             placeholder="As printed on the passport"
-            onChange={(event) => set("name", event.target.value)}
+            aria-invalid={shown.name ? true : undefined}
+            onChange={(event) => {
+              set("name", event.target.value);
+              setNameTouched(true);
+            }}
           />
         </Field>
 
@@ -121,6 +174,8 @@ function TravelerEditorForm({
             value={draft.passportCountry}
             onChange={(event) => set("passportCountry", event.target.value)}
           >
+            {/* As in trip creation, where a traveller can be added by name alone. */}
+            <option value="">Not set</option>
             {COUNTRY_OPTIONS.map((country) => (
               <option key={country.code} value={country.code}>
                 {country.name}
@@ -132,10 +187,13 @@ function TravelerEditorForm({
         <Field
           label="Passport expires"
           hint="Checked against each country's validity rule, not just the trip dates."
+          error={shown.passportExpiry}
         >
           <TextInput
+            id={fieldId("passportExpiry")}
             type="date"
             value={draft.passportExpiry}
+            aria-invalid={shown.passportExpiry ? true : undefined}
             onChange={(event) => set("passportExpiry", event.target.value)}
           />
         </Field>
@@ -174,18 +232,22 @@ function TravelerEditorForm({
         </label>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Insurance from">
+          <Field label="Insurance from" error={shown.insuranceFrom}>
             <TextInput
+              id={fieldId("insuranceFrom")}
               type="date"
               value={draft.insuranceFrom ?? ""}
+              aria-invalid={shown.insuranceFrom ? true : undefined}
               onChange={(event) => set("insuranceFrom", event.target.value)}
             />
           </Field>
-          <Field label="Insurance to">
+          <Field label="Insurance to" error={shown.insuranceTo}>
             <TextInput
+              id={fieldId("insuranceTo")}
               type="date"
               value={draft.insuranceTo ?? ""}
               min={draft.insuranceFrom || undefined}
+              aria-invalid={shown.insuranceTo ? true : undefined}
               onChange={(event) => set("insuranceTo", event.target.value)}
             />
           </Field>

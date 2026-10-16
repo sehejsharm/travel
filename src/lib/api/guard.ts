@@ -4,15 +4,25 @@
  * is enough for anyone to spend the owner's Anthropic credits, and there is no
  * account system to hang a per-user limit off.
  *
- * So two cheap defences, neither of which the app itself ever trips:
+ * So a few cheap defences, none of which the app itself ever trips:
  *
  *   1. The request has to come from this app in a browser. A same-origin POST
  *      always carries an Origin header; a script pointed at the URL from
- *      somewhere else carries a different one, or none.
- *   2. A per-IP budget over a rolling window, so a browser that does send the
+ *      somewhere else carries a different one, or none. Current browsers also
+ *      say outright where a request came from, in Sec-Fetch-Site, and only a
+ *      request from this app's own pages says "same-origin".
+ *   2. The body has to be declared as JSON. The app always sends it that way,
+ *      and it is a type a cross-site form or a no-cors fetch cannot send, so a
+ *      browser elsewhere cannot fire one of these without asking permission
+ *      first — which nothing here grants.
+ *   3. A per-IP budget over a rolling window, so a browser that does send the
  *      right Origin still cannot sit in a loop.
  *
- * Be honest about the limits of (2): each serverless instance keeps its own
+ * None of these headers stops a script that writes its own: curl can claim any
+ * Origin, Sec-Fetch-Site and Content-Type it likes. They turn away browsers on
+ * other sites and lazy scripts; (3) is what slows down the rest.
+ *
+ * Be honest about the limits of (3): each serverless instance keeps its own
  * counters, so the effective ceiling is the limit times however many instances
  * are warm, and a rotating IP gets a fresh budget. It is a speed bump against
  * casual abuse, not a wall against a determined one. The wall is the spend cap
@@ -20,7 +30,13 @@
  * bill and belongs there rather than in this file.
  */
 
-/** Extra origins allowed in, comma-separated. The site's own is always allowed. */
+/**
+ * Extra origins allowed in, comma-separated. The site's own is always allowed.
+ * This is for a proxy in front of the app (the browser still sees one origin)
+ * or a client that is not a browser. A browser page on another site is refused
+ * by the Sec-Fetch-Site check whatever is listed here, and could not get a
+ * JSON POST past CORS anyway, since nothing here sends CORS headers.
+ */
 const EXTRA_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
   .split(",")
   .map((value) => value.trim())
@@ -86,6 +102,26 @@ function sameOrigin(request: Request): boolean {
   return referer ? allowed.has(referer) : false;
 }
 
+/**
+ * What the browser itself says about who made the request. Page script cannot
+ * set or change Sec-Fetch-Site, so a present value is the browser's word:
+ * "same-origin" is this app's own pages. "same-site" (a sibling subdomain),
+ * "cross-site" (anywhere else) and "none" (the user typing a URL) never come
+ * from the app. Browsers from before the header, and anything that is not a
+ * browser, send nothing, and are left to the Origin check.
+ */
+function fetchedFromThisApp(request: Request): boolean {
+  const site = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
+  if (!site) return true;
+  return site === "same-origin";
+}
+
+/** Both routes take a JSON body, and the app always labels it as one. */
+function isJson(request: Request): boolean {
+  const type = request.headers.get("content-type") ?? "";
+  return type.split(";")[0]!.trim().toLowerCase() === "application/json";
+}
+
 /** Best available client identity behind Vercel's proxy. */
 function clientKey(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -98,11 +134,16 @@ function clientKey(request: Request): string {
  * let it through. Callers check for a response and return it unchanged.
  */
 export function guard(request: Request, route: string, budget: Budget): Response | undefined {
-  if (!sameOrigin(request)) {
+  if (!fetchedFromThisApp(request) || !sameOrigin(request)) {
     return Response.json(
       { error: "This endpoint only answers the app it belongs to." },
       { status: 403 },
     );
+  }
+
+  // Before the budget, so a malformed request does not spend any of it.
+  if (!isJson(request)) {
+    return Response.json({ error: "Send the request body as JSON." }, { status: 415 });
   }
 
   const now = Date.now();

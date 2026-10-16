@@ -99,7 +99,12 @@ export function editManual(patch: Partial<ManualValues>): void {
 
 export function editReadText(text: string): void {
   const draft = load();
-  if (draft.text !== text) save({ ...draft, text });
+  if (draft.text === text) return;
+  // Once the box is emptied (filed or cleared) and the address no longer
+  // carries the share, nothing of what was shared is kept.
+  const shareInAddress =
+    typeof window !== "undefined" && /[?&](title|text|url)=/.test(window.location?.search ?? "");
+  save({ ...draft, text, sharedFrom: text === "" && !shareInAddress ? undefined : draft.sharedFrom });
 }
 
 /**

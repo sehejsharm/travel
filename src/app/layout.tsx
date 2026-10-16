@@ -11,11 +11,24 @@ import "./globals.css";
 export const metadata: Metadata = {
   // Resolves the social image to an absolute URL at build time.
   metadataBase: siteUrl(),
-  title: "Manifest",
-  description: "Everything about your trip, in one file.",
+  // Each screen's layout names itself; this adds the brand after it.
+  title: { template: "%s · Manifest", default: "Manifest" },
+  description:
+    "Drop in your bookings and Manifest files them into one trip, then checks it for visa rules, passport expiry, tight connections and refund deadlines.",
   applicationName: "Manifest",
   appleWebApp: { capable: true, title: "Manifest", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
+  /*
+   * No title, description or url here on purpose. Next fills the first two
+   * from each screen's own, and a url would point every screen's card at the
+   * home page. The image comes from opengraph-image.tsx, and X reads the same
+   * one: Next copies the Open Graph image into the twitter tags.
+   *
+   * A screen that sets its own openGraph replaces this whole object and loses
+   * the image with it, so screens set only a title and a description.
+   */
+  openGraph: { type: "website", siteName: "Manifest", locale: "en_GB" },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

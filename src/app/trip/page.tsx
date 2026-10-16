@@ -75,6 +75,7 @@ export default function TripSettings() {
           <InterestPicker
             selected={trip.interests ?? []}
             onChange={(interests) => updateTrip(trip.id, { interests })}
+            min={0}
           />
         </Card>
       </section>

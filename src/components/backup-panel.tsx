@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   backupFilename,
+  backupSizeError,
   buildBackup,
-  parseBackup,
   restore,
   type Backup,
   type RestoreMode,
@@ -33,6 +33,7 @@ export function BackupPanel() {
   const [error, setError] = useState<string>();
   const [quota, setQuota] = useState<{ usage: number; quota: number }>();
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const errorId = useId();
 
   const footprint = storageFootprint();
 
@@ -63,13 +64,35 @@ export function BackupPanel() {
     setError(undefined);
   }
 
+  function refuse(reason: string) {
+    setError(reason);
+    setPending(null);
+  }
+
   async function pick(file: File) {
     setMessage(undefined);
-    const parsed = parseBackup(await file.text());
 
+    // Checked before reading: a wrong pick (a video, a disk image) would
+    // otherwise be pulled into memory whole just to be turned away.
+    const tooLarge = backupSizeError(file.size);
+    if (tooLarge) {
+      refuse(tooLarge);
+      return;
+    }
+
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      refuse("That file could not be read. Try saving it to this device first.");
+      return;
+    }
+
+    // The checker (and zod with it) loads only when a file is actually restored.
+    const { parseBackup } = await import("@/lib/store/backup-parse");
+    const parsed = parseBackup(text);
     if ("error" in parsed) {
-      setError(parsed.error);
-      setPending(null);
+      refuse(parsed.error);
       return;
     }
 
@@ -130,7 +153,11 @@ export function BackupPanel() {
         <SecondaryButton type="button" onClick={download}>
           Export backup
         </SecondaryButton>
-        <BorderlessButton type="button" onClick={() => input.current?.click()}>
+        <BorderlessButton
+          type="button"
+          onClick={() => input.current?.click()}
+          aria-describedby={error ? errorId : undefined}
+        >
           Restore from file
         </BorderlessButton>
         <input
@@ -167,8 +194,17 @@ export function BackupPanel() {
         </div>
       )}
 
-      {message && <p className="text-footnote text-ok">{message}</p>}
-      {error && <p className="text-footnote text-critical">{error}</p>}
+      {message && (
+        <p role="status" className="text-footnote text-ok">
+          {message}
+        </p>
+      )}
+      {/* Announced as it lands: the file picker has closed by then, and focus did not move. */}
+      {error && (
+        <p id={errorId} role="alert" className="text-footnote text-critical">
+          {error}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
         <button
@@ -180,7 +216,7 @@ export function BackupPanel() {
             }
             wipeEverything();
             setConfirmWipe(false);
-            setMessage("Everything on this device has been deleted.");
+            setMessage("Every trip on this device has been deleted.");
           }}
           className={`press -ml-3 inline-flex min-h-11 items-center rounded-control px-3 py-2 text-left text-subheadline font-medium hover:bg-critical-soft ${
             confirmWipe ? "text-critical" : "text-ink-soft hover:text-critical"

@@ -72,7 +72,7 @@ export function TripMap({
             src={embed}
             title={focused ? `Map of ${focused.title}` : "Map of this trip"}
             loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
+            referrerPolicy="strict-origin-when-cross-origin"
             className="h-64 w-full border-0 sm:h-80"
           />
         )}

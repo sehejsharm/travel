@@ -71,7 +71,7 @@ export default function SharedTripPage() {
     );
   }
 
-  const { trip, items } = state;
+  const { trip, items, travellerCount } = state;
   const days = groupByDay(items.filter((item) => item.bookingKind !== "lodging"));
   const ideas = items.filter(
     (item) => !item.startsAt && IDEA_CATEGORIES.includes(item.category),
@@ -86,12 +86,15 @@ export default function SharedTripPage() {
         </p>
         <h1 className="mt-2 text-large-title lg:text-display">{trip.name}</h1>
         <p className="mt-2 text-footnote text-ink-soft tabular">
-          {formatDay(trip.startDate)} – {formatDay(trip.endDate)} ·{" "}
-          {trip.travelers.map((traveler) => traveler.name).join(" & ")}
+          {trip.datesTbd
+            ? "Dates not fixed yet"
+            : `${formatDay(trip.startDate)} – ${formatDay(trip.endDate)}`}
+          {travellerCount > 0 &&
+            ` · ${travellerCount} ${travellerCount === 1 ? "traveller" : "travellers"}`}
         </p>
         <p className="mt-4 max-w-prose text-subheadline text-ink-soft">
-          A read-only view. Prices and confirmation numbers were left behind — this is the plan,
-          not the paperwork.
+          A read-only view. Names and passports, the budget, prices, booking references and notes
+          were left behind — this is the plan, not the paperwork.
         </p>
       </header>
 
@@ -161,7 +164,8 @@ export default function SharedTripPage() {
       */}
       <footer className="mt-2 border-t border-line pt-5">
         <p className="text-caption text-ink-soft tabular">
-          {items.length} items · read-only · prices and booking references were left behind
+          {items.length} {items.length === 1 ? "item" : "items"} · read-only · carried in the link
+          itself, never sent to our server
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-4">

@@ -13,6 +13,10 @@ export function InterestPicker({
 }: {
   selected: string[];
   onChange: (next: string[]) => void;
+  /**
+   * How many the screen asks for before it goes on. 0 where picking is
+   * optional, as in trip creation, so the caption does not ask for one.
+   */
   min?: number;
 }) {
   const chosen = new Set(selected);
@@ -71,9 +75,11 @@ export function InterestPicker({
       </div>
 
       <p className="text-caption text-ink-soft tabular">
-        {selected.length === 0
-          ? `Pick at least ${min}.`
-          : `${selected.length} picked — each becomes a section of your suggestions.`}
+        {selected.length > 0
+          ? `${selected.length} picked — each becomes a section of your suggestions.`
+          : min > 0
+            ? `Pick at least ${min}.`
+            : "Optional — you can pick these later."}
       </p>
     </div>
   );

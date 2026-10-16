@@ -1,4 +1,4 @@
-import type { DetectedLink } from "./url";
+import { isFetchableLink, type DetectedLink } from "./url";
 
 export interface PageMetadata {
   title?: string;
@@ -14,6 +14,9 @@ const CRAWLER_UA =
 
 const MAX_BYTES = 512_000;
 const TIMEOUT_MS = 8000;
+/** Share links bounce once or twice (youtu.be to youtube.com, a login wall). */
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 function readMeta(html: string, property: string): string | undefined {
   // Attribute order varies by site, so match either way round.
@@ -52,24 +55,51 @@ function decodeEntities(value: string): string {
  * Reel work: the caption lives in og:description, and the extractor can only
  * find places, prices and times if it has that text to read.
  *
- * Only links the detector already recognised are fetched, which keeps this from
- * becoming a way to make the server request arbitrary hosts.
+ * This is the one place the server requests a URL a visitor chose, so it only
+ * ever requests the platform's own hosts over https. Redirects are followed by
+ * hand rather than by fetch, and each hop is held to that same rule: a link on
+ * a real host that bounces somewhere else is dropped, not followed.
  */
 export async function fetchPageMetadata(
   link: DetectedLink,
   fetchImpl: typeof fetch = fetch,
 ): Promise<PageMetadata | undefined> {
-  try {
-    const response = await fetchImpl(link.url, {
-      redirect: "follow",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      headers: {
-        "user-agent": CRAWLER_UA,
-        accept: "text/html,application/xhtml+xml",
-        "accept-language": "en",
-      },
-    });
+  if (!isFetchableLink(link.url, link.platform)) return undefined;
 
+  try {
+    const signal = AbortSignal.timeout(TIMEOUT_MS);
+    let target = link.url;
+    let response: Response | undefined;
+
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const current = await fetchImpl(target, {
+        redirect: "manual",
+        signal,
+        headers: {
+          "user-agent": CRAWLER_UA,
+          accept: "text/html,application/xhtml+xml",
+          "accept-language": "en",
+        },
+      });
+
+      if (!REDIRECT_STATUSES.has(current.status)) {
+        response = current;
+        break;
+      }
+
+      await current.body?.cancel();
+      const location = current.headers.get("location");
+      if (!location) return undefined;
+
+      const next = new URL(location, target).href;
+      if (!isFetchableLink(next, link.platform)) return undefined;
+      target = next;
+    }
+
+    // Out of hops, or a fetch that followed redirects on its own and ended up
+    // somewhere it should not have.
+    if (!response) return undefined;
+    if (response.url && !isFetchableLink(response.url, link.platform)) return undefined;
     if (!response.ok) return undefined;
 
     const body = await response.text();

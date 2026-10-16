@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LegalPage, Section } from "@/components/legal";
 
 export const metadata: Metadata = {
-  title: "Licences and attribution — Manifest",
+  title: "Licences and attribution",
   description: "The open-source software and data Manifest is built on.",
 };
 
@@ -18,6 +19,7 @@ const SOFTWARE: [string, string, string][] = [
 ];
 
 const SERVICES: [string, string][] = [
+  ["Vercel hosting", "https://vercel.com/legal/terms"],
   ["Google Maps embeds and links", "https://cloud.google.com/maps-platform/terms"],
   ["Google Places API", "https://cloud.google.com/maps-platform/terms"],
   ["Anthropic API", "https://www.anthropic.com/legal/commercial-terms"],
@@ -76,7 +78,7 @@ export default function Licences() {
 
       <Section heading="Maps and geocoding">
         <p>
-          Maps are Google Maps embeds, and place lookups in Discover use the Google Places API. Map
+          Maps are Google Maps embeds, and Discover can look places up with the Google Places API. Map
           data is © Google and its data providers; it is shown under Google&rsquo;s terms and is not
           redistributed by us.
         </p>
@@ -89,9 +91,9 @@ export default function Licences() {
           allowances and indicative exchange rates were compiled by hand from public sources for
           this app, and carry the verification date shown on the Checks screen. They are
           informational, as the{" "}
-          <a href="/legal/terms" className="text-accent-strong underline">
+          <Link href="/legal/terms" className="text-accent-strong underline">
             terms
-          </a>{" "}
+          </Link>{" "}
           set out, and no claim is made to any underlying government publication.
         </p>
       </Section>

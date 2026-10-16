@@ -260,8 +260,8 @@ export default function DiscoverScreen() {
         <Card className="p-5 text-center">
           <p className="text-title-3">Nothing looked up yet</p>
           <p className="mt-2 text-subheadline text-ink-soft">
-            Tap Find things to do, and I will work down from your own saves to published trips
-            before spending anything on a search.
+            Tap Find things to do, and I will work down from your own saves to Manifest&rsquo;s own
+            list before spending anything on a search.
           </p>
         </Card>
       )}

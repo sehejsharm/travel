@@ -10,6 +10,14 @@ import { emptyState, getSnapshot, replaceState } from "./state";
 
 export const BACKUP_VERSION = 1;
 
+/**
+ * The store lives in localStorage, which browsers cap at about 5 MB a site.
+ * Written out with indentation a full store roughly doubles, so no backup
+ * Manifest made can be bigger than this, and a file that is gets refused
+ * before it is read into memory.
+ */
+export const MAX_BACKUP_BYTES = 10 * 1024 * 1024;
+
 export interface Backup {
   format: "manifest.backup";
   version: number;
@@ -35,46 +43,10 @@ export function backupFilename(now = new Date()): string {
   return `manifest-backup-${now.toISOString().slice(0, 10)}.json`;
 }
 
-/** Parsed and checked rather than trusted — this file came off a disk. */
-export function parseBackup(text: string): Backup | { error: string } {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    return { error: "That file is not JSON." };
-  }
-
-  if (typeof parsed !== "object" || parsed === null) {
-    return { error: "That file is not a Manifest backup." };
-  }
-
-  const candidate = parsed as Partial<Backup>;
-  if (candidate.format !== "manifest.backup") {
-    return { error: "That file is not a Manifest backup." };
-  }
-
-  if (typeof candidate.version !== "number" || candidate.version > BACKUP_VERSION) {
-    return { error: "That backup came from a newer version of Manifest." };
-  }
-
-  const state = candidate.state;
-  if (!state || !Array.isArray(state.trips) || !Array.isArray(state.items)) {
-    return { error: "That backup is missing its trips." };
-  }
-
-  return {
-    format: "manifest.backup",
-    version: candidate.version,
-    exportedAt: typeof candidate.exportedAt === "string" ? candidate.exportedAt : "",
-    state: {
-      trips: state.trips,
-      activeTripId: state.activeTripId ?? state.trips[0]?.id ?? "",
-      items: state.items,
-      checklist: Array.isArray(state.checklist) ? state.checklist : [],
-      advice: Array.isArray(state.advice) ? state.advice : [],
-    },
-  };
+/** Why a file of this size cannot be a backup, or nothing when it can. */
+export function backupSizeError(bytes: number): string | undefined {
+  if (bytes <= MAX_BACKUP_BYTES) return undefined;
+  return `That file is ${(bytes / 1024 / 1024).toFixed(1)} MB, bigger than any Manifest backup can be, so it was not opened.`;
 }
 
 export type RestoreMode = "merge" | "replace";

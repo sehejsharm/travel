@@ -72,10 +72,12 @@ Alternates, if the primary name is taken:
 > it came from, and anything it cannot trace to a real source is thrown away.
 >
 > **Private by construction, not by promise**
-> There is no account. There is no server holding your trip. Everything lives on
-> your phone, which is why it works on a plane, in a queue at immigration, and
-> anywhere with no signal — exactly when you need a booking reference most. You
-> can export the lot to a file at any time, and delete all of it in two taps.
+> There is no account, and no server holding your trip. It lives on your phone,
+> which is why it works on a plane, in a queue at immigration, and anywhere with
+> no signal — exactly when you need a booking reference most. What you send it
+> to read, or ask it to find, is handled on our server and not kept. Manifest
+> sets no cookies and does no tracking. You can export the lot to a file at any time, and delete all of
+> it in two taps.
 >
 > Free. No subscription, no ads.
 
@@ -107,7 +109,7 @@ differentiator, the payoff, the promise.
 | 3 | Cabinet, filled, with the map view | **Every booking, filed and pinned** — without typing any of it |
 | 4 | Trip screen hero, ring at ~80% | **One number for how ready you are** — and it moves as you tick things off |
 | 4b | New-trip screen, legs section open | **Multi-country trips, done properly** — each leg with its own dates |
-| 5 | More → This device, offline | **No account. Nothing uploaded. Works with no signal.** |
+| 5 | More → This device, offline | **No account. Your trip stays on your phone. Works with no signal.** |
 
 **Sizes required**
 
@@ -173,9 +175,9 @@ Ship at `/press` or as a zip:
 > screenshots and links you already have and files them for you — then runs
 > twenty-three checks over the result, flagging layovers too short to make,
 > venues booked on days they are shut, passports expiring too close to the trip,
-> and spend drifting past budget. It has no accounts and no server: every trip
-> lives on the device, which means it keeps working with no signal, and there is
-> no database of anyone's travel plans to breach or subpoena.
+> and spend drifting past budget. It has no accounts and no database: every
+> trip lives on the device, which means it keeps working with no signal, and
+> there is no store of anyone's travel plans to breach or subpoena.
 
 ---
 

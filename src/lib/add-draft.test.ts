@@ -69,6 +69,8 @@ describe("the Add screen's unfinished work", () => {
 
     second.editReadText("");
     expect((await fresh()).getAddDraft().text).toBe("");
+    // Filed or cleared, with the share gone from the address: nothing of it is kept.
+    expect((await fresh()).getAddDraft().sharedFrom).toBeUndefined();
   });
 
   it("clears what was typed but stays on the kind that was picked", async () => {

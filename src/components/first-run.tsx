@@ -11,7 +11,7 @@ import { Card } from "./ui";
 const BEATS: [string, string][] = [
   ["Send it anything", "A booking email, a screenshot, a Reel. It comes back filed with dates, prices and a place."],
   ["It checks the plan", "Layovers too short, a museum booked on the day it shuts, a passport that expires mid-trip."],
-  ["It works with no signal", "Everything lives on this device. No account, nothing uploaded."],
+  ["It works with no signal", "Your trips live on this device, with no account. Our server reads what you send it and keeps none of it."],
 ];
 
 /**
@@ -54,8 +54,8 @@ export function FirstRun() {
             Everything about your trip, in one file.
           </h1>
           <p className="mt-3 max-w-md text-subheadline text-white/80">
-            Manifest files your bookings automatically and catches the admin that ruins trips —
-            privately, on this device, with or without signal.
+            Manifest files your bookings automatically and catches the admin that ruins trips.
+            Your trip stays on this device, with or without signal.
           </p>
 
           <Link href="/trip/new" className={`${PRIMARY_BUTTON_CLASSES} mt-5 sm:max-w-xs`}>

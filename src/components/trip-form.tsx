@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Trip, TripLeg, TripPurpose } from "@/lib/domain/types";
+import { readCost } from "@/lib/item-form";
 import { countriesOf } from "@/lib/reference/destinations";
 import { COUNTRY_LIST, getCountry } from "@/lib/reference/countries";
 import { detectHomeCountry } from "@/lib/reference/home-country";
@@ -11,12 +12,18 @@ import { createTrip, updateTrip, type TravelerInput, type TripInput } from "@/li
 import { flagEmoji } from "@/lib/theme";
 import { Celebrate } from "./celebrate";
 import { CoverPicker } from "./cover-picker";
-import { DestinationPicker } from "./destination-picker";
+import { DestinationPicker, unpickedDestination } from "./destination-picker";
 import { Disclosure } from "./disclosure";
 import { BorderlessButton, Field, PrimaryButton, Select, TextInput } from "./form";
 import { InterestPicker } from "./interest-picker";
-import { LegsEditor } from "./legs-editor";
-import { TravelerQuickAdd } from "./traveler-quick-add";
+import { dayError, legErrors, legInputId, LegsEditor } from "./legs-editor";
+import {
+  expiryError,
+  pendingNameError,
+  travelerExpiryInputId,
+  travelerNameInputId,
+  TravelerQuickAdd,
+} from "./traveler-quick-add";
 
 function inDays(days: number): string {
   const date = new Date();
@@ -25,8 +32,17 @@ function inDays(days: number): string {
 }
 
 function nights(start: string, end: string): number {
-  return Math.max(0, Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000));
+  const count = Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000);
+  return Number.isFinite(count) ? Math.max(0, count) : 0;
 }
+
+/** Focus by id once the render in progress has landed (and opened a section, if it had to). */
+function focusSoon(id: string): void {
+  requestAnimationFrame(() => document.getElementById(id)?.focus());
+}
+
+/** The optional sections a problem can be inside, which must open before it can be fixed. */
+type Section = "travelers" | "legs" | "budget";
 
 interface Draft {
   name: string;
@@ -81,22 +97,110 @@ export function TripForm({
 }) {
   const [draft, setDraft] = useState<Draft>(() => initial(trip));
   const [burst, setBurst] = useState<{ x: number; y: number }>();
+  // Typed but not yet added: kept here so neither is lost when its section
+  // folds away, and so Create can point at them rather than drop them.
+  const [destinationQuery, setDestinationQuery] = useState("");
+  const [travelerName, setTravelerName] = useState("");
+  const [attempted, setAttempted] = useState(false);
+  // Held here so a problem inside one can open it; see Disclosure.
+  const [open, setOpen] = useState<Record<Section, boolean>>(() => ({
+    travelers: Boolean(getPurpose(trip?.purpose)?.expectsGroup),
+    legs: false,
+    budget: false,
+  }));
+
+  // Two forms can be open at once (the trip's own, and a new one in a sheet).
+  const uid = useId();
+  const ids = {
+    destination: `${uid}-destination`,
+    start: `${uid}-start`,
+    end: `${uid}-end`,
+    budget: `${uid}-budget`,
+    currency: `${uid}-currency`,
+  };
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
+  const openSection = (section: Section, value: boolean) =>
+    setOpen((current) => ({ ...current, [section]: value }));
 
   const countries = countriesOf(draft.destinations);
   const codes = countries.map((country) => country.code);
   const home = getCountry(draft.homeCountry);
   const purpose = getPurpose(draft.purpose);
-  const datesValid = draft.datesTbd || draft.endDate >= draft.startDate;
-  const valid = (draft.name.trim().length > 0 || countries.length > 0) && datesValid;
+
+  /* ------------------------------------------------------- what is wrong */
+
+  // Nothing to create yet: no name, no destination, and none being typed.
+  const blank = !draft.name.trim() && countries.length === 0 && !destinationQuery.trim();
+
+  const destinationPending = unpickedDestination(destinationQuery, draft.destinations);
+
+  const startError = draft.datesTbd ? undefined : dayError(draft.startDate);
+  const endError = draft.datesTbd
+    ? undefined
+    : (dayError(draft.endDate) ??
+      (!startError && draft.endDate < draft.startDate ? "Must be on or after you leave" : undefined));
+
+  // Travellers are only added here when the trip is new; an existing trip edits them on its own screen.
+  const travelerNameError = trip
+    ? undefined
+    : (pendingNameError(draft.travelers, travelerName) ??
+      (attempted && travelerName.trim() ? "Not added yet. Tap Add, or clear the name." : undefined));
+  const expiryProblems = trip ? [] : draft.travelers.map(expiryError);
+  const expiryIndex = expiryProblems.findIndex(Boolean);
+
+  // Legs are only held to the trip while the section that edits them is on screen.
+  const legsShown = countries.length > 1 && !draft.datesTbd;
+  const legProblem = legsShown
+    ? draft.legs
+        .map((leg, index) => ({ leg, index, errors: legErrors(leg, draft.startDate, draft.endDate) }))
+        .find(({ errors }) => errors.startDate || errors.endDate)
+    : undefined;
+
+  // The currency list is short; a home currency outside it is not offered as if it were chosen.
+  const defaultCurrency = home && home.currency in CURRENCY_SYMBOLS ? home.currency : "";
+  const budgetCurrency = draft.budgetCurrency || defaultCurrency;
+  const budgetReading = readCost(draft.budgetAmount, budgetCurrency);
+  const budgetAmountError =
+    budgetReading.problem === "amount"
+      ? "Not an amount"
+      : budgetReading.amount !== undefined && budgetReading.amount <= 0
+        ? "More than 0, or leave it empty"
+        : undefined;
+  const budgetCurrencyError =
+    !budgetAmountError && budgetReading.problem === "currency" ? "Pick a currency" : undefined;
+  const budget = budgetAmountError ? undefined : budgetReading.cost;
+  const hasBudget = budget !== undefined;
+
+  /** In the order they are on screen, so the cursor goes to the first one a person would meet. */
+  const problems: { id: string; section?: Section }[] = [
+    destinationPending && { id: ids.destination },
+    startError && { id: ids.start },
+    endError && { id: ids.end },
+    !trip && travelerName.trim() && { id: travelerNameInputId(uid), section: "travelers" as const },
+    expiryIndex >= 0 && { id: travelerExpiryInputId(uid, expiryIndex), section: "travelers" as const },
+    legProblem && {
+      id: legInputId(uid, legProblem.leg.id, legProblem.errors.startDate ? "startDate" : "endDate"),
+      section: "legs" as const,
+    },
+    budgetAmountError && { id: ids.budget, section: "budget" as const },
+    budgetCurrencyError && { id: ids.currency, section: "budget" as const },
+  ].filter((problem): problem is { id: string; section?: Section } => Boolean(problem));
+
+  // A destination taken off takes its legs with it: the editor could not show them, but they would still be saved.
+  function setDestinations(destinations: string[]) {
+    const kept = new Set(countriesOf(destinations).map((country) => country.code));
+    setDraft((current) => ({
+      ...current,
+      destinations,
+      legs: current.legs.filter((leg) => kept.has(leg.countryCode.toUpperCase())),
+    }));
+  }
 
   const resolvedName =
     draft.name.trim() || countries.map((country) => country.name).join(" & ") || "Untitled trip";
-  const nightCount = draft.datesTbd ? 0 : nights(draft.startDate, draft.endDate);
-  const budget = Number(draft.budgetAmount);
-  const hasBudget = draft.budgetAmount !== "" && Number.isFinite(budget) && budget > 0;
+  const nightCount = draft.datesTbd || startError || endError ? 0 : nights(draft.startDate, draft.endDate);
 
   // Only worth showing once someone has actually gone past the fast path.
   const wentDeep =
@@ -113,7 +217,7 @@ export function TripForm({
     draft.legs.length > 0 && `${draft.legs.length} legs`,
     draft.travelers.length > 0 &&
       `${draft.travelers.length} traveller${draft.travelers.length === 1 ? "" : "s"}`,
-    hasBudget && `${draft.budgetCurrency || home?.currency || ""} ${budget.toLocaleString()}`.trim(),
+    budget && `${budget.currency} ${budget.amount.toLocaleString()}`,
     purpose?.label,
     draft.interests.length > 0 && `${draft.interests.length} interests`,
   ]
@@ -121,7 +225,16 @@ export function TripForm({
     .join(" · ");
 
   function submit(event?: React.MouseEvent<HTMLButtonElement>) {
-    if (!valid) return;
+    if (blank) return;
+
+    const [first] = problems;
+    if (first) {
+      setAttempted(true);
+      if (first.section) openSection(first.section, true);
+      // After the render that shows the errors and opens the section the first one is in.
+      focusSoon(first.id);
+      return;
+    }
 
     // Fired from where the button actually is, so the burst comes out of the
     // thing that was tapped rather than from the middle of the screen.
@@ -130,19 +243,24 @@ export function TripForm({
       setBurst({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
     }
 
+    // Without dates, the window is only provisional — but it still has to be one.
+    const provisional =
+      draft.datesTbd &&
+      (dayError(draft.startDate) || dayError(draft.endDate) || draft.endDate < draft.startDate);
+
     const payload = {
       name: resolvedName,
       destinationCountries: codes,
-      startDate: draft.startDate,
-      endDate: draft.endDate,
+      startDate: provisional ? inDays(30) : draft.startDate,
+      endDate: provisional ? inDays(37) : draft.endDate,
       datesTbd: draft.datesTbd || undefined,
       homeCountry: draft.homeCountry.toUpperCase(),
       purpose: draft.purpose,
       legs: draft.legs.filter((leg) => leg.countryCode),
       interests: draft.interests,
       accentHue: draft.accentHue,
-      budgetAmount: hasBudget ? budget : undefined,
-      budgetCurrency: hasBudget ? draft.budgetCurrency || home?.currency : undefined,
+      budgetAmount: budget?.amount,
+      budgetCurrency: budget?.currency,
     };
 
     if (trip) {
@@ -157,10 +275,7 @@ export function TripForm({
         legs: payload.legs.length ? payload.legs : undefined,
         interests: payload.interests.length ? payload.interests : undefined,
         accentHue: payload.accentHue,
-        budgetTarget:
-          hasBudget && payload.budgetCurrency
-            ? { amount: budget, currency: payload.budgetCurrency }
-            : undefined,
+        budgetTarget: budget,
       });
       onDone(trip.id);
       return;
@@ -175,7 +290,11 @@ export function TripForm({
       <Field label="Where are you going?">
         <DestinationPicker
           selected={draft.destinations}
-          onChange={(destinations) => set("destinations", destinations)}
+          onChange={setDestinations}
+          query={destinationQuery}
+          onQueryChange={setDestinationQuery}
+          inputId={ids.destination}
+          unpicked={attempted}
           autoFocus={!trip}
         />
       </Field>
@@ -216,18 +335,22 @@ export function TripForm({
           </p>
         ) : (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field label="Leaving">
+            <Field label="Leaving" error={startError}>
               <TextInput
+                id={ids.start}
                 type="date"
                 value={draft.startDate}
+                aria-invalid={startError ? true : undefined}
                 onChange={(event) => set("startDate", event.target.value)}
               />
             </Field>
-            <Field label="Back" error={datesValid ? undefined : "Must be on or after you leave"}>
+            <Field label="Back" error={endError}>
               <TextInput
+                id={ids.end}
                 type="date"
                 value={draft.endDate}
-                min={draft.startDate}
+                min={draft.startDate || undefined}
+                aria-invalid={endError ? true : undefined}
                 onChange={(event) => set("endDate", event.target.value)}
               />
             </Field>
@@ -241,31 +364,45 @@ export function TripForm({
           <Disclosure
             label="Who is going?"
             hint="Names only, or add passports now for the visa checks"
+            open={open.travelers}
+            onOpenChange={(value) => openSection("travelers", value)}
+            // Closed, it still says when something inside needs fixing.
             summary={
-              draft.travelers.length > 0
-                ? draft.travelers.map((traveler) => traveler.name).join(", ")
-                : undefined
+              !open.travelers && travelerName.trim()
+                ? `Not added yet: ${travelerName.trim()}`
+                : !open.travelers && expiryIndex >= 0
+                  ? `${draft.travelers[expiryIndex].name}: ${expiryProblems[expiryIndex]}`
+                  : draft.travelers.length > 0
+                    ? draft.travelers.map((traveler) => traveler.name).join(", ")
+                    : undefined
             }
-            defaultOpen={purpose?.expectsGroup}
           >
             <TravelerQuickAdd
               travelers={draft.travelers}
               homeCountry={draft.homeCountry}
               onChange={(travelers) => set("travelers", travelers)}
+              pending={travelerName}
+              onPendingChange={setTravelerName}
+              pendingError={travelerNameError}
+              idPrefix={uid}
             />
           </Disclosure>
         )}
 
-        {countries.length > 1 && !draft.datesTbd && (
+        {legsShown && (
           <Disclosure
             label="Split it into legs"
             hint="Give each country its own dates"
+            open={open.legs}
+            onOpenChange={(value) => openSection("legs", value)}
             summary={
-              draft.legs.length > 0
-                ? draft.legs
-                    .map((leg) => `${flagEmoji(leg.countryCode)} ${leg.startDate.slice(5)}–${leg.endDate.slice(5)}`)
-                    .join("  ")
-                : undefined
+              !open.legs && legProblem
+                ? `Leg ${legProblem.index + 1}: ${legProblem.errors.startDate ?? legProblem.errors.endDate}`
+                : draft.legs.length > 0
+                  ? draft.legs
+                      .map((leg) => `${flagEmoji(leg.countryCode)} ${leg.startDate.slice(5)}–${leg.endDate.slice(5)}`)
+                      .join("  ")
+                  : undefined
             }
           >
             <LegsEditor
@@ -273,6 +410,7 @@ export function TripForm({
               countries={codes}
               tripStart={draft.startDate}
               tripEnd={draft.endDate}
+              idPrefix={uid}
               onChange={(legs) => set("legs", legs)}
             />
           </Disclosure>
@@ -292,33 +430,55 @@ export function TripForm({
           <InterestPicker
             selected={draft.interests}
             onChange={(interests) => set("interests", interests)}
+            min={0}
           />
         </Disclosure>
 
         <Disclosure
           label="Rough budget"
           hint="Even an approximate number makes the money checks work"
-          summary={hasBudget ? `${draft.budgetCurrency || home?.currency} ${budget.toLocaleString()}` : undefined}
+          open={open.budget}
+          onOpenChange={(value) => openSection("budget", value)}
+          summary={
+            !open.budget && (budgetAmountError || budgetCurrencyError)
+              ? `Budget: ${budgetAmountError ?? budgetCurrencyError}`
+              : budget
+                ? `${budget.currency} ${budget.amount.toLocaleString()}`
+                : undefined
+          }
         >
           <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Field label="Target">
+            <Field label="Target" error={budgetAmountError}>
               <TextInput
+                id={ids.budget}
                 inputMode="decimal"
                 value={draft.budgetAmount}
                 placeholder="Optional"
+                aria-invalid={budgetAmountError ? true : undefined}
                 onChange={(event) => set("budgetAmount", event.target.value)}
               />
             </Field>
-            <Field label="Currency">
+            <Field label="Currency" error={budgetCurrencyError}>
               <Select
-                value={draft.budgetCurrency || home?.currency || ""}
+                id={ids.currency}
+                value={budgetCurrency}
+                aria-invalid={budgetCurrencyError ? true : undefined}
                 onChange={(event) => set("budgetCurrency", event.target.value)}
               >
-                {Object.keys(CURRENCY_SYMBOLS).map((code) => (
-                  <option key={code} value={code}>
-                    {code}
+                {/* Only when nothing on the list is the home currency, so the field never shows one it does not hold. */}
+                {!budgetCurrency && (
+                  <option value="" disabled>
+                    Choose
                   </option>
-                ))}
+                )}
+                {/* A currency saved before it left the list stays shown as what it is. */}
+                {[...new Set([...Object.keys(CURRENCY_SYMBOLS), budgetCurrency].filter(Boolean))].map(
+                  (code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ),
+                )}
               </Select>
             </Field>
           </div>
@@ -373,7 +533,7 @@ export function TripForm({
         </p>
       )}
 
-      <PrimaryButton onClick={submit} disabled={!valid}>
+      <PrimaryButton onClick={submit} disabled={blank}>
         {submitLabel}
       </PrimaryButton>
 

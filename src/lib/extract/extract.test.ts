@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { extractDeterministic } from "./deterministic";
+import { fetchPageMetadata } from "./og";
 import { findDates, findMoney, findRefundDeadline, offsetSuffix } from "./patterns";
 import { ESCALATION_THRESHOLD } from "./types";
+import { detectLink, isFetchableLink, type DetectedLink } from "./url";
 
 const TODAY = new Date("2026-09-09T00:00:00Z");
 
@@ -128,5 +130,172 @@ Free cancellation until 14 Sep 2026`,
     expect(result.confidence).toBeLessThan(ESCALATION_THRESHOLD);
     expect(result.draft.cost).toBeUndefined();
     expect(result.draft.startsAt).toBeUndefined();
+  });
+});
+
+describe("which pasted links the server will fetch", () => {
+  it("still recognises every form of link it read before", () => {
+    const cases: [string, Partial<DetectedLink>][] = [
+      ["https://www.instagram.com/reel/C9xAbc123/", { platform: "Instagram", source: "reel", ref: "C9xAbc123" }],
+      ["https://instagram.com/reel/C9xAbc123", { platform: "Instagram", ref: "C9xAbc123" }],
+      ["https://www.instagram.com/reels/C9xAbc123/", { platform: "Instagram", ref: "C9xAbc123" }],
+      ["https://www.instagram.com/p/C9x_Abc-12/?igsh=abc", { platform: "Instagram", ref: "C9x_Abc-12" }],
+      [
+        "https://www.tiktok.com/@some.one/video/7412345678901234567?lang=en",
+        { platform: "TikTok", source: "tiktok", ref: "7412345678901234567" },
+      ],
+      ["https://tiktok.com/@someone/video/7412345678901234567", { platform: "TikTok" }],
+      ["https://www.youtube.com/watch?v=dQw4w9WgXcQ", { platform: "YouTube", source: "youtube", ref: "dQw4w9WgXcQ" }],
+      ["https://youtube.com/watch?v=dQw4w9WgXcQ&t=42", { platform: "YouTube", ref: "dQw4w9WgXcQ" }],
+      ["https://m.youtube.com/watch?v=dQw4w9WgXcQ", { platform: "YouTube", ref: "dQw4w9WgXcQ" }],
+      ["https://www.youtube.com/shorts/abcDEF123", { platform: "YouTube", ref: "abcDEF123" }],
+      ["https://youtu.be/dQw4w9WgXcQ?si=xyz", { platform: "YouTube", ref: "dQw4w9WgXcQ" }],
+    ];
+
+    for (const [url, expected] of cases) {
+      expect(detectLink(`saving this ${url} for japan`), url).toMatchObject(expected);
+    }
+  });
+
+  it("only ever hands back an https link, upgrading an old http one", () => {
+    const link = detectLink("http://www.instagram.com/reel/C9xAbc123/");
+    expect(link?.url).toBe("https://www.instagram.com/reel/C9xAbc123/");
+    expect(detectLink("https://youtu.be/dQw4w9WgXcQ")?.oembed).toContain(
+      encodeURIComponent("https://youtu.be/dQw4w9WgXcQ"),
+    );
+  });
+
+  it("refuses a platform's name anywhere but the hostname", () => {
+    for (const attack of [
+      "https://attacker.example/instagram.com/reel/x",
+      "https://attacker.example/?u=instagram.com/reel/abc",
+      "https://instagram.com.attacker.example/reel/abc",
+      "https://evilinstagram.com/reel/abc",
+      "https://instagram.com@attacker.example/reel/abc",
+      "https://attacker.example/www.tiktok.com/@a/video/123",
+      "https://tiktok.com.attacker.example/@a/video/123",
+      "https://attacker.example/youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://attacker.example/youtu.be/dQw4w9WgXcQ",
+      "https://www.youtube.com.attacker.example/watch?v=dQw4w9WgXcQ",
+      "http://169.254.169.254/latest/meta-data/instagram.com/reel/x",
+      "http://localhost:3000/instagram.com/reel/x",
+    ]) {
+      expect(detectLink(attack), attack).toBeUndefined();
+    }
+  });
+
+  it("refuses the real host on a port, with credentials, or with a trailing dot", () => {
+    for (const odd of [
+      "https://www.instagram.com:8443/reel/abc",
+      "https://user:pass@www.instagram.com/reel/abc",
+      "https://www.instagram.com./reel/abc",
+    ]) {
+      expect(detectLink(odd), odd).toBeUndefined();
+    }
+  });
+
+  it("refuses a real host's pages that are not a post", () => {
+    expect(detectLink("https://www.instagram.com/accounts/login/")).toBeUndefined();
+    expect(detectLink("https://www.youtube.com/results?search_query=kyoto")).toBeUndefined();
+  });
+
+  it("skips a bad link and finds the real one after it", () => {
+    expect(
+      detectLink("https://attacker.example/instagram.com/reel/x then https://www.instagram.com/reel/C9xAbc123/"),
+    ).toMatchObject({ url: "https://www.instagram.com/reel/C9xAbc123/", ref: "C9xAbc123" });
+  });
+
+  it("holds a fetch target to https on the platform's own hosts", () => {
+    expect(isFetchableLink("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "YouTube")).toBe(true);
+    expect(isFetchableLink("http://www.youtube.com/watch?v=dQw4w9WgXcQ", "YouTube")).toBe(false);
+    expect(isFetchableLink("https://www.instagram.com/reel/x", "YouTube")).toBe(false);
+    expect(isFetchableLink("https://consent.youtube.com/m?continue=x", "YouTube")).toBe(false);
+    expect(isFetchableLink("not a url")).toBe(false);
+  });
+});
+
+describe("reading a link's page without being sent elsewhere", () => {
+  const PAGE = `<html><head>
+    <meta property="og:title" content="Tsukiji at dawn" />
+    <meta property="og:description" content="Standing sushi bar, cash only" />
+  </head></html>`;
+
+  function page(url = ""): Response {
+    const response = new Response(PAGE, { status: 200, headers: { "content-type": "text/html" } });
+    if (url) Object.defineProperty(response, "url", { value: url });
+    return response;
+  }
+
+  function redirect(location: string, status = 302): Response {
+    return new Response(null, { status, headers: { location } });
+  }
+
+  const reel = detectLink("https://www.instagram.com/reel/C9xAbc123/")!;
+  const short = detectLink("https://youtu.be/dQw4w9WgXcQ")!;
+
+  it("reads the tags from the link itself, asking fetch not to follow redirects", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(page());
+    const found = await fetchPageMetadata(reel, fetchImpl as unknown as typeof fetch);
+
+    expect(found).toMatchObject({ title: "Tsukiji at dawn", description: "Standing sushi bar, cash only" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0]![0]).toBe("https://www.instagram.com/reel/C9xAbc123/");
+    expect(fetchImpl.mock.calls[0]![1]).toMatchObject({ redirect: "manual" });
+  });
+
+  it("follows a redirect that stays on the platform, relative or absolute", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(redirect("https://www.youtube.com/watch?v=dQw4w9WgXcQ", 301))
+      .mockResolvedValueOnce(redirect("/watch?v=dQw4w9WgXcQ&feature=youtu.be", 307))
+      .mockResolvedValueOnce(page());
+
+    await expect(fetchPageMetadata(short, fetchImpl as unknown as typeof fetch)).resolves.toMatchObject({
+      title: "Tsukiji at dawn",
+    });
+    expect(fetchImpl.mock.calls.map((call) => call[0])).toEqual([
+      "https://youtu.be/dQw4w9WgXcQ",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=youtu.be",
+    ]);
+  });
+
+  it("refuses a redirect off the platform, and never requests it", async () => {
+    for (const location of [
+      "https://attacker.example/",
+      "http://169.254.169.254/latest/meta-data/",
+      "http://www.instagram.com/reel/C9xAbc123/",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://www.instagram.com:8443/reel/C9xAbc123/",
+    ]) {
+      const fetchImpl = vi.fn().mockResolvedValueOnce(redirect(location)).mockResolvedValue(page());
+      await expect(fetchPageMetadata(reel, fetchImpl as unknown as typeof fetch), location).resolves.toBeUndefined();
+      expect(fetchImpl, location).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("gives up on a redirect with nowhere to go, or one that never ends", async () => {
+    const nowhere = vi.fn().mockResolvedValue(new Response(null, { status: 302 }));
+    await expect(fetchPageMetadata(reel, nowhere as unknown as typeof fetch)).resolves.toBeUndefined();
+
+    const loop = vi.fn().mockImplementation(async () => redirect("https://www.instagram.com/reel/C9xAbc123/"));
+    await expect(fetchPageMetadata(reel, loop as unknown as typeof fetch)).resolves.toBeUndefined();
+    expect(loop.mock.calls.length).toBeLessThanOrEqual(6);
+  });
+
+  it("refuses a page a fetch reached on its own somewhere off the platform", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(page("https://attacker.example/landing"));
+    await expect(fetchPageMetadata(reel, fetchImpl as unknown as typeof fetch)).resolves.toBeUndefined();
+  });
+
+  it("will not fetch a link that did not come from the detector", async () => {
+    const forged: DetectedLink = {
+      url: "https://attacker.example/instagram.com/reel/x",
+      source: "reel",
+      platform: "Instagram",
+    };
+    const fetchImpl = vi.fn().mockResolvedValue(page());
+    await expect(fetchPageMetadata(forged, fetchImpl as unknown as typeof fetch)).resolves.toBeUndefined();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

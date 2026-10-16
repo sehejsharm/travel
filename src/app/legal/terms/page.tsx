@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Bullets, LegalPage, Section } from "@/components/legal";
+import { Bullets, ContactLink, LegalPage, Section } from "@/components/legal";
 
 export const metadata: Metadata = {
-  title: "Terms of use — Manifest",
+  title: "Terms of use",
   description: "The terms you accept by using Manifest, including what the checks are not.",
 };
 
@@ -10,7 +10,7 @@ export default function Terms() {
   return (
     <LegalPage
       title="Terms of use"
-      summary="Short, because Manifest holds nothing of yours and promises little. The part that matters most is what the checks are not."
+      summary="Short, because Manifest keeps nothing of yours and promises little. The part that matters most is what the checks are not."
     >
       <Section heading="Agreement">
         <p>
@@ -40,29 +40,36 @@ export default function Terms() {
 
       <Section heading="Automatic extraction is imperfect">
         <p>
-          Reading a booking out of an email, a screenshot or a caption is a best effort. Dates,
-          times, time zones, prices, currencies and confirmation numbers can be misread or missed.
-          Check anything that matters against the original confirmation — Manifest shows you the
-          extracted fields before you file precisely so you can.
+          Reading a booking out of an email, a screenshot or a caption is a best effort, whether
+          it is done by pattern matching or by an AI model. Dates, times, time zones, prices,
+          currencies and confirmation numbers can be misread or missed. Check anything that matters
+          against the original confirmation — Manifest shows you what it read before you file it
+          precisely so you can.
         </p>
       </Section>
 
       <Section heading="Your data is your responsibility">
         <p>
-          Manifest keeps everything on your device and holds no copy. That means we cannot recover
-          your trip if you clear your browser data, lose the device, or uninstall the app. Browsers
+          Manifest keeps your trips on your device and holds no copy. That means we cannot recover
+          a trip if you clear your browser data, lose the device, or uninstall the app. Browsers
           may also evict site storage when space runs short. Export a backup from More → This device
           if the trip matters to you. We are not liable for data lost this way.
+        </p>
+        <p>
+          A share link carries a copy of the plan inside it, and anyone who has the link can read
+          it. It cannot be revoked once sent, so you decide who gets one.
         </p>
       </Section>
 
       <Section heading="Suggestions and third-party services">
         <p>
-          Places suggested in Discover come from public sources and from a list bundled with the
-          app. They are not endorsements, are not verified as safe, open or operating, and may be
-          out of date. Maps are provided by Google under its own terms. Where a product link earns
-          a commission it is labelled; that arrangement never changes what the checks say, and
-          nothing on the Checks screen is placed because someone paid for it.
+          Places suggested in Discover come from a list bundled with the app and, where they are
+          switched on, from Google Places and web searches; the line on why each is worth a visit
+          may be written by an AI model from those sources. They are not endorsements, are not
+          verified as safe, open or operating, and may be out of date or simply wrong. Maps are
+          provided by Google under its own terms. Where a product link earns a commission it is
+          labelled; that arrangement never changes what the checks say, and nothing on the Checks
+          screen is placed because someone paid for it.
         </p>
       </Section>
 
@@ -78,9 +85,12 @@ export default function Terms() {
 
       <Section heading="Availability">
         <p>
-          The filing, checks, timeline, budget and sharing features work offline and will keep
-          working. Extraction and Discover depend on a server and on third-party APIs, and may be
-          slow, rate-limited, or unavailable. They are provided as they are, with no uptime promise.
+          Typing items in by hand, the checks, the timeline, the budget, backups and making a share
+          link all run on your device, and work with no signal on screens Manifest has already
+          loaded on this device. Reading what you add, and Discover,
+          need our server and, for some of what they do, third-party services we may switch on or
+          off — reading screenshots needs an AI model, for one. They may be slow, rate-limited or
+          unavailable, and are provided as they are, with no uptime promise.
         </p>
       </Section>
 
@@ -104,8 +114,7 @@ export default function Terms() {
 
       <Section heading="Contact">
         <p>
-          <span className="text-ink">support@manifest.trip</span>. Replace this with a monitored
-          address before store submission.
+          Questions about these terms: <ContactLink subject="Terms of use" />.
         </p>
       </Section>
     </LegalPage>

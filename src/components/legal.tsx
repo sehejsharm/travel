@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { CONTACT_EMAIL } from "@/lib/contact";
 import { ScreenHeader } from "./ui";
 
-export const LEGAL_UPDATED = "2026-09-16";
+export const LEGAL_UPDATED = "2026-10-15";
 
 export const LEGAL_PAGES: { href: string; title: string; blurb: string }[] = [
   { href: "/legal/privacy", title: "Privacy policy", blurb: "What is stored, and what leaves the device" },
@@ -74,5 +75,16 @@ export function Bullets({ items }: { items: ReactNode[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** The one address, as a link in running text, so every document reaches the same inbox. */
+export function ContactLink({ subject }: { subject?: string }) {
+  const query = subject ? `?subject=${encodeURIComponent(subject)}` : "";
+
+  return (
+    <a href={`mailto:${CONTACT_EMAIL}${query}`} className="text-accent-strong underline">
+      {CONTACT_EMAIL}
+    </a>
   );
 }
