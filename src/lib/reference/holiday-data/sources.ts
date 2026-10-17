@@ -4,12 +4,24 @@
 /** Where the dates beyond date-holidays come from, per country. */
 export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
+    "country": "AE",
+    "source": "UAE Cabinet holiday resolutions, as announced by the Federal Authority for Government Human Resources and the Ministry of Human Resources and Emiratisation, https://www.mohre.gov.ae/; Hijri dates from date-holidays"
+  },
+  {
+    "country": "AF",
+    "source": "Holidays observed by the current authorities in Kabul (the Taliban administration), as listed by timeanddate.com, https://www.timeanddate.com/holidays/afghanistan/, calendarlabs.com and publicholidays.info; Solar Hijri dates computed from the March equinox (Meeus, via astronomia); Hijri dates from date-holidays"
+  },
+  {
     "country": "AM",
     "source": "Vardavar: Armenian Apostolic Church calendar (14 weeks after Easter), https://armeniadiscovery.com/"
   },
   {
     "country": "AU",
-    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+    "source": "Australian Government, public holidays, https://www.australia.gov.au/public-holidays"
+  },
+  {
+    "country": "AU",
+    "source": "Lunar New Year: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
   },
   {
     "country": "AU",
@@ -22,6 +34,14 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "AU",
     "source": "Vivid Sydney: NSW Government, https://www.nsw.gov.au/"
+  },
+  {
+    "country": "AZ",
+    "source": "Labour Code of the Republic of Azerbaijan, art. 105, and the Cabinet of Ministers' non-working days, as published by Azerbaijan's embassies, https://budapest.mfa.gov.az/en/category/qeyri-is"
+  },
+  {
+    "country": "BD",
+    "source": "Ministry of Public Administration holiday notifications, as reported by The Daily Star, https://www.thedailystar.net/, and The Business Standard, https://www.tbsnews.net/; Hindu and Buddhist dates computed for Dhaka (Meeus, Astronomical Algorithms; Lahiri ayanamsa); Hijri dates from date-holidays"
   },
   {
     "country": "BE",
@@ -52,6 +72,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Junkanoo: The Islands of the Bahamas, https://www.bahamas.com/"
   },
   {
+    "country": "BT",
+    "source": "Royal Civil Service Commission, Government holiday list, https://www.rcsc.gov.bt/; lunar dates computed on the Bhutanese calendar (Svante Janson, Tibetan calendar mathematics, appendix A)"
+  },
+  {
     "country": "CA",
     "source": "Calgary Stampede: Calgary Stampede, https://www.calgarystampede.com/"
   },
@@ -61,7 +85,11 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "CA",
-    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+    "source": "Lunar New Year: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
+  },
+  {
+    "country": "CA",
+    "source": "Provincial and federal employment standards, as listed by Canada Holidays, https://canada-holidays.ca/"
   },
   {
     "country": "CH",
@@ -81,7 +109,11 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "CN",
-    "source": "Lantern Festival: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+    "source": "Lantern Festival: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
+  },
+  {
+    "country": "CN",
+    "source": "State Council of China, national holiday rules (Decree No. 795) and the 2026 holiday notice, https://www.news.cn/politics/20251104/88bcffd88ae249e58c699b8772548e3d/c.html"
   },
   {
     "country": "CN",
@@ -94,6 +126,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "CO",
     "source": "Carnaval de Negros y Blancos: Colombia Travel, https://colombia.travel/"
+  },
+  {
+    "country": "CY",
+    "source": "Cyprus public holidays 2026, as listed by the Eratosthenes Centre of Excellence, https://eratosthenes.org.cy/wp-content/uploads/2023/03/Public-Holidays-2026.pdf"
   },
   {
     "country": "CZ",
@@ -120,6 +156,14 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Abu Simbel Sun Festival: Egyptian Ministry of Tourism and Antiquities, https://egymonuments.gov.eg/"
   },
   {
+    "country": "EG",
+    "source": "Egyptian cabinet holiday announcements, as listed by Egypt Independent, https://egyptindependent.com/when-is-the-next-official-holiday-in-egypt"
+  },
+  {
+    "country": "ES",
+    "source": "Boletín Oficial del Estado, yearly list of national and regional holidays, https://www.boe.es/"
+  },
+  {
     "country": "ES",
     "source": "Holy Week processions: Spain's official tourism site, https://www.spain.info/"
   },
@@ -141,7 +185,27 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "ET",
+    "source": "Public Holidays Proclamation No. 1334/2024, as summarised by DM Ethio Lawyers, https://dmethiolawyers.com/the-new-public-holidays-proclamation/"
+  },
+  {
+    "country": "ET",
     "source": "Timkat: Ethiopian Orthodox calendar, https://en.wikipedia.org/wiki/Timkat"
+  },
+  {
+    "country": "FJ",
+    "source": "Cabinet's public holiday lists for 2025 and 2026, as reported by The Fiji Times and FBC News, https://www.fijitimes.com.fj/cabinet-confirms-eleven-2026-public-holidays/"
+  },
+  {
+    "country": "FJ",
+    "source": "Fiji Government public holiday notices, https://www.fiji.gov.fj/; Diwali from 2026 computed from the Hindu lunisolar calendar (Meeus, Astronomical Algorithms; Lahiri ayanamsa), for Fiji time"
+  },
+  {
+    "country": "FK",
+    "source": "Falkland Islands Government, Public Holidays 2026 to 2029, https://www.gov.fk/"
+  },
+  {
+    "country": "FM",
+    "source": "FSM Code title 1 chapter 6 and the state codes, FSM Legal Information System, http://www.fsmlaw.org/"
   },
   {
     "country": "FR",
@@ -153,7 +217,7 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "FR",
-    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+    "source": "Lunar New Year: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
   },
   {
     "country": "GB",
@@ -177,6 +241,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "GB",
+    "source": "GOV.UK, UK bank holidays, https://www.gov.uk/bank-holidays"
+  },
+  {
+    "country": "GB",
     "source": "Glastonbury Festival: Glastonbury Festivals, https://www.glastonburyfestivals.co.uk/"
   },
   {
@@ -185,7 +253,7 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "GB",
-    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+    "source": "Lunar New Year: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
   },
   {
     "country": "GB",
@@ -201,6 +269,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "GR",
+    "source": "Clean Monday, 48 days before Orthodox Easter, https://en.wikipedia.org/wiki/Clean_Monday"
+  },
+  {
+    "country": "GR",
     "source": "Patras Carnival: Visit Greece, https://www.visitgreece.gr/"
   },
   {
@@ -212,8 +284,16 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Sumpango Giant Kite Festival: La Hora, https://lahora.gt/"
   },
   {
+    "country": "GY",
+    "source": "Government of Guyana holiday notices, https://mops.gov.gy/; Phagwah and Deepavali from 2026 computed from the Hindu lunisolar calendar (Meeus, Astronomical Algorithms; Lahiri ayanamsa)"
+  },
+  {
     "country": "HK",
     "source": "Cheung Chau Bun Festival: Hong Kong Tourism Board, https://www.discoverhongkong.com/"
+  },
+  {
+    "country": "HK",
+    "source": "General Holidays Ordinance (Cap. 149) and the yearly gazette, https://www.elegislation.gov.hk/hk/cap149"
   },
   {
     "country": "HK",
@@ -229,6 +309,14 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "ID",
+    "source": "Joint decree of the Ministers of Religious Affairs, Manpower and Administrative Reform on national holidays in 2027 (SKB 1205, 3 and 2 of 2026), https://setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "country": "ID",
+    "source": "Joint ministerial decrees (SKB 3 Menteri) on national holidays, https://setneg.go.id/; Nyepi after 2027 from the Balinese Saka calendar, Waisak from the full moon (Meeus, Astronomical Algorithms)"
+  },
+  {
+    "country": "ID",
     "source": "Kuningan: Balinese Pawukon calendar, https://baliuntold.com/culture/galungan-and-kuningan/"
   },
   {
@@ -238,6 +326,18 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "IN",
     "source": "Computed from the Hindu lunisolar and Islamic lunar calendars (Meeus, Astronomical Algorithms; Lahiri ayanamsa; Yallop crescent criterion), checked against the Government of India's gazetted holiday lists, https://dopt.gov.in/"
+  },
+  {
+    "country": "IN",
+    "source": "Government of Kerala holiday notification for 2026, as reported by Onmanorama, https://www.onmanorama.com/news/kerala/2025/10/29/kerala-public-holidays-2026-full-list.html; Mesha sankranti computed (Meeus, Astronomical Algorithms; Lahiri ayanamsa)"
+  },
+  {
+    "country": "IQ",
+    "source": "Official Holidays Law No. 12 of 2024, Official Gazette of Iraq (al-Waqai al-Iraqiya) no. 4777, https://moj.gov.iq/; Hijri dates from date-holidays"
+  },
+  {
+    "country": "IR",
+    "source": "Solar Hijri calendar computed from the March equinox at Tehran (Meeus, Astronomical Algorithms, via astronomia), checked against the Iranian calendar's published year starts, https://arxiv.org/abs/astro-ph/0409620"
   },
   {
     "country": "IT",
@@ -260,6 +360,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Venice Carnival: Carnevale di Venezia, https://carnevale.venezia.it/"
   },
   {
+    "country": "JO",
+    "source": "Prime Ministry holiday circulars, as reported by the Jordan News Agency (Petra), https://petra.gov.jo/; Hijri dates from date-holidays"
+  },
+  {
     "country": "JP",
     "source": "Akita Kanto Matsuri: Japan National Tourism Organization, https://www.japan.travel/en/"
   },
@@ -274,6 +378,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "JP",
     "source": "Awa Odori: Japan National Tourism Organization, https://www.japan.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Cabinet Office of Japan, national holidays, https://www8.cao.go.jp/chosei/shukujitsu/gaiyou.html"
   },
   {
     "country": "JP",
@@ -324,12 +432,88 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Yosakoi Matsuri: Japan National Tourism Organization, https://www.japan.travel/en/"
   },
   {
+    "country": "KG",
+    "source": "Labour Code of the Kyrgyz Republic (in force 28 January 2025) and the Ministry of Labour's holiday calendar, as reported by 24.kg, https://24.kg/english/; Hijri dates from date-holidays"
+  },
+  {
+    "country": "KH",
+    "source": "Royal Government of Cambodia sub-decrees on public holidays (No. 167 of 2025 for 2026), https://www.cncc.gov.kh/; Khmer lunar calendar computed as in pythaidate (MIT, Mark Hollow), https://github.com/hmmbug/pythaidate"
+  },
+  {
+    "country": "KI",
+    "source": "Public Holidays Ordinance as amended, PacLII, https://www.paclii.org/ki/legis/consol_act/pho216/; Public Service Office, https://www.pso.gov.ki/"
+  },
+  {
+    "country": "KP",
+    "source": "Public holidays in North Korea, Wikipedia, https://en.wikipedia.org/wiki/Public_holidays_in_North_Korea; Korean lunisolar calendar computed"
+  },
+  {
+    "country": "KR",
+    "source": "Regulations on Holidays of Government Offices as amended in April 2026, reported by Money Today, https://www.mt.co.kr/policy/2026/04/28/2026042808250174216"
+  },
+  {
+    "country": "KW",
+    "source": "Civil Service Commission holiday circulars, as reported by the Arab Times, https://www.arabtimesonline.com/, and KUNA; Hijri dates from date-holidays"
+  },
+  {
+    "country": "KY",
+    "source": "Cayman Islands Government, public holidays (Public Holidays Act, 2007 Revision; Public Holidays Order 2024), https://www.gov.ky/public-holidays"
+  },
+  {
+    "country": "LA",
+    "source": "Prime Minister's Office public holiday announcements, reported by Vientiane Times, https://www.vientianetimes.org.la/; Lao lunar calendar computed as in pythaidate (MIT, Mark Hollow), https://github.com/hmmbug/pythaidate"
+  },
+  {
+    "country": "LB",
+    "source": "Council of Ministers holiday decisions, as listed by the Embassy of Lebanon in Poland, https://en.lebanon.pl/, and timeanddate.com; Hijri dates from date-holidays"
+  },
+  {
+    "country": "LK",
+    "source": "Department of Government Printing, holiday gazettes under the Holidays Act No. 29 of 1971, https://documents.gov.lk/; Central Bank of Sri Lanka, bank holidays, https://www.cbsl.gov.lk/; poya, Hindu and solar dates computed (Meeus, Astronomical Algorithms; Lahiri ayanamsa); Hijri dates from date-holidays"
+  },
+  {
     "country": "LK",
     "source": "Kandy Esala Perahera: Sri Dalada Maligawa schedule, https://kandyesalaperahera.com/dates; Nikini full moon computed (Meeus, Astronomical Algorithms)"
   },
   {
+    "country": "MA",
+    "source": "Moroccan government holiday list, as published by Wafir, https://wafir.ma/fr/guide/calendrier-jours-feries-maroc-2026-2027"
+  },
+  {
+    "country": "MH",
+    "source": "Public Holidays Act 1988 as amended, Nitijela, https://rmiparliament.org/; Public Service Commission holiday memos, https://www.pscrmi.net/"
+  },
+  {
+    "country": "MM",
+    "source": "Government of Myanmar public holiday notifications (Leave and Holidays Act), as reported by Myanmar Labour News, https://myanmarlabournews.com/; Myanmar calendar computed with Yan Naing Aye's algorithm, mmcal (MIT), https://github.com/yan9a/mmcal"
+  },
+  {
+    "country": "MN",
+    "source": "Law of Mongolia on Public Holidays and Observances, https://legalinfo.mn/; lunar dates computed on the Mongolian calendar (Svante Janson, Tibetan calendar mathematics, appendix A)"
+  },
+  {
     "country": "MN",
     "source": "Naadam: Law on Public Holidays and Observances, art. 4.1.1, https://legalinfo.mn/"
+  },
+  {
+    "country": "MO",
+    "source": "Macao SAR Government Portal, public holidays (Executive Order 60/2000, Law 7/2008), https://www.gov.mo/en/public-holidays/; Chinese lunisolar calendar computed"
+  },
+  {
+    "country": "MP",
+    "source": "Office of the Governor, legal holidays memoranda (1 CMC § 311), https://governor.gov.mp/"
+  },
+  {
+    "country": "MU",
+    "source": "Prime Minister's Office, public holiday notices, https://pmo.govmu.org/; Hindu holidays after 2026 computed from the Hindu lunisolar calendar (Meeus, Astronomical Algorithms; Lahiri ayanamsa)"
+  },
+  {
+    "country": "MU",
+    "source": "Public Holidays Act, as the yearly Prime Minister's Office notices apply it, listed by timeanddate.com, https://www.timeanddate.com/holidays/mauritius/"
+  },
+  {
+    "country": "MV",
+    "source": "President's Office of the Maldives holiday announcements, as reported by Standard Maldives, https://standard.mv/, and edition.mv, https://edition.mv/; Hijri dates from date-holidays"
   },
   {
     "country": "MX",
@@ -345,15 +529,43 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "MX",
+    "source": "Ley Federal del Trabajo, article 74 as amended (DOF 30 September 2024), https://gaceta.diputados.gob.mx/PDF/66/2024/sep/DOF30sep2024-Art74LeyFedTrabajo.pdf"
+  },
+  {
+    "country": "MX",
     "source": "Night of the Radishes: Visit Mexico, https://www.visitmexico.com/"
   },
   {
     "country": "MY",
-    "source": "Mid-Autumn Festival: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+    "source": "Malaysia's federal and state public holidays for 2027, as published by CutiSekolah.com.my, https://cutisekolah.com.my/en/public-holidays-2027/"
+  },
+  {
+    "country": "MY",
+    "source": "Mid-Autumn Festival: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
+  },
+  {
+    "country": "MY",
+    "source": "Prime Minister's Department and Ministry of Human Resources holiday notices, https://jtksm.mohr.gov.my/; Wesak from 2027 by the Chinese calendar, and Thaipusam from 2027 and Deepavali from 2028 by the Tamil almanac, computed from the Hindu lunisolar calendar (Meeus, Astronomical Algorithms; Lahiri ayanamsa)"
   },
   {
     "country": "NL",
     "source": "Keukenhof tulip season: Keukenhof, https://keukenhof.nl/"
+  },
+  {
+    "country": "NP",
+    "source": "Ministry of Home Affairs, Government of Nepal, public holiday notices in Nepal Rajpatra, https://www.moha.gov.np/; Bikram Sambat and lunar dates computed from the Surya Siddhanta as the Nepal Panchanga Nirnayak Samiti does; Islamic dates from date-holidays, a day later"
+  },
+  {
+    "country": "NR",
+    "source": "Nauru Government Gazette, public holiday notices, https://ronlaw.gov.nr/"
+  },
+  {
+    "country": "NU",
+    "source": "Public Holidays Ordinance 1961 and Public Service Commission circulars, Government of Niue, https://www.gov.nu/"
+  },
+  {
+    "country": "OM",
+    "source": "Council of Ministers and Ministry of Labour holiday announcements, as reported by the Oman Observer, https://www.omanobserver.om/, and the Times of Oman; Royal Decree 88/2022; Hijri dates from date-holidays"
   },
   {
     "country": "PE",
@@ -362,6 +574,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "PE",
     "source": "Inti Raymi: Lima Easy, https://www.limaeasy.com/"
+  },
+  {
+    "country": "PG",
+    "source": "National Gazette public holiday notices (Public Holidays Act 1953), PacLII, https://www.paclii.org/pg/; PNG Tourism Promotion Authority events, https://papuanewguinea.travel/events/"
   },
   {
     "country": "PH",
@@ -380,8 +596,16 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Sinulog: SunStar Cebu, https://www.sunstar.com.ph/"
   },
   {
+    "country": "PN",
+    "source": "Government of the Pitcairn Islands, Public Holidays and Commemoration Days policy (2024), https://www.government.pn/"
+  },
+  {
     "country": "PR",
     "source": "Fiestas de la Calle San Sebastián: Discover Puerto Rico, https://www.discoverpuertorico.com/"
+  },
+  {
+    "country": "PS",
+    "source": "Palestinian Council of Ministers holiday decisions, as posted by municipalities (https://aldahrieh.ps/) and listed by officeholidays.com; Hijri dates from date-holidays"
   },
   {
     "country": "PT",
@@ -392,12 +616,48 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "São João do Porto: Visit Porto, https://www.visitporto.travel/"
   },
   {
+    "country": "PW",
+    "source": "Palau National Code title 1 chapter 7, PacLII, http://www.paclii.org/pw/legis/consol_act/gpt1262/"
+  },
+  {
+    "country": "QA",
+    "source": "Amiri Diwan and Qatar Central Bank holiday announcements, as reported by The Peninsula, https://thepeninsulaqatar.com/, and Time Out Doha; Labour Law No. 14 of 2004; Hijri dates from date-holidays"
+  },
+  {
     "country": "RU",
     "source": "Maslenitsa: Russian Orthodox calendar (the week before Great Lent), https://www.dp.ru/"
   },
   {
+    "country": "RU",
+    "source": "Regional holiday laws and decrees (ConsultantPlus), https://www.consultant.ru/; Buddhist dates computed on the Tibetan and Mongolian calendars (Svante Janson, Tibetan calendar mathematics)"
+  },
+  {
+    "country": "SB",
+    "source": "Solomon Islands Government Gazette, national and provincial public holidays, https://solomons.gov.sb/"
+  },
+  {
     "country": "SG",
-    "source": "Mid-Autumn Festival: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+    "source": "Mid-Autumn Festival: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
+  },
+  {
+    "country": "SG",
+    "source": "Ministry of Manpower, public holidays for 2027, https://www.mom.gov.sg/employment-practices/public-holidays"
+  },
+  {
+    "country": "SG",
+    "source": "Ministry of Manpower, public holidays, https://www.mom.gov.sg/employment-practices/public-holidays; Vesak Day from 2027 by the Chinese calendar, and Deepavali from 2028 by the Tamil almanac, computed from the Hindu lunisolar calendar (Meeus, Astronomical Algorithms; Lahiri ayanamsa)"
+  },
+  {
+    "country": "SR",
+    "source": "Government of Suriname, https://gov.sr/; Holi Phagwa and Deepavali after 2026 computed from the Hindu lunisolar calendar (Meeus, Astronomical Algorithms; Lahiri ayanamsa)"
+  },
+  {
+    "country": "SY",
+    "source": "Holidays set by the current Syrian government: Presidential Decree No. 188 of 2025 and Legislative Decree No. 13 of 2026 (Nowruz), as published by SANA, https://sana.sy/en/; Hijri dates from date-holidays"
+  },
+  {
+    "country": "TH",
+    "source": "Bank of Thailand holiday announcements, https://www.bot.or.th/; Thai lunar calendar computed as in pythaidate (MIT, Mark Hollow), https://github.com/hmmbug/pythaidate"
   },
   {
     "country": "TH",
@@ -405,7 +665,7 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "TH",
-    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+    "source": "Lunar New Year: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
   },
   {
     "country": "TH",
@@ -416,12 +676,40 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Yi Peng: Tourism Authority of Thailand, https://www.thailand.go.th/; Thai lunar calendar computed as in pythaidate (MIT), https://github.com/hmmbug/pythaidate"
   },
   {
+    "country": "TJ",
+    "source": "Labour Code of the Republic of Tajikistan, holidays as listed by timeanddate.com, https://www.timeanddate.com/holidays/tajikistan/, and calendarlabs.com; Hijri dates from date-holidays"
+  },
+  {
+    "country": "TK",
+    "source": "Tokelau Interpretation Rules 2003, PacLII, https://paclii.org/tk/"
+  },
+  {
+    "country": "TL",
+    "source": "Law 10/2005 on public holidays as amended, and the Government's yearly lists, https://timor-leste.gov.tl/"
+  },
+  {
+    "country": "TM",
+    "source": "Ministry of Labour and Social Protection holiday schedule, as reported by Beyan.tm, https://beyan.tm/en/, and timeanddate.com; Hijri dates from date-holidays"
+  },
+  {
     "country": "TR",
     "source": "Şeb-i Arus: Ministry of Culture and Tourism, https://sebiarus.ktb.gov.tr/"
   },
   {
     "country": "TT",
+    "source": "Government of Trinidad and Tobago, legal notices under the Public Holidays and Festivals Act, https://printery.gov.tt/; Divali after 2026 computed from the Hindu lunisolar calendar (Meeus, Astronomical Algorithms; Lahiri ayanamsa)"
+  },
+  {
+    "country": "TT",
     "source": "Trinidad Carnival: Tourism Trinidad, https://visittrinidad.tt/"
+  },
+  {
+    "country": "TV",
+    "source": "Public Holidays Act as amended to 2022, PacLII, https://www.paclii.org/tv/"
+  },
+  {
+    "country": "TW",
+    "source": "Directorate-General of Personnel Administration, government office calendars 2026 and 2027, https://www.dgpa.gov.tw/"
   },
   {
     "country": "TW",
@@ -441,7 +729,7 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "US",
-    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+    "source": "Lunar New Year: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
   },
   {
     "country": "US",
@@ -454,5 +742,17 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "US",
     "source": "Rose Parade: Tournament of Roses, https://tournamentofroses.com/"
+  },
+  {
+    "country": "VN",
+    "source": "Labour Code 2019 (articles 111 and 112), National Assembly Resolution 28/2026/QH16 and Ministry of Home Affairs notice 11483/TB-BNV (Tết 2027), https://thuvienphapluat.vn/phap-luat/chu-de/lich-nghi-le"
+  },
+  {
+    "country": "WS",
+    "source": "Ministry of Commerce, Industry and Labour, public holidays calendar (Public Holidays Act 2008), https://www.mcil.gov.ws/public-holidays-calendar"
+  },
+  {
+    "country": "YE",
+    "source": "Holidays of the Republic of Yemen as listed by timeanddate.com, https://www.timeanddate.com/holidays/yemen/, and calendarific.com (the government in Aden and the authorities in Sanaa keep these days); Hijri dates from date-holidays"
   }
 ];

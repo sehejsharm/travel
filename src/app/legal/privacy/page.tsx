@@ -102,11 +102,7 @@ export default function PrivacyPolicy() {
               in, the trip&rsquo;s first destination country, or failing those the trip&rsquo;s
               name — and the code of the trip&rsquo;s first destination country;
             </>,
-            <>
-              the interests you picked, less Festivals &amp; shows when Manifest&rsquo;s own
-              calendar has already answered it for your dates (if that was all you picked, nothing
-              is sent);
-            </>,
+            <>the interests you picked;</>,
             <>
               the title and place name of everything filed on this trip, so nothing you have
               already filed is suggested back;
@@ -283,8 +279,8 @@ export default function PrivacyPolicy() {
           any other part of the app, and the offline worker keeps it. The request carries nothing
           about you or your trip, but the file it asks for belongs to one country, so Vercel&rsquo;s
           request logs could show that your IP address loaded, say, Japan&rsquo;s calendar. From
-          then on the calendar, and the timeline marks and Discover&rsquo;s Festivals &amp; shows
-          built from it, work on this device and contact no one.
+          then on the calendar, and the timeline marks and the festivals Discover lists from it,
+          work on this device and contact no one.
         </p>
       </Section>
 

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ChecklistEntry } from "../checklists";
 import type { Flag, Trip, TripItem } from "../domain/types";
 import { holidaysVersion, loadHolidays, subscribeHolidays } from "../reference/holidays";
-import { destinationCountries, runChecks } from "../rules";
+import { runChecks } from "../rules";
+import { calendarCountries } from "../trip-calendar";
 import {
   activeTrip,
   getServerSnapshot,
@@ -71,15 +72,17 @@ export function useTripView(): TripView {
     [state.checklist, trip],
   );
 
-  // Each destination's holiday calendar is its own chunk, fetched once and
-  // then cached. The countries are joined into one string so the effect runs
-  // when they change, not on every new items array.
+  // Each country's holiday calendar is its own chunk, fetched once and then
+  // cached: the destinations', or the home country's for a trip at home. The
+  // countries are joined into one string so the effect runs when they change,
+  // not on every new items array.
   const countries = useMemo(
-    () => (trip ? destinationCountries(trip, items).sort().join(",") : ""),
+    () => (trip ? calendarCountries(trip, items).sort().join(",") : ""),
     [trip, items],
   );
   useEffect(() => {
-    if (countries) void loadHolidays(countries.split(","));
+    if (!countries) return;
+    return keepHolidaysLoaded(countries.split(","), window);
   }, [countries]);
   const holidays = useHolidaysVersion();
 
@@ -100,6 +103,18 @@ export function useTripView(): TripView {
     hydrated,
     empty: hydrated && state.trips.length === 0,
   };
+}
+
+/**
+ * Loads the countries' calendars now, and again each time the device comes
+ * back online, since a chunk that failed offline stays unloaded until asked
+ * for again. Loading what is already in costs nothing. Returns the cleanup.
+ */
+export function keepHolidaysLoaded(countryCodes: string[], target: EventTarget): () => void {
+  const load = () => void loadHolidays(countryCodes);
+  load();
+  target.addEventListener("online", load);
+  return () => target.removeEventListener("online", load);
 }
 
 /**

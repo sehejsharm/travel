@@ -1,13 +1,14 @@
 /**
  * The trip's own calendar: the holidays and festivals of each country it goes
  * to, on the days it is there. The timeline marks its days with it, and
- * Discover fills Festivals & shows from it without a search.
+ * Discover lists the festivals on the trip's dates beside its search.
  *
  * Pure over the trip and whatever holiday data has loaded. Each country's
  * calendar arrives on its own (see reference/holidays.ts), so before it does
  * these find nothing for that country, and a screen re-renders once it is in.
  * No React here, so the tests can use it as is.
  */
+import type { Tone } from "../components/ui";
 import type { Trip, TripItem } from "./domain/types";
 import {
   festivalsBetween,
@@ -38,6 +39,24 @@ export function isDayOff(kind: HolidayKind): boolean {
   return kind === "public" || kind === "bank";
 }
 
+/**
+ * Days off read as amber, the way any heads-up does, since shops, offices and
+ * many museums close; everything else has a quiet chip, so the two never look
+ * alike. The timeline and Discover both label holidays with it.
+ */
+export const MARK_TONE: Record<HolidayKind, Tone> = {
+  public: "warning",
+  bank: "warning",
+  optional: "neutral",
+  festival: "neutral",
+  observance: "neutral",
+};
+
+/** The chip tone for a kind of holiday. */
+export function holidayTone(kind: HolidayKind): Tone {
+  return MARK_TONE[kind];
+}
+
 /** Days off first, then partial ones, then what is on, then what is only marked. */
 const KIND_ORDER: Record<HolidayKind, number> = {
   public: 0,
@@ -48,19 +67,42 @@ const KIND_ORDER: Record<HolidayKind, number> = {
 };
 
 /**
- * What puts a day with nothing planned on the timeline. An observance (a
- * Mother's Day, an Advent Sunday) is worth a line on a day that already has
- * plans, but not a day of its own.
+ * What the timeline shows once over its whole run, on the first day it shows
+ * that falls inside it: a Christmas market open for four weeks is one line,
+ * not 28. A day off, even one for some people only, changes each day it falls
+ * on, so it shows on each.
  */
-const WORTH_A_DAY: ReadonlySet<HolidayKind> = new Set<HolidayKind>([
-  "public",
-  "bank",
-  "optional",
-  "festival",
-]);
+const ONCE_PER_RUN: ReadonlySet<HolidayKind> = new Set<HolidayKind>(["festival", "observance"]);
+
+/** How far a run is followed either way, as a guard. The longest in the data is under 60 days. */
+const MAX_RUN_DAYS = 400;
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 function dayOf(iso: string): string {
   return iso.slice(0, 10);
+}
+
+function shiftDay(iso: string, days: number): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
+function nextDay(iso: string): string {
+  return shiftDay(iso, 1);
 }
 
 function compareText(a: string, b: string): number {
@@ -75,22 +117,87 @@ function compareMarks(a: CalendarMark, b: CalendarMark): number {
   );
 }
 
-/** The trip's destinations an item happens in, on its own day. */
-function itemCountries(item: TripItem, destinations: ReadonlySet<string>): string[] {
+/**
+ * The countries whose calendars apply to a trip: its destinations, or, for a
+ * trip at home (a weekend in the Lake District from London), the home
+ * country, once the trip or one of its places says it is there. The checks
+ * still leave the home country out: a traveller knows their own days off, but
+ * the timeline and Discover can show them.
+ */
+export function calendarCountries(trip: Trip, items: TripItem[]): string[] {
+  const destinations = destinationCountries(trip, items);
+  if (destinations.length > 0) return destinations;
+
+  const home = (trip.homeCountry ?? "").trim().toUpperCase();
+  if (!home) return [];
+  const named = [
+    ...(trip.legs ?? []).map((leg) => leg.countryCode),
+    ...(trip.destinationCountries ?? []),
+    ...items.flatMap((item) => [item.place?.countryCode, item.arrivalPlace?.countryCode]),
+  ];
+  return named.some((code) => code?.trim().toUpperCase() === home) ? [home] : [];
+}
+
+/** The trip's countries an item happens in, on its own day. */
+function itemCountries(item: TripItem, countries: ReadonlySet<string>): string[] {
   const codes = [item.place, item.arrivalPlace]
     .map((place) => place?.countryCode?.toUpperCase())
-    .filter((code): code is string => Boolean(code) && destinations.has(code!));
+    .filter((code): code is string => Boolean(code) && countries.has(code!));
   return [...new Set(codes)];
+}
+
+interface Run {
+  first: string;
+  last: string;
+}
+
+function sameEntry(mark: CalendarMark, day: string): boolean {
+  return festivalsBetween(mark.countryCode, day, day).some(
+    (holiday) => holiday.kind === mark.kind && holiday.name === mark.name,
+  );
+}
+
+/**
+ * The first and last day of the run a mark is part of, in its country's data
+ * (one entry per day), which can start before the trip and end after it.
+ */
+function runOf(mark: CalendarMark): Run {
+  let first = mark.date;
+  let last = mark.date;
+  for (let step = 0; step < MAX_RUN_DAYS && sameEntry(mark, shiftDay(first, -1)); step++) {
+    first = shiftDay(first, -1);
+  }
+  for (let step = 0; step < MAX_RUN_DAYS && sameEntry(mark, nextDay(last)); step++) {
+    last = nextDay(last);
+  }
+  return { first, last };
+}
+
+/** "Runs 7 to 17 February", "Runs 28 February to 4 March", as the data's own notes put it. */
+function runsNote(first: string, last: string): string {
+  const [, fromMonth, fromDay] = first.split("-").map(Number);
+  const [, toMonth, toDay] = last.split("-").map(Number);
+  return fromMonth === toMonth
+    ? `Runs ${fromDay} to ${toDay} ${MONTHS[toMonth - 1]}`
+    : `Runs ${fromDay} ${MONTHS[fromMonth - 1]} to ${toDay} ${MONTHS[toMonth - 1]}`;
+}
+
+/** A run's note, saying when it runs if the data does not already. */
+function withRunNote(mark: CalendarMark, { first, last }: Run): CalendarMark {
+  if (first === last || /\bRuns\b/.test(mark.note ?? "")) return mark;
+  const note = [mark.note?.replace(/[.\s]+$/, ""), runsNote(first, last)].filter(Boolean).join(". ");
+  return { ...mark, note: `${note}.` };
 }
 
 export interface TripCalendar {
   /**
-   * Day → its marks, sorted. Holds every day with something planned that has
-   * a mark, and every day of the trip with nothing planned that has a mark
-   * worth a day of its own.
+   * Day → its marks, sorted. Holds the days the timeline shows that have a
+   * mark: every day with something planned, and every day of the trip that is
+   * a day off. A festival or an observance is on the first of those days
+   * inside its run, and not again.
    */
   days: Map<string, CalendarMark[]>;
-  /** The trip's destinations. With more than one, each mark names its country. */
+  /** The trip's countries. With more than one, each mark names its country. */
   countries: string[];
 }
 
@@ -101,10 +208,14 @@ export interface TripCalendar {
  * planned in a country also gets that country's calendar, even outside its
  * window. A trip whose dates are not settled yet only gets marks on days that
  * have plans, since those dates are real.
+ *
+ * Only a day off (public or bank) puts a day with nothing planned on the
+ * timeline. A festival, a day off for some and an observance show on the days
+ * that are there already.
  */
 export function tripCalendar(trip: Trip, items: TripItem[]): TripCalendar {
-  const countries = destinationCountries(trip, items);
-  const destinations = new Set(countries);
+  const countries = calendarCountries(trip, items);
+  const inTrip = new Set(countries);
   const planned = new Set(items.filter((item) => item.startsAt).map((item) => dayOf(item.startsAt!)));
   const byDay = new Map<string, Map<string, CalendarMark>>();
 
@@ -126,15 +237,38 @@ export function tripCalendar(trip: Trip, items: TripItem[]): TripCalendar {
   for (const item of items) {
     if (!item.startsAt) continue;
     const day = dayOf(item.startsAt);
-    for (const code of itemCountries(item, destinations)) {
+    for (const code of itemCountries(item, inTrip)) {
       for (const holiday of festivalsBetween(code, day, day)) add(code, holiday);
     }
   }
 
+  const shown = [...byDay.keys()]
+    .filter((day) => planned.has(day) || [...byDay.get(day)!.values()].some((mark) => isDayOff(mark.kind)))
+    .sort();
+  /** Country, kind, name and day → its run, so each run is followed once. */
+  const runs = new Map<string, Run>();
+  /** The runs already on an earlier day, by country, kind, name and first day. */
+  const placed = new Set<string>();
   const days = new Map<string, CalendarMark[]>();
-  for (const day of [...byDay.keys()].sort()) {
-    const marks = [...byDay.get(day)!.values()].sort(compareMarks);
-    if (planned.has(day) || marks.some((mark) => WORTH_A_DAY.has(mark.kind))) days.set(day, marks);
+
+  for (const day of shown) {
+    const marks: CalendarMark[] = [];
+    for (const mark of byDay.get(day)!.values()) {
+      if (!ONCE_PER_RUN.has(mark.kind)) {
+        marks.push(mark);
+        continue;
+      }
+      const entry = `${mark.countryCode}|${mark.kind}|${mark.name}`;
+      let run = runs.get(`${entry}|${day}`);
+      if (!run) {
+        run = runOf(mark);
+        for (let date = run.first; date <= run.last; date = nextDay(date)) runs.set(`${entry}|${date}`, run);
+      }
+      if (placed.has(`${entry}|${run.first}`)) continue;
+      placed.add(`${entry}|${run.first}`);
+      marks.push(withRunNote(mark, run));
+    }
+    if (marks.length > 0) days.set(day, marks.sort(compareMarks));
   }
 
   return { days, countries };
@@ -164,11 +298,6 @@ export interface CalendarAnswer {
   events: CalendarEvent[];
 }
 
-function nextDay(iso: string): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
-}
-
 /** On one date: a day off for everyone first (it is the big one), then what is on. */
 const EVENT_ORDER: Record<HolidayKind, number> = {
   public: 0,
@@ -179,12 +308,13 @@ const EVENT_ORDER: Record<HolidayKind, number> = {
 };
 
 /**
- * Everything on while the trip is in each country, for Discover's Festivals &
- * shows: festivals, days off and observances alike, with a festival that runs
- * several days (one entry per day in the data) as one event over those days.
+ * Everything on while the trip is in each country: festivals, days off and
+ * observances alike, with a festival that runs several days (one entry per
+ * day in the data) as one event over those days. Discover picks from it what
+ * to list (see advisor/calendar.ts).
  */
 export function tripEvents(trip: Trip, items: TripItem[]): CalendarAnswer {
-  const countries = destinationCountries(trip, items);
+  const countries = calendarCountries(trip, items);
   const ready = !trip.datesTbd && countries.length > 0 && countries.every(holidaysLoaded);
   if (!ready) return { ready, countries, events: [] };
 

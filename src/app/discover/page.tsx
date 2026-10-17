@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { InterestPicker } from "@/components/interest-picker";
 import { Field, PrimaryButton, TextInput } from "@/components/form";
-import { holidayTone } from "@/components/timeline";
 import {
   BORDERLESS_BUTTON_CLASSES,
   PRIMARY_BUTTON_CLASSES,
@@ -22,15 +21,14 @@ import {
 import {
   adviceKey,
   CALENDAR_INTEREST,
-  calendarAnswered,
-  interestsToLookUp,
+  calendarSection,
+  shownSections,
 } from "@/lib/advisor/calendar";
 import { getInterest } from "@/lib/advisor/interests";
 import { getPurpose } from "@/lib/trip-purpose";
 import {
   TIER_LABELS,
   type AdviceResult,
-  type AdviceSection,
   type SourceTier,
   type Suggestion,
 } from "@/lib/advisor/types";
@@ -39,11 +37,12 @@ import type { Trip, TripItem } from "@/lib/domain/types";
 import { openInMapsUrl } from "@/lib/maps";
 import { getCountry } from "@/lib/reference/countries";
 import { loadHolidays } from "@/lib/reference/holidays";
-import { destinationCountries } from "@/lib/rules";
 import { addItem, cacheAdvice, cachedAdvice, updateTrip } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
 import {
+  calendarCountries,
   formatEventDates,
+  holidayTone,
   KIND_LABELS,
   tripEvents,
   type CalendarEvent,
@@ -58,7 +57,7 @@ const TIER_TONE: Record<string, "accent" | "ok" | "neutral" | "warning"> = {
 };
 
 const CALENDAR_NOTE =
-  "Festivals & shows come from Manifest's calendar for your dates, so nothing was searched for them.";
+  "The festivals and days off on your dates come from Manifest's calendar, on this device. Nothing was searched for them.";
 
 export default function DiscoverScreen() {
   const { state, trip, items, hydrated } = useTripView();
@@ -88,14 +87,15 @@ export default function DiscoverScreen() {
   // picker is still right there, so this is a default, not a restriction.
   const quiet = getPurpose(trip.purpose)?.suppressSuggestions && interests.length === 0;
   const where = destination.trim() || defaultDestination(trip, items);
-  // Festivals & shows is answered on the device, from Manifest's calendar for
-  // the trip's own countries and dates, so no paid tier is asked for it. It
-  // is worked out on every render, which keeps it in step with the dates.
+  // Festivals & shows is searched like any other interest, for concerts,
+  // theatre and opera. Beside it, Manifest's calendar lists the festivals on
+  // the trip's own countries and dates, on the device. It is worked out on
+  // every render, which keeps it in step with the dates, and it shows whether
+  // or not the search has run or worked.
   const calendar = tripEvents(trip, items);
-  const fromCalendar = interests.includes(CALENDAR_INTEREST) && calendarAnswered(calendar);
-  const lookUp = interestsToLookUp(interests, calendar);
-  const advice =
-    fresh ?? (lookUp.length > 0 ? cachedAdvice(state, trip.id, adviceKey(where, lookUp)) : undefined);
+  const listed = interests.includes(CALENDAR_INTEREST) ? calendarSection(calendar) : [];
+  const fromCalendar = listed.length > 0;
+  const advice = fresh ?? cachedAdvice(state, trip.id, adviceKey(where, interests));
   const filedTitles = new Set(items.map((item) => item.title.trim().toLowerCase()));
 
   if (quiet && !loading && !advice) {
@@ -171,20 +171,18 @@ export default function DiscoverScreen() {
     setLoading(true);
     setError(undefined);
 
-    try {
-      // The calendar decides what is left to look up, so it has to be in
-      // first. It almost always is already: the trip view loads it.
-      await loadHolidays(destinationCountries(trip, items));
-      const wanted = interestsToLookUp(picked, tripEvents(trip, items));
-      if (wanted.length === 0) return;
+    // The trip view loads the calendar already. Asking again retries a country
+    // that could not load offline; the search does not wait for it.
+    void loadHolidays(calendarCountries(trip, items));
 
+    try {
       const response = await fetch("/api/advise", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           destination: where,
           countryCode: trip.destinationCountries?.[0],
-          interests: wanted,
+          interests: picked,
           alreadyFiled: items.flatMap((item) =>
             [item.title, item.place?.name].filter((value): value is string => Boolean(value)),
           ),
@@ -202,7 +200,7 @@ export default function DiscoverScreen() {
       if (!response.ok) throw new Error(payload?.error ?? "That did not work.");
 
       setFresh(payload as AdviceResult);
-      cacheAdvice(trip.id, adviceKey(where, wanted), payload as AdviceResult);
+      cacheAdvice(trip.id, adviceKey(where, picked), payload as AdviceResult);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "That did not work.");
     } finally {
@@ -235,21 +233,15 @@ export default function DiscoverScreen() {
             </Field>
           </div>
           <div className="shrink-0 sm:w-48">
-            <PrimaryButton onClick={() => void find()} disabled={loading || lookUp.length === 0}>
+            <PrimaryButton onClick={() => void find()} disabled={loading}>
               {loading ? "Looking…" : advice ? "Look again" : "Find things to do"}
             </PrimaryButton>
           </div>
         </div>
 
-        {lookUp.length === 0 && (
-          <p className="mt-3 text-footnote text-ink-soft">
-            Nothing to look up: Manifest&rsquo;s calendar answers Festivals &amp; shows. Edit
-            interests to search for more.
-          </p>
-        )}
         {interests.includes(CALENDAR_INTEREST) && trip.datesTbd && (
           <p className="mt-3 text-footnote text-ink-soft">
-            Festivals &amp; shows fill in from Manifest&rsquo;s calendar once your dates are set.
+            Manifest&rsquo;s calendar adds the festivals on your dates once they are set.
           </p>
         )}
 
@@ -272,16 +264,15 @@ export default function DiscoverScreen() {
         <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">{error}</div>
       )}
 
-      {loading && !advice && <LoadingSections count={lookUp.length} />}
+      {loading && !advice && <LoadingSections count={interests.length} />}
 
-      {!advice && !loading && !error && lookUp.length > 0 && (
+      {!advice && !loading && !error && (
         // The search card's own button above is the action that fills this, so
         // the note does not repeat it.
         <Card className="p-5 text-center">
           <p className="text-title-3">Nothing looked up yet</p>
           <p className="mt-2 text-subheadline text-ink-soft">
-            {fromCalendar &&
-              "Festivals & shows are already filled in below, from Manifest’s calendar. "}
+            {fromCalendar && "The festivals on your dates are already below, from Manifest’s calendar. "}
             Tap Find things to do, and I will work down from your own saves to Manifest&rsquo;s own
             list before spending anything on a search.
           </p>
@@ -296,16 +287,13 @@ export default function DiscoverScreen() {
           />
 
           {shownSections(interests, fromCalendar, advice).map((shown) => {
-            const interest = getInterest(shown.interestId);
-            const title = interest ? `${interest.emoji} ${interest.label}` : shown.interestId;
-
-            if (!shown.section) {
+            if (shown.source === "calendar") {
               return (
-                <section key={shown.interestId}>
-                  <SectionTitle trailing={`${calendar.events.length}`}>{title}</SectionTitle>
+                <section key="calendar">
+                  <SectionTitle trailing={`${listed.length}`}>{TIER_LABELS.calendar}</SectionTitle>
 
                   <ul className="flex flex-col gap-3">
-                    {calendar.events.map((event, index) => (
+                    {listed.map((event, index) => (
                       <li
                         key={event.id}
                         className="animate-rise"
@@ -323,6 +311,9 @@ export default function DiscoverScreen() {
                 </section>
               );
             }
+
+            const interest = getInterest(shown.interestId);
+            const title = interest ? `${interest.emoji} ${interest.label}` : shown.interestId;
 
             return (
               <section key={shown.interestId}>
@@ -346,34 +337,6 @@ export default function DiscoverScreen() {
       )}
     </div>
   );
-}
-
-/**
- * The sections in the order the interests are picked in: the calendar's own
- * for Festivals & shows when it answered (no section), then whatever the
- * lookup returned. A section the answer holds for an interest no longer picked
- * still shows, after the rest, as it did before.
- */
-function shownSections(
-  interests: string[],
-  fromCalendar: boolean,
-  advice: AdviceResult | undefined,
-): { interestId: string; section?: AdviceSection }[] {
-  const sections = advice?.sections ?? [];
-  const shown: { interestId: string; section?: AdviceSection }[] = [];
-
-  for (const id of interests) {
-    if (id === CALENDAR_INTEREST && fromCalendar) {
-      shown.push({ interestId: id });
-      continue;
-    }
-    const section = sections.find((candidate) => candidate.interestId === id);
-    if (section) shown.push({ interestId: id, section });
-  }
-  for (const section of sections) {
-    if (!interests.includes(section.interestId)) shown.push({ interestId: section.interestId, section });
-  }
-  return shown;
 }
 
 /**

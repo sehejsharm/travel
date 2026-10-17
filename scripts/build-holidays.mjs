@@ -6,10 +6,20 @@
  * The base is date-holidays (https://github.com/commenthol/date-holidays):
  * every country it knows, in English, with school holidays dropped. Each
  * country also gets the days its states or regions take off (date-holidays'
- * per-state lists), as "optional" with a note naming where. On top of that go
- * the supplement modules in scripts/holiday-supplements/*.mjs (see the README
- * there): festivals and corrections the library does not carry. A supplement
- * entry naming the same holiday on the same date as a library one replaces it.
+ * per-state lists), as "optional" with a note naming where. Three things are
+ * corrected on the way through:
+ *
+ * - a few library rules that disagree with the law (RULE_FIXES below);
+ * - the Chinese, Korean and Vietnamese lunisolar calendars, which are
+ *   recomputed astronomically: wherever date-holidays' calendar puts a month
+ *   on another day, the rules in that month are evaluated again on the right
+ *   one (see "The lunisolar calendars");
+ * - two names for one holiday on one day (NAME_ALIASES).
+ *
+ * On top of that go the supplement modules in scripts/holiday-supplements/*.mjs
+ * (see the README there): festivals and corrections the library does not
+ * carry. A supplement can drop library entries, and a supplement entry naming
+ * the same holiday on the same date as a library one replaces it.
  *
  * The output is deterministic: the same library version and supplements give
  * byte-identical files, whatever the machine's time zone or locale.
@@ -25,6 +35,13 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import Holidays from "date-holidays";
+// astronomia is date-holidays' own astronomy library (it computes the same
+// calendars with it), so it is always installed alongside.
+import deltat from "astronomia/deltat";
+import moonphase from "astronomia/moonphase";
+import planetposition from "astronomia/planetposition";
+import solar from "astronomia/solar";
+import vsop87Bearth from "astronomia/data/vsop87Bearth";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_OUT = path.join(ROOT, "src/lib/reference/holiday-data");
@@ -56,6 +73,94 @@ const ENGLISH_NAMES = {
     "عيد الجمهورية": "Republic Day",
     "عيد المرأة": "Women's Day",
     "عيد الجلاء": "Evacuation Day",
+  },
+};
+
+/**
+ * One holiday under two library names, which put two entries on one day (a
+ * national rule and a state's, or two rules for one span). Each alias becomes
+ * the name it maps to before entries are matched, so the two merge and a
+ * state's day off joins the others in one "Day off in ..." note. Matched as
+ * names are (ignoring case, accents and punctuation).
+ */
+export const NAME_ALIASES = {
+  RU: {
+    // Radonitsa, the Tuesday after Orthodox Easter week, under each region's name.
+    "Day of Special Remembrance of the Departed (Radonitsa)": "Day of Remembrance of the Departed (Radonitsa)",
+    "Radonitsa - Day of Remembrance of the Departed": "Day of Remembrance of the Departed (Radonitsa)",
+    "Radonitsa - Day of Special Remembrance of the Departed": "Day of Remembrance of the Departed (Radonitsa)",
+    "Unified Day of Remembrance of the Departed": "Day of Remembrance of the Departed (Radonitsa)",
+  },
+  US: {
+    // The federal observance and California's name, against every other state's.
+    "Day after Thanksgiving Day": "Day After Thanksgiving",
+    // Hawaii's name for the general election day the other states take off.
+    "General Election Day": "Election Day",
+  },
+  VN: {
+    // The five days of Tết, which the library lists under a second name.
+    "Vietnamese New Year Holidays": "Vietnamese New Year",
+  },
+};
+
+/** Notes for library holidays whose dates are an estimate of a yearly decision. */
+const LIBRARY_NOTES = {
+  VN: {
+    "Vietnamese New Year":
+      "Five days off for Tết. The government sets the exact days each year, so they can move by a day or two",
+  },
+};
+
+/**
+ * Library rules that disagree with the law, replaced before any date is
+ * computed. Each `remove` must exist in the library (a library upgrade that
+ * renames one stops the build, so the fix is looked at again). An `add` rule
+ * is in date-holidays' own grammar; `opts` "from" copies the options (names,
+ * type) of a removed rule.
+ */
+export const RULE_FIXES = {
+  CN: {
+    why: "全国年节及纪念日放假办法 as amended in 2024 (State Council Decree 795): from 2025 the Spring Festival is New Year's Eve and days 1 to 3 (4 days), and Labour Day is 1 and 2 May",
+    remove: [],
+    add: {
+      "chinese 01-0-03 since 2025": { name: { en: "Spring Festival", zh: "春节" }, type: "public" },
+      "05-02 since 2025": { name: { en: "Labour Day", zh: "劳动节" }, type: "public" },
+    },
+  },
+  KR: {
+    why: "Regulations on Holidays of Government Offices, art. 2: Seollal is the day before, the day and the day after (date-holidays issue #640). The library's span starts on the day itself",
+    remove: ["korean 01-0-01 P3D"],
+    add: { "1 day before korean 01-0-01 P3D": { from: "korean 01-0-01 P3D" } },
+  },
+  TW: {
+    why: "紀念日及節日實施條例 as amended in 2025: from 2026 the Lunar New Year holiday is the day before New Year's Eve, the Eve and days 1 to 3. One of those on a Saturday or Sunday is made up on a working day, which the DGPA put after the holiday in 2026 and 2027. The library's 'fourth day' every year, and its weekday rule, are not in the law",
+    remove: [
+      "chinese 01-0-04",
+      "chinese 01-0-01 if Monday then next Friday if Tuesday then next Saturdayif Wednesday then next Sunday if Thursday then next Monday if Friday then next Tuesday if Saturday then next Wednesday if Sunday then next Thursday",
+    ],
+    add: {
+      "2 days before chinese 01-0-01 since 2026": {
+        name: { en: "Day before Chinese New Year's Eve", zh: "除夕前一日" },
+        type: "public",
+      },
+      // Five days from day 1 - 2 to day 1 + 2. Day 1 on a Monday puts the
+      // Saturday and Sunday before it in the span, so two working days after
+      // it are made up: Thursday and Friday. And so on for each weekday.
+      "substitutes chinese 01-0-01 if Monday then next Thursday if Tuesday then next Friday if Thursday then next Monday if Friday then next Monday if Saturday then next Tuesday if Sunday then next Wednesday since 2026":
+        {
+          name: { en: "Chinese New Year", zh: "農曆新年補假" },
+          type: "public",
+          substitute: true,
+          note: "Makes up for a New Year day on a weekend. The government can set it a working day earlier instead",
+        },
+      "substitutes chinese 01-0-01 if Monday then next Friday if Friday then next Tuesday if Saturday then next Wednesday if Sunday then next Thursday since 2026":
+        {
+          name: { en: "Chinese New Year", zh: "農曆新年補假" },
+          type: "public",
+          substitute: true,
+          note: "Makes up for a New Year day on a weekend. The government can set it a working day earlier instead",
+        },
+    },
   },
 };
 
@@ -116,6 +221,15 @@ function addDays(iso, days) {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
+/** Whole days from one ISO date to another. */
+function daysBetween(from, to) {
+  const ms = (iso) => {
+    const [year, month, day] = iso.split("-").map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.round((ms(to) - ms(from)) / 86_400_000);
+}
+
 function inRange(date, from, to) {
   return date >= `${from}-01-01` && date <= `${to}-12-31`;
 }
@@ -134,9 +248,28 @@ function listOf(names) {
     : `${sorted.slice(0, -1).join(", ")} and ${sorted[sorted.length - 1]}`;
 }
 
-function cleanName(country, name) {
-  const english = ENGLISH_NAMES[country]?.[name] ?? name;
-  return english.replace(/′/g, "’").replace(/\s+/g, " ").trim();
+const pad = (n) => String(n).padStart(2, "0");
+
+/** name key → canonical name, per country. */
+const ALIAS_KEYS = Object.fromEntries(
+  Object.entries(NAME_ALIASES).map(([country, aliases]) => [
+    country,
+    new Map(Object.entries(aliases).map(([alias, name]) => [nameKey(alias), name])),
+  ]),
+);
+
+/** A library name as the app shows it: in English, tidied, aliases resolved. */
+export function cleanName(country, name) {
+  const english = (ENGLISH_NAMES[country]?.[name] ?? name).replace(/′/g, "’").replace(/\s+/g, " ").trim();
+  return ALIAS_KEYS[country]?.get(nameKey(english)) ?? english;
+}
+
+/** Every library name that cleans to this one: itself and its aliases. */
+function libraryNames(country, name) {
+  const aliases = Object.entries(NAME_ALIASES[country] ?? {})
+    .filter(([, canonical]) => nameKey(canonical) === nameKey(name))
+    .map(([alias]) => alias);
+  return [name, ...aliases];
 }
 
 function cleanRegion(name, code) {
@@ -152,6 +285,419 @@ function cleanNote(note) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+// ---------------------------------------------------------------------------
+// The lunisolar calendars.
+//
+// date-holidays computes the Chinese calendar (and the Korean and Vietnamese
+// ones: the same rules, kept at UTC+9 and UTC+7) with two faults in the years
+// this app covers:
+//
+// - its leap-month rule goes wrong in 2033: it puts that year's leap month
+//   after month 7, where the official calendars put it after month 11, so
+//   months 8 to 11 of 2033 start a month late;
+// - its day count slips: in about one month a year, every day from some point
+//   in the month on comes out a day early (the 15th on the 14th's date), a
+//   rounding fault in converting the date there and back.
+//
+// So the calendar is computed again here, the way GB/T 33661-2017 defines it:
+//
+// - a day runs from midnight to midnight at the calendar's UTC offset;
+// - a month starts on the day of a new moon, and its nth day is n - 1 days on;
+// - the month holding the winter solstice is month 11;
+// - when 13 months start between one month 11 and the next, the first of them
+//   without a principal solar term (the sun's longitude a multiple of 30°) is
+//   a leap month, numbered as the month before it;
+// - the others are numbered in order; the month with the sun at 330° is 1.
+//
+// New moons come from Meeus' algorithm (astronomia's moonphase, good to a few
+// seconds), the sun's longitude from VSOP87, and ΔT from astronomia's table.
+// Then every library rule naming a lunar day is checked in every lunar year:
+// where date-holidays' rule engine gives another date than the true calendar,
+// the rule is evaluated again, in a scratch calendar, with the lunar date
+// date-holidays needs to land on the true day, so its clauses ("not on
+// Sunday", "if Sunday then next Monday", "P3D") apply to the right day.
+
+/** UTC offset, in hours, each date-holidays lunisolar calendar keeps its days in. */
+export const LUNISOLAR_ZONES = { chinese: 8, korean: 9, vietnamese: 7 };
+
+const EARTH = new planetposition.Planet(vsop87Bearth);
+const J2000 = 2451545;
+const UNIX_EPOCH_JDN = 2440588;
+const TROPICAL_YEAR = 365.2422;
+/** The years the calendars are computed for: the app's, and a margin either side. */
+const LUNAR_FROM = FROM - 3;
+const LUNAR_TO = TO + 3;
+
+/** A moment in Terrestrial Time (a JDE) as a date at a UTC offset, and how far into it. */
+function zoneDate(jde, zone) {
+  const jd = jde - deltat.deltaT(2000 + (jde - J2000) / 365.25) / 86400;
+  const local = jd + 0.5 + zone / 24;
+  const day = Math.floor(local);
+  return {
+    date: new Date((day - UNIX_EPOCH_JDN) * 86_400_000).toISOString().slice(0, 10),
+    minutes: (local - day) * 1440,
+  };
+}
+
+/** When the sun's apparent longitude reaches `degrees`, starting near `guess`. */
+function solarTermJde(degrees, guess) {
+  const target = (degrees * Math.PI) / 180;
+  let jde = guess;
+  for (let i = 0; i < 30; i++) {
+    const { lon } = solar.apparentVSOP87(EARTH, jde);
+    const diff = ((((target - lon + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
+    jde += (diff * TROPICAL_YEAR) / (2 * Math.PI);
+    if (Math.abs(diff) < 1e-9) break;
+  }
+  return jde;
+}
+
+const trueMonthsCache = new Map();
+
+/**
+ * The months of one lunisolar calendar ("chinese", "korean" or "vietnamese")
+ * from about 2023 to 2053, in order: { lunarYear, month, leap, start, end }
+ * with `end` the next month's start, plus the minutes past local midnight of
+ * its new moon and of its principal terms (how close a call each one is).
+ * `lunarYear` is the Gregorian year its month 1 starts in.
+ */
+export function lunisolarMonths(kind) {
+  const cached = trueMonthsCache.get(kind);
+  if (cached) return cached;
+  const zone = LUNISOLAR_ZONES[kind];
+  if (zone === undefined) throw new Error(`No lunisolar calendar called ${kind}`);
+
+  // A year either side, so the first and last winter solstices are covered.
+  const moons = [];
+  for (let k = Math.floor((LUNAR_FROM - 1 - 2000) * 12.3685); k <= Math.ceil((LUNAR_TO + 2 - 2000) * 12.3685); k++) {
+    moons.push(zoneDate(moonphase.newMoon(2000 + (k + 0.1) / 12.3685), zone));
+  }
+  const terms = [];
+  for (let year = LUNAR_FROM - 2; year <= LUNAR_TO + 2; year++) {
+    for (let degrees = 0; degrees < 360; degrees += 30) {
+      const guess = J2000 + (year - 2000) * TROPICAL_YEAR + 79.3 + (degrees / 360) * TROPICAL_YEAR;
+      terms.push({ degrees, ...zoneDate(solarTermJde(degrees, guess), zone) });
+    }
+  }
+
+  const months = [];
+  for (let i = 0; i + 1 < moons.length; i++) {
+    const start = moons[i].date;
+    const end = moons[i + 1].date;
+    months.push({
+      start,
+      end,
+      moonMinutes: moons[i].minutes,
+      terms: terms.filter((term) => term.date >= start && term.date < end),
+    });
+  }
+
+  const solstices = months.flatMap((month, index) => (month.terms.some((t) => t.degrees === 270) ? [index] : []));
+  const labelled = [];
+  for (let s = 0; s + 1 < solstices.length; s++) {
+    const [first, next] = [solstices[s], solstices[s + 1]];
+    let leapToPlace = next - first === 13;
+    let number = 11;
+    for (let i = first; i < next; i++) {
+      const month = months[i];
+      if (i > first && leapToPlace && month.terms.length === 0) {
+        leapToPlace = false;
+        labelled.push({ ...month, month: number, leap: true });
+        continue;
+      }
+      if (i > first) number = (number % 12) + 1;
+      labelled.push({ ...month, month: number, leap: false });
+    }
+  }
+
+  const result = labelled.map(({ start, end, month, leap, moonMinutes, terms: inMonth }) => ({
+    lunarYear: lunarYearOf(month, start),
+    month,
+    leap,
+    start,
+    end,
+    moonMinutes,
+    terms: inMonth.map(({ degrees, date, minutes }) => ({ degrees, date, minutes })),
+  }));
+  trueMonthsCache.set(kind, result);
+  return result;
+}
+
+/**
+ * The lunar year a date in a given lunar month belongs to: months 11 and 12
+ * (and their days) can fall in January to March of the next Gregorian year.
+ */
+function lunarYearOf(month, date) {
+  const year = Number(date.slice(0, 4));
+  return month >= 11 && Number(date.slice(5, 7)) <= 3 ? year - 1 : year;
+}
+
+const trueStartsCache = new Map();
+
+/**
+ * The true calendar's month starts, `${lunarYear}|${month}|${leap ? 1 : 0}` →
+ * date. As in date-holidays, a leap label for a month that has no leap month
+ * names the month after it.
+ */
+function trueMonthStarts(kind) {
+  let starts = trueStartsCache.get(kind);
+  if (starts) return starts;
+  starts = new Map();
+  const months = lunisolarMonths(kind);
+  months.forEach((month, index) => {
+    starts.set(`${month.lunarYear}|${month.month}|${month.leap ? 1 : 0}`, month.start);
+    if (!month.leap && months[index + 1] && !months[index + 1].leap) {
+      starts.set(`${month.lunarYear}|${month.month}|1`, months[index + 1].start);
+    }
+  });
+  trueStartsCache.set(kind, starts);
+  return starts;
+}
+
+/**
+ * The Gregorian date of a day in a lunisolar month, on the true calendar.
+ * Day 0 is the day before the 1st (New Year's Eve for month 1), and a day past
+ * a 29-day month's end runs into the next month, as in date-holidays' rules.
+ * Undefined outside about 2023 to 2053. Supplements can use this for Chinese,
+ * Korean and Vietnamese festivals instead of date-holidays' rules.
+ */
+export function lunisolarDate(kind, lunarYear, month, day, leap = false) {
+  if (!(kind in LUNISOLAR_ZONES)) throw new Error(`No lunisolar calendar called ${kind}`);
+  const start = trueMonthStarts(kind).get(`${lunarYear}|${month}|${leap ? 1 : 0}`);
+  return start === undefined ? undefined : addDays(start, day - 1);
+}
+
+const engineCache = new Map();
+
+/** The dates date-holidays' rule engine gives a plain lunar rule in a Gregorian year. */
+function engineDates(spec, year) {
+  let cached = engineCache.get(spec);
+  if (!cached) {
+    const calendar = new Holidays({});
+    if (!calendar.setHoliday(spec, { name: { en: spec }, type: "observance" })) {
+      throw new Error(`date-holidays cannot read the rule "${spec}"`);
+    }
+    cached = { calendar, years: new Map() };
+    engineCache.set(spec, cached);
+  }
+  if (!cached.years.has(year)) {
+    cached.years.set(year, (cached.calendar.getHolidays(year, "en") ?? []).map((h) => h.date.slice(0, 10)));
+  }
+  return cached.years.get(year);
+}
+
+/** The date date-holidays' rule engine gives a lunar date in a lunar year. */
+function engineDate(kind, lunarYear, month, leap, day) {
+  const spec = `${kind} ${pad(month)}-${leap}-${pad(day)}`;
+  for (const year of [lunarYear, lunarYear + 1]) {
+    for (const date of engineDates(spec, year)) {
+      if (lunarYearOf(month, date) === lunarYear) return date;
+    }
+  }
+  return undefined;
+}
+
+const engineMonthsCache = new Map();
+
+/**
+ * Where date-holidays' rule engine puts the 1st of each month label, in the
+ * shape of trueMonthStarts().
+ */
+function engineMonthStarts(kind) {
+  let starts = engineMonthsCache.get(kind);
+  if (starts) return starts;
+  const calendar = new Holidays({});
+  for (let month = 1; month <= 12; month++) {
+    for (const leap of [0, 1]) {
+      calendar.setHoliday(`${kind} ${pad(month)}-${leap}-01`, { name: { en: `${month} ${leap}` }, type: "observance" });
+    }
+  }
+  starts = new Map();
+  for (let year = LUNAR_FROM; year <= LUNAR_TO; year++) {
+    for (const holiday of calendar.getHolidays(year, "en") ?? []) {
+      const [month, leap] = holiday.name.split(" ").map(Number);
+      const date = holiday.date.slice(0, 10);
+      starts.set(`${lunarYearOf(month, date)}|${month}|${leap}`, date);
+    }
+  }
+  engineMonthsCache.set(kind, starts);
+  return starts;
+}
+
+/**
+ * Every month whose first day date-holidays and the true calendar disagree
+ * on, for the lunar years from `from` to `to`: { kind, lunarYear, month,
+ * leap, library, true } (undefined where that side has no such month, as
+ * with a leap month only one of them has). The slipping day count within a
+ * month is not listed here; lunisolarCorrectionsFor() shows the days it moves.
+ */
+export function lunisolarDisagreements(from = FROM - 1, to = TO + 1) {
+  const out = [];
+  for (const kind of Object.keys(LUNISOLAR_ZONES)) {
+    const library = engineMonthStarts(kind);
+    // The library's own months: every plain label, and a leap label that does
+    // not just name the month after (a day no plain label has).
+    const plainDays = new Set([...library].filter(([key]) => key.endsWith("|0")).map(([, date]) => date));
+    const libraryMonths = new Map([...library].filter(([key, date]) => key.endsWith("|0") || !plainDays.has(date)));
+    const trueMonths = new Map(
+      lunisolarMonths(kind).map((month) => [`${month.lunarYear}|${month.month}|${month.leap ? 1 : 0}`, month.start]),
+    );
+    for (const key of new Set([...libraryMonths.keys(), ...trueMonths.keys()])) {
+      const [lunarYear, month, leap] = key.split("|").map(Number);
+      if (lunarYear < from || lunarYear > to) continue;
+      const libraryDate = libraryMonths.get(key);
+      const trueDate = trueMonths.get(key);
+      if (libraryDate !== trueDate) {
+        out.push({ kind, lunarYear, month, leap: leap === 1, library: libraryDate, true: trueDate });
+      }
+    }
+  }
+  return out.sort(
+    (a, b) =>
+      compareText(a.kind, b.kind) || a.lunarYear - b.lunarYear || a.month - b.month || Number(a.leap) - Number(b.leap),
+  );
+}
+
+/**
+ * A lunar date date-holidays' rule engine turns into `date`: { month, leap,
+ * day } in its own (faulty) calendar. The month is the label whose 1st it
+ * puts nearest before the date; the day is the count from there, or the one
+ * either side that the slipping day count needs, whichever lands on the date.
+ */
+function engineLabel(kind, date) {
+  const candidates = [];
+  for (const [key, start] of engineMonthStarts(kind)) {
+    const offset = daysBetween(start, date);
+    if (offset < 0 || offset > 30) continue;
+    const [lunarYear, month, leap] = key.split("|").map(Number);
+    candidates.push({ lunarYear, month, leap, offset });
+  }
+  candidates.sort((a, b) => a.offset - b.offset || a.leap - b.leap);
+  for (const { lunarYear, month, leap, offset } of candidates) {
+    for (const shift of [0, 1, -1, 2, -2]) {
+      const day = offset + 1 + shift;
+      if (day < 0 || day > 30) continue;
+      if (engineDate(kind, lunarYear, month, leap, day) === date) return { month, leap, day };
+    }
+  }
+  throw new Error(`date-holidays has no ${kind} lunar date that lands on ${date}`);
+}
+
+const LUNISOLAR_RULE = /\b(chinese|korean|vietnamese) (?:\d+-\d{1,2}-)?(\d{1,2})-([01])-(\d{1,2})\b/;
+
+/** How far a holiday can sit from the lunar date its rule names (spans, "if Sunday then"). */
+const RULE_REACH = 12;
+
+/** A library rule's options as setHoliday() takes them, without what it added. */
+function ruleOptions(options) {
+  const rest = { ...options };
+  delete rest.fn;
+  if (rest.active) {
+    // date-holidays turns "YYYY-MM-DD" into a local-time Date; read it back
+    // the same way, which gives the original date in any time zone.
+    const text = (date) =>
+      date ? `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` : undefined;
+    rest.active = rest.active.map(({ from, to }) => ({ from: text(from), to: text(to) }));
+  }
+  return rest;
+}
+
+const correctionsCache = new WeakMap();
+
+/**
+ * For one calendar (a country or a state), every lunisolar rule whose day
+ * date-holidays has wrong in some lunar year: rule → [{ kind, library, true,
+ * holidays }], with `holidays` what the rule gives when evaluated on the true
+ * day.
+ */
+function lunisolarCorrections(calendar, from, to) {
+  let corrections = correctionsCache.get(calendar);
+  if (corrections) return corrections;
+  corrections = new Map();
+
+  for (const [rule, options] of Object.entries(calendar.holidays)) {
+    if (!options?.fn) continue;
+    const match = LUNISOLAR_RULE.exec(rule);
+    if (!match) continue;
+    const [spec, kind] = match;
+    const [month, leap, day] = match.slice(2).map(Number);
+
+    for (let lunarYear = Math.max(from - 1, LUNAR_FROM + 1); lunarYear <= Math.min(to, LUNAR_TO - 1); lunarYear++) {
+      const wrong = engineDate(kind, lunarYear, month, leap, day);
+      const right = lunisolarDate(kind, lunarYear, month, day, leap === 1);
+      if (!wrong || !right || wrong === right) continue;
+
+      const label = engineLabel(kind, right);
+      const fixed = rule.replace(spec, `${kind} ${pad(label.month)}-${label.leap}-${pad(label.day)}`);
+      const scratch = new Holidays({});
+      if (!scratch.setHoliday(fixed, ruleOptions(options))) {
+        throw new Error(`date-holidays cannot read the corrected rule "${fixed}"`);
+      }
+      const year = Number(right.slice(0, 4));
+      const holidays = [];
+      for (let y = year - 1; y <= year + 1; y++) {
+        for (const holiday of scratch.getHolidays(y, "en") ?? []) {
+          if (Math.abs(daysBetween(right, holiday.date.slice(0, 10))) <= RULE_REACH) {
+            holidays.push({ ...holiday, rule });
+          }
+        }
+      }
+      corrections.set(rule, [...(corrections.get(rule) ?? []), { kind, library: wrong, true: right, holidays }]);
+    }
+  }
+  correctionsCache.set(calendar, corrections);
+  return corrections;
+}
+
+/** A calendar's holidays for a year, with its lunisolar days corrected. */
+function holidaysIn(calendar, year, from, to) {
+  const listed = calendar.getHolidays(year, "en") ?? [];
+  const corrections = lunisolarCorrections(calendar, from, to);
+  if (corrections.size === 0) return listed;
+
+  const kept = listed.filter((holiday) => {
+    const wrong = corrections.get(holiday.rule);
+    return !wrong?.some((c) => Math.abs(daysBetween(c.library, holiday.date.slice(0, 10))) <= RULE_REACH);
+  });
+  for (const list of corrections.values()) {
+    for (const correction of list) {
+      for (const holiday of correction.holidays) {
+        if (holiday.date.startsWith(`${year}-`)) kept.push(holiday);
+      }
+    }
+  }
+  return kept;
+}
+
+// ---------------------------------------------------------------------------
+// The library's entries.
+
+/** A date-holidays calendar for a country or one of its states, with RULE_FIXES applied. */
+function libraryCalendar(country, state) {
+  const calendar = state ? new Holidays(country, state, OPTIONS) : new Holidays(country, OPTIONS);
+  const fix = RULE_FIXES[country];
+  if (!fix) return calendar;
+
+  const removed = {};
+  for (const rule of fix.remove) {
+    const options = calendar.holidays[rule];
+    if (!options) {
+      if (state) continue;
+      throw new Error(`RULE_FIXES ${country}: date-holidays has no rule "${rule}" any more; look at the fix again`);
+    }
+    removed[rule] = ruleOptions(options);
+    calendar.setHoliday(rule, false);
+  }
+  for (const [rule, options] of Object.entries(fix.add)) {
+    const opts = options.from ? removed[options.from] : structuredClone(options);
+    if (!opts) continue;
+    if (!calendar.setHoliday(rule, opts)) {
+      throw new Error(`RULE_FIXES ${country}: date-holidays cannot read the rule "${rule}"`);
+    }
+  }
+  return calendar;
+}
+
 /**
  * One date-holidays calendar (a country, or a country and one of its states)
  * as one entry per day. A holiday that runs several days (Songkran, Eid, the
@@ -162,7 +708,7 @@ function calendarEntries(calendar, country, from, to) {
   // The year before too, for a holiday that starts in late December and runs
   // into the first year.
   for (let year = from - 1; year <= to; year++) {
-    for (const holiday of calendar.getHolidays(year, "en") ?? []) {
+    for (const holiday of holidaysIn(calendar, year, from, to)) {
       if (!LIBRARY_KINDS.has(holiday.type)) continue;
 
       const first = holiday.date.slice(0, 10);
@@ -173,7 +719,11 @@ function calendarEntries(calendar, country, from, to) {
       const name = cleanName(country, holiday.name);
       const libraryNote = cleanNote(holiday.note);
       const kind = holiday.type === "public" && GROUP_ONLY.test(libraryNote) ? "optional" : holiday.type;
-      const note = joinNotes(libraryNote, LUNAR_ISLAMIC.test(holiday.rule ?? "") ? MOON_NOTE : "");
+      const note = joinNotes(
+        libraryNote,
+        LIBRARY_NOTES[country]?.[name] ?? "",
+        LUNAR_ISLAMIC.test(holiday.rule ?? "") ? MOON_NOTE : "",
+      );
 
       for (let offset = 0; offset < days; offset++) {
         const date = addDays(first, offset);
@@ -202,7 +752,7 @@ function dedupe(entries) {
  * Luther King Jr. Day, say) adds nothing a traveller needs, so it is left out.
  */
 export function libraryEntries(country, from = FROM, to = TO) {
-  const national = dedupe(calendarEntries(new Holidays(country, OPTIONS), country, from, to));
+  const national = dedupe(calendarEntries(libraryCalendar(country), country, from, to));
   const nationalDaysOff = new Set(
     [...national.values()].filter((entry) => DAY_OFF.has(entry.kind)).map((entry) => entry.date),
   );
@@ -215,7 +765,7 @@ export function libraryEntries(country, from = FROM, to = TO) {
 
   for (const code of Object.keys(states).sort()) {
     const region = cleanRegion(states[code], code);
-    const calendar = new Holidays(country, code, OPTIONS);
+    const calendar = libraryCalendar(country, code);
     for (const entry of dedupe(calendarEntries(calendar, country, from, to)).values()) {
       if (!DAY_OFF.has(entry.kind)) continue;
       const key = entryKey(entry);
@@ -257,6 +807,31 @@ export function libraryEntries(country, from = FROM, to = TO) {
 }
 
 /**
+ * Every library day date-holidays' own calendar puts on another date than the
+ * true lunisolar calendar, for one country: { kind, rule, library, true }.
+ * For the summary and the tests; the build has already moved them.
+ */
+export function lunisolarCorrectionsFor(country, from = FROM, to = TO) {
+  const out = [];
+  const calendars = [libraryCalendar(country)];
+  for (const code of Object.keys(new Holidays().getStates(country, "en") ?? {}).sort()) {
+    calendars.push(libraryCalendar(country, code));
+  }
+  const seen = new Set();
+  for (const calendar of calendars) {
+    for (const [rule, list] of lunisolarCorrections(calendar, from, to)) {
+      for (const correction of list) {
+        const key = `${rule}|${correction.library}`;
+        if (seen.has(key) || !inRange(correction.true, from, to)) continue;
+        seen.add(key);
+        out.push({ kind: correction.kind, rule, library: correction.library, true: correction.true });
+      }
+    }
+  }
+  return out.sort((a, b) => compareText(a.true, b.true) || compareText(a.rule, b.rule));
+}
+
+/**
  * The merge rule. Library entries keep one per (date, name); then each
  * supplement entry, in order, replaces whatever already has its date and name,
  * or is added. Returns the entries sorted.
@@ -266,6 +841,116 @@ export function mergeEntries(library, supplements) {
   for (const entry of supplements) byKey.set(entryKey(entry), entry);
   return [...byKey.values()].sort(compareEntries);
 }
+
+// ---------------------------------------------------------------------------
+// Dropping library entries.
+
+const DROP_KEYS = new Set(["name", "from", "to", "dates", "note"]);
+const MONTH_DAY = /^(\d{2})-(\d{2})$/;
+
+/** A drop rule as the build summary and errors show it. */
+export function describeDrop(rule) {
+  const parts = [`name: ${rule.name instanceof RegExp ? String(rule.name) : JSON.stringify(rule.name)}`];
+  if (rule.from !== undefined) parts.push(`from: ${rule.from}`);
+  if (rule.to !== undefined) parts.push(`to: ${rule.to}`);
+  if (rule.dates !== undefined) parts.push(`dates: ${JSON.stringify(rule.dates)}`);
+  if (rule.note !== undefined) parts.push(`note: ${String(rule.note)}`);
+  return `{ ${parts.join(", ")} }`;
+}
+
+/** Checks a supplement's `drop` list; throws naming the file on anything malformed. */
+function dropRules(drop, where) {
+  if (drop === undefined) return [];
+  if (!Array.isArray(drop)) throw new Error(`${where}: drop must be an array of rules`);
+  return drop.map((rule, index) => {
+    const at = `${where}: drop[${index}]`;
+    if (!rule || typeof rule !== "object" || Array.isArray(rule) || rule instanceof RegExp) {
+      throw new Error(`${at} must be an object such as { name: "Holiday" }`);
+    }
+    for (const key of Object.keys(rule)) {
+      if (!DROP_KEYS.has(key)) throw new Error(`${at} has an unknown field ${JSON.stringify(key)}`);
+    }
+    if (!(rule.name instanceof RegExp) && (typeof rule.name !== "string" || nameKey(rule.name) === "")) {
+      throw new Error(`${at}: name must be a holiday's name or a RegExp`);
+    }
+    for (const key of ["from", "to"]) {
+      if (rule[key] !== undefined && !Number.isInteger(rule[key])) {
+        throw new Error(`${at}: ${key} must be a whole year`);
+      }
+    }
+    const from = rule.from ?? FROM;
+    const to = rule.to ?? TO;
+    if (from > to) throw new Error(`${at}: from ${from} is after to ${to}`);
+    if (rule.dates !== undefined) {
+      if (!Array.isArray(rule.dates) || rule.dates.length === 0) {
+        throw new Error(`${at}: dates must be a list of "MM-DD" month-days`);
+      }
+      for (const date of rule.dates) {
+        // 2024 is a leap year, so 02-29 passes.
+        if (typeof date !== "string" || !MONTH_DAY.test(date) || !validDate(`2024-${date}`)) {
+          throw new Error(`${at}: ${JSON.stringify(date)} is not an "MM-DD" month-day`);
+        }
+      }
+    }
+    if (rule.note !== undefined && !(rule.note instanceof RegExp)) {
+      throw new Error(`${at}: note must be a RegExp`);
+    }
+    return {
+      name: rule.name,
+      from,
+      to,
+      dates: rule.dates ? new Set(rule.dates) : undefined,
+      note: rule.note,
+      text: describeDrop(rule),
+    };
+  });
+}
+
+function testRegExp(pattern, text) {
+  pattern.lastIndex = 0;
+  return pattern.test(text);
+}
+
+/** Whether a drop rule matches a library entry of `country`. */
+function dropMatches(rule, entry, country) {
+  const year = Number(entry.date.slice(0, 4));
+  if (year < rule.from || year > rule.to) return false;
+  if (rule.dates && !rule.dates.has(entry.date.slice(5))) return false;
+  if (rule.note && !testRegExp(rule.note, entry.note ?? "")) return false;
+  const names = libraryNames(country, entry.name);
+  return rule.name instanceof RegExp
+    ? names.some((name) => testRegExp(rule.name, name))
+    : names.some((name) => nameKey(name) === nameKey(rule.name));
+}
+
+/**
+ * The library's entries for a country less what its supplements drop. Every
+ * rule must match at least one entry (one whose years overlap the build's):
+ * a rule that matches nothing is a mistake, or a library change, to look at.
+ * Each supplement's `dropped` count is set on it.
+ */
+export function applyDrops(country, library, supplements, from = FROM, to = TO) {
+  const dropped = new Set();
+  for (const supplement of supplements) {
+    const mine = new Set();
+    for (const rule of supplement.drop ?? []) {
+      if (rule.to < from || rule.from > to) continue;
+      const matched = library.filter((entry) => dropMatches(rule, entry, country));
+      if (matched.length === 0) {
+        throw new Error(
+          `${supplement.file} ${country}: drop ${rule.text} matches no date-holidays entry; check the name and years against the library`,
+        );
+      }
+      for (const entry of matched) mine.add(entry);
+    }
+    supplement.dropped = mine.size;
+    for (const entry of mine) dropped.add(entry);
+  }
+  return library.filter((entry) => !dropped.has(entry));
+}
+
+// ---------------------------------------------------------------------------
+// Supplements.
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -294,6 +979,7 @@ export function supplementEntries(supplements, file, from = FROM, to = TO) {
     if (typeof supplement.entries !== "function") {
       throw new Error(`${where}: entries must be a function of the year`);
     }
+    const drop = dropRules(supplement.drop, where);
 
     const entries = [];
     for (let year = from; year <= to; year++) {
@@ -324,15 +1010,24 @@ export function supplementEntries(supplements, file, from = FROM, to = TO) {
       }
     }
 
-    return { country: supplement.country, source: supplement.source.trim(), file, entries };
+    // `dropped` is how many library entries `drop` removed, set by applyDrops().
+    return { country: supplement.country, source: supplement.source.trim(), file, drop, entries, dropped: 0 };
   });
+}
+
+/**
+ * Whether a file in the supplements folder is a supplement: an .mjs module,
+ * but not a helper ("_shared.mjs") or a test ("thai.test.mjs").
+ */
+export function isSupplementFile(file) {
+  return file.endsWith(".mjs") && !file.startsWith("_") && !file.endsWith(".test.mjs");
 }
 
 /** Every supplement in the folder, in file-name order. A missing folder is none. */
 export async function loadSupplements(dir, from = FROM, to = TO) {
   let files;
   try {
-    files = (await readdir(dir)).filter((file) => file.endsWith(".mjs")).sort();
+    files = (await readdir(dir)).filter(isSupplementFile).sort();
   } catch (error) {
     if (error.code === "ENOENT") return [];
     throw error;
@@ -432,12 +1127,16 @@ export async function build({
     .filter((country) => !only || only.includes(country))
     .sort();
   const files = new Map();
-  const stats = { countries: [], supplements: [], nonLatin: [] };
+  const stats = { countries: [], supplements: [], nonLatin: [], lunisolar: [] };
 
   for (const country of countries) {
-    const library = libraryCountries.includes(country) ? libraryEntries(country, from, to) : [];
-    const libraryKeys = new Set(library.map(entryKey));
     const own = supplements.filter((supplement) => supplement.country === country);
+    const fullLibrary = libraryCountries.includes(country) ? libraryEntries(country, from, to) : [];
+    const library = applyDrops(country, fullLibrary, own, from, to);
+    const libraryKeys = new Set(library.map(entryKey));
+    if (libraryCountries.includes(country)) {
+      for (const moved of lunisolarCorrectionsFor(country, from, to)) stats.lunisolar.push({ country, ...moved });
+    }
 
     for (const supplement of own) {
       const keys = new Set(supplement.entries.map(entryKey));
@@ -448,6 +1147,7 @@ export async function build({
         entries: keys.size,
         replaced,
         added: keys.size - replaced,
+        dropped: supplement.dropped,
       });
     }
 
@@ -512,12 +1212,31 @@ function summary({ files, stats }, from, to) {
       .join(", ")}`,
   ];
 
+  lines.push(`Rule fixes: ${Object.keys(RULE_FIXES).join(", ")}. Name aliases: ${Object.keys(NAME_ALIASES).join(", ")}.`);
+  const disagreements = lunisolarDisagreements(from - 1, to + 1);
+  lines.push(
+    disagreements.length === 0
+      ? "Lunisolar calendars: date-holidays agrees with the astronomical calendar."
+      : `Lunisolar months date-holidays puts on another day (${disagreements.length}): ${disagreements
+          .map((d) => `${d.kind} ${d.lunarYear} ${d.leap ? "leap " : ""}${d.month} (${d.library ?? "none"} not ${d.true ?? "none"})`)
+          .join("; ")}`,
+  );
+  if (stats.lunisolar.length > 0) {
+    lines.push(
+      `Library days moved to the true lunisolar date (${stats.lunisolar.length}): ${stats.lunisolar
+        .map((m) => `${m.country} ${m.rule} ${m.library} -> ${m.true}`)
+        .join("; ")}`,
+    );
+  }
+
   if (stats.supplements.length === 0) {
     lines.push("Supplements: none");
   } else {
     lines.push("Supplements:");
     for (const s of stats.supplements) {
-      lines.push(`  ${s.file} ${s.country}: ${s.entries} entries, ${s.added} added, ${s.replaced} replaced`);
+      lines.push(
+        `  ${s.file} ${s.country}: ${s.entries} entries, ${s.added} added, ${s.replaced} replaced, ${s.dropped} library entries dropped`,
+      );
     }
   }
 

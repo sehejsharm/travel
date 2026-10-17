@@ -4,10 +4,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import {
+  NAME_ALIASES,
+  RULE_FIXES,
+  applyDrops,
   build,
+  cleanName,
   entryKey,
+  isSupplementFile,
   libraryEntries,
   loadSupplements,
+  lunisolarCorrectionsFor,
+  lunisolarDate,
+  lunisolarDisagreements,
+  lunisolarMonths,
   mergeEntries,
   supplementEntries,
 } from "../../../scripts/build-holidays.mjs";
@@ -16,6 +25,10 @@ import type { CountryHolidays } from "./holiday-data";
 
 const DATA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "holiday-data");
 const KINDS = ["public", "bank", "optional", "observance", "festival"];
+/** The lunisolar checks compute three calendars through date-holidays' rule engine. */
+const SLOW = 120_000;
+
+type Entry = { date: string; kind: string; name: string; note: string };
 
 /** A module with nothing loaded, so each test starts from the same place. */
 async function fresh() {
@@ -248,6 +261,98 @@ describe("holiday generator", () => {
     ).toThrow(/unknown kind/);
   });
 
+  it("rejects a malformed drop rule with the file named", () => {
+    const valid = { country: "LK", source: "Somewhere, https://example.org", entries: () => [] };
+    const bad = (drop: unknown) => () => supplementEntries([{ ...valid, drop }], "bad.mjs");
+
+    expect(bad({ name: "X" })).toThrow(/bad\.mjs \[0\]: drop must be an array/);
+    expect(bad(["X"])).toThrow(/bad\.mjs \[0\]: drop\[0\] must be an object/);
+    expect(bad([{ name: "X", year: 2027 }])).toThrow(/unknown field "year"/);
+    expect(bad([{ from: 2027 }])).toThrow(/name must be/);
+    expect(bad([{ name: "  " }])).toThrow(/name must be/);
+    expect(bad([{ name: "X", from: 2027.5 }])).toThrow(/from must be a whole year/);
+    expect(bad([{ name: "X", from: 2030, to: 2027 }])).toThrow(/from 2030 is after to 2027/);
+    expect(bad([{ name: "X", dates: ["13-01"] }])).toThrow(/"13-01" is not an "MM-DD" month-day/);
+    expect(bad([{ name: "X", dates: [] }])).toThrow(/dates must be a list/);
+    expect(bad([{ name: "X", note: "Kerala" }])).toThrow(/note must be a RegExp/);
+    expect(bad([{ name: /X/, dates: ["02-29"], note: /Kerala/, from: 2028, to: 2028 }])).not.toThrow();
+  });
+
+  it("drops library entries by name, years, month-days and note", () => {
+    const library: Entry[] = [
+      { date: "2026-11-08", kind: "public", name: "Deepavali Festival Day", note: "" },
+      { date: "2027-11-08", kind: "public", name: "Deepavali Festival Day", note: "" },
+      { date: "2026-05-01", kind: "public", name: "Vesak Full Moon Poya Day", note: "" },
+      { date: "2027-05-01", kind: "public", name: "Vesak Full Moon Poya Day", note: "" },
+      { date: "2026-04-14", kind: "optional", name: "Vaisakhi", note: "Day off in Kerala" },
+      { date: "2026-04-14", kind: "optional", name: "Vaisakhi", note: "Day off in Punjab" },
+      { date: "2026-06-29", kind: "public", name: "Poson Full Moon Poya Day", note: "" },
+    ];
+    const [supplement] = supplementEntries(
+      [
+        {
+          country: "LK",
+          source: "Somewhere, https://example.org",
+          drop: [
+            // Matched as names are: case and punctuation do not matter.
+            { name: "deepavali festival-day", from: 2027 },
+            { name: /Full Moon Poya Day$/, dates: ["05-01"] },
+            { name: "Vaisakhi", note: /Kerala/ },
+          ],
+          entries: () => [],
+        },
+      ],
+      "lk.mjs",
+    );
+    const kept = applyDrops("LK", library, [supplement]);
+
+    expect(kept.map((entry: Entry) => `${entry.date} ${entry.name} ${entry.note}`.trim())).toEqual([
+      "2026-11-08 Deepavali Festival Day",
+      "2026-04-14 Vaisakhi Day off in Punjab",
+      "2026-06-29 Poson Full Moon Poya Day",
+    ]);
+    expect(supplement.dropped).toBe(4);
+  });
+
+  it("drops nothing a supplement adds, and checks each rule against the library", () => {
+    const [supplement] = supplementEntries(
+      [
+        {
+          country: "LK",
+          source: "Somewhere, https://example.org",
+          drop: [{ name: "Own Day" }],
+          entries: (year: number) => [{ date: `${year}-03-03`, kind: "public", name: "Own Day" }],
+        },
+      ],
+      "own.mjs",
+    );
+    expect(() => applyDrops("LK", [], [supplement])).toThrow(/own\.mjs LK: drop \{ name: "Own Day" \} matches no/);
+    // A rule whose years are outside the build's is not checked.
+    const [later] = supplementEntries(
+      [{ country: "LK", source: "Somewhere", drop: [{ name: "Gone", from: 2040 }], entries: () => [] }],
+      "later.mjs",
+      2026,
+      2030,
+    );
+    expect(applyDrops("LK", [], [later], 2026, 2030)).toEqual([]);
+  });
+
+  it("matches a drop rule under a library name the generator aliases", () => {
+    const [supplement] = supplementEntries(
+      [{ country: "US", source: "Somewhere", drop: [{ name: "Day after Thanksgiving Day" }], entries: () => [] }],
+      "us.mjs",
+    );
+    const library = [{ date: "2026-11-27", kind: "optional", name: "Day After Thanksgiving", note: "" }];
+    expect(applyDrops("US", library, [supplement])).toEqual([]);
+  });
+
+  it("loads only supplement modules from the folder", () => {
+    expect(isSupplementFile("india.mjs")).toBe(true);
+    expect(isSupplementFile("_shared.mjs")).toBe(false);
+    expect(isSupplementFile("thai.test.mjs")).toBe(false);
+    expect(isSupplementFile("README.md")).toBe(false);
+  });
+
   it("calls a supplement for every year and drops dates outside the range", () => {
     const years: number[] = [];
     const [supplement] = supplementEntries(
@@ -291,6 +396,10 @@ describe("holiday generator", () => {
       `export default [{
         country: "JP",
         source: "Test source, https://example.org/jp",
+        drop: [
+          { name: "Sports Day", from: 2027, to: 2027 },
+          { name: /^Marine Day$/, dates: ["07-20"], to: 2026 },
+        ],
         entries: (year) => year === 2026 ? [
           { date: "2026-01-01", name: "New Year's Day", kind: "public", note: "Corrected by a supplement" },
           { date: "2026-07-07", name: "Tanabata", kind: "festival" },
@@ -302,6 +411,9 @@ describe("holiday generator", () => {
       }];\n`,
     );
     writeFileSync(path.join(dir, "README.md"), "Not a module.\n");
+    // Neither is loaded: one is a helper, the other a test.
+    writeFileSync(path.join(dir, "_shared.mjs"), `throw new Error("a helper was loaded as a supplement");\n`);
+    writeFileSync(path.join(dir, "a-jp.test.mjs"), `throw new Error("a test was loaded as a supplement");\n`);
 
     it("merges them into the country files, the index and the sources", async () => {
       const { files, stats } = await build({ supplementsDir: dir, countries: ["JP", "ZZ"] });
@@ -325,14 +437,43 @@ describe("holiday generator", () => {
         entries: 2,
         replaced: 1,
         added: 1,
+        dropped: 2,
       });
+
+      // Dropped from the library for the years and days named, and only those.
+      expect(jp.entries.filter(([, , name]) => name === "Sports Day").map(([date]) => date.slice(0, 4))).not.toContain("2027");
+      expect(jp.entries).toContainEqual(["2026-10-12", "public", "Sports Day", ""]);
+      expect(jp.entries.some(([date, , name]) => date === "2026-07-20" && name === "Marine Day")).toBe(false);
+      expect(jp.entries.some(([date, , name]) => date === "2027-07-19" && name === "Marine Day")).toBe(true);
+    });
+  });
+
+  describe("with a drop rule that matches nothing", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "holiday-supplements-"));
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+    writeFileSync(
+      path.join(dir, "b-jp.mjs"),
+      `export default [{
+        country: "JP",
+        source: "Test source, https://example.org/jp",
+        drop: [{ name: "No Such Holiday", from: 2030 }],
+        entries: () => [],
+      }];\n`,
+    );
+
+    it("stops the build, naming the file and the rule", async () => {
+      await expect(build({ supplementsDir: dir, countries: ["JP"] })).rejects.toThrow(
+        /b-jp\.mjs JP: drop \{ name: "No Such Holiday", from: 2030 \} matches no date-holidays entry/,
+      );
     });
   });
 
   it("matches the committed data for a country, byte for byte", async () => {
+    // Loading every supplement takes several seconds (the Indian and diaspora
+    // almanacs compute every year at import), so this gets a long timeout.
     const { files } = await build({ countries: ["JP"] });
     expect(files.get("JP.json")).toBe(readFileSync(path.join(DATA_DIR, "JP.json"), "utf8"));
-  });
+  }, 120_000);
 
   it("marks a state's own day off as optional, saying where", () => {
     const entries = libraryEntries("GB", 2026, 2026);
@@ -344,6 +485,149 @@ describe("holiday generator", () => {
     });
     // A national day off is not repeated under a state's name.
     expect(entries.filter((entry: { date: string }) => entry.date === "2026-12-25")).toHaveLength(1);
+  });
+});
+
+describe("holiday generator corrections", () => {
+  it("merges one holiday's two library names on a day", () => {
+    expect(cleanName("US", "Day after Thanksgiving Day")).toBe("Day After Thanksgiving");
+    expect(cleanName("VN", "Vietnamese New Year Holidays")).toBe("Vietnamese New Year");
+    expect(cleanName("GB", "Day after Thanksgiving Day")).toBe("Day after Thanksgiving Day");
+    expect(Object.keys(NAME_ALIASES).sort()).toEqual(["RU", "US", "VN"]);
+
+    const us = libraryEntries("US", 2026, 2026).filter((entry: Entry) => entry.date === "2026-11-27");
+    const after = us.filter((entry: Entry) => /Thanksgiving/.test(entry.name));
+    expect(after).toHaveLength(1);
+    expect(after[0].name).toBe("Day After Thanksgiving");
+    expect(after[0].note).toMatch(/^Day off in California, Delaware, /);
+
+    const vn = libraryEntries("VN", 2026, 2026).filter((entry: Entry) => entry.date.startsWith("2026-02"));
+    expect(vn.filter((entry: Entry) => /New Year/.test(entry.name)).map((entry: Entry) => [entry.date, entry.name])).toEqual([
+      ["2026-02-16", "Vietnamese New Year"],
+      ["2026-02-17", "Vietnamese New Year"],
+      ["2026-02-18", "Vietnamese New Year"],
+      ["2026-02-19", "Vietnamese New Year"],
+      ["2026-02-20", "Vietnamese New Year"],
+    ]);
+  });
+
+  it("starts Korean New Year the day before Seollal, keeping the substitute days", { timeout: SLOW }, () => {
+    const kr = libraryEntries("KR", 2026, 2030).filter((entry: Entry) => entry.name.startsWith("Korean New Year"));
+    expect(kr.map((entry: Entry) => `${entry.date} ${entry.name}`)).toEqual([
+      "2026-02-16 Korean New Year",
+      "2026-02-17 Korean New Year",
+      "2026-02-18 Korean New Year",
+      "2027-02-06 Korean New Year",
+      "2027-02-07 Korean New Year",
+      "2027-02-08 Korean New Year",
+      "2027-02-09 Korean New Year (substitute day)",
+      "2028-01-26 Korean New Year",
+      "2028-01-27 Korean New Year",
+      "2028-01-28 Korean New Year",
+      "2029-02-12 Korean New Year",
+      "2029-02-13 Korean New Year",
+      "2029-02-14 Korean New Year",
+      "2030-02-02 Korean New Year",
+      "2030-02-03 Korean New Year",
+      "2030-02-04 Korean New Year",
+      "2030-02-05 Korean New Year (substitute day)",
+    ]);
+  });
+
+  it("gives Taiwan the day before New Year's Eve and its make-up days", { timeout: SLOW }, () => {
+    const tw = libraryEntries("TW", 2026, 2027).filter(
+      (entry: Entry) => entry.kind === "public" && /New Year/.test(entry.name) && entry.date.slice(5, 7) === "02",
+    );
+    expect(tw.map((entry: Entry) => `${entry.date} ${entry.name}`)).toEqual([
+      "2026-02-15 Day before Chinese New Year's Eve",
+      "2026-02-16 Chinese New Year's Eve",
+      "2026-02-17 Chinese New Year",
+      "2026-02-18 The second day of the Chinese New Year",
+      "2026-02-19 The third day of the Chinese New Year",
+      "2026-02-20 Chinese New Year (substitute day)",
+      "2027-02-04 Day before Chinese New Year's Eve",
+      "2027-02-05 Chinese New Year's Eve",
+      "2027-02-06 Chinese New Year",
+      "2027-02-07 The second day of the Chinese New Year",
+      "2027-02-08 The third day of the Chinese New Year",
+      "2027-02-09 Chinese New Year (substitute day)",
+      "2027-02-10 Chinese New Year (substitute day)",
+    ]);
+  });
+
+  it("stops the build when a rule it fixes is gone from the library", () => {
+    RULE_FIXES.KR.remove.push("korean 12-0-99 no such rule");
+    try {
+      expect(() => libraryEntries("KR", 2026, 2026)).toThrow(/RULE_FIXES KR: date-holidays has no rule "korean 12-0-99/);
+    } finally {
+      RULE_FIXES.KR.remove.pop();
+    }
+  });
+
+  it("computes the lunisolar calendars' leap months", { timeout: SLOW }, () => {
+    const leaps = (kind: string) =>
+      lunisolarMonths(kind)
+        .filter((month: { leap: boolean }) => month.leap)
+        .map((month: { lunarYear: number; month: number; start: string }) => `${month.lunarYear} ${month.month} ${month.start}`);
+    // 2023 and 2025 as published; 2033's after month 11, not 7.
+    expect(leaps("chinese")).toEqual(expect.arrayContaining(["2023 2 2023-03-22", "2025 6 2025-07-25", "2033 11 2033-12-22"]));
+    expect(leaps("chinese").filter((leap: string) => leap.startsWith("2033"))).toEqual(["2033 11 2033-12-22"]);
+    expect(leaps("korean").filter((leap: string) => leap.startsWith("2033"))).toEqual(["2033 11 2033-12-22"]);
+    expect(leaps("vietnamese").filter((leap: string) => leap.startsWith("2033"))).toEqual(["2033 11 2033-12-22"]);
+  });
+
+  it("finds date-holidays' months wrong only in 2033", { timeout: SLOW }, () => {
+    const rows = lunisolarDisagreements(2025, 2051).map(
+      (d: { kind: string; lunarYear: number; month: number; leap: boolean; library?: string; true?: string }) =>
+        `${d.kind} ${d.lunarYear} ${d.leap ? "leap " : ""}${d.month}: ${d.library ?? "none"} not ${d.true ?? "none"}`,
+    );
+    const chineseLike = (kind: string) => [
+      `${kind} 2033 leap 7: 2033-08-25 not none`,
+      `${kind} 2033 8: 2033-09-23 not 2033-08-25`,
+      `${kind} 2033 9: 2033-10-23 not 2033-09-23`,
+      `${kind} 2033 10: 2033-11-22 not 2033-10-23`,
+      `${kind} 2033 11: 2034-01-20 not 2033-11-22`,
+      `${kind} 2033 leap 11: none not 2033-12-22`,
+    ];
+    expect(rows).toEqual([
+      ...chineseLike("chinese"),
+      ...chineseLike("korean"),
+      "vietnamese 2033 leap 8: 2033-09-23 not none",
+      "vietnamese 2033 9: 2033-10-23 not 2033-09-23",
+      "vietnamese 2033 10: 2033-11-22 not 2033-10-23",
+      "vietnamese 2033 11: 2034-01-20 not 2033-11-22",
+      "vietnamese 2033 leap 11: none not 2033-12-22",
+    ]);
+  });
+
+  it("keeps each calendar at its own UTC offset", { timeout: SLOW }, () => {
+    // New Year 2027: the new moon is 6 February 23:56 in Beijing, so the 6th
+    // at UTC+8 and UTC+7, and the 7th at UTC+9.
+    expect(lunisolarDate("chinese", 2027, 1, 1)).toBe("2027-02-06");
+    expect(lunisolarDate("vietnamese", 2027, 1, 1)).toBe("2027-02-06");
+    expect(lunisolarDate("korean", 2027, 1, 1)).toBe("2027-02-07");
+    expect(lunisolarDate("vietnamese", 2027, 1, 0)).toBe("2027-02-05");
+    // A month that starts a day earlier in Vietnam than in China (22 April).
+    expect(lunisolarDate("vietnamese", 2031, 3, 1, true)).toBe("2031-04-21");
+    expect(lunisolarDate("chinese", 2031, 3, 1, true)).toBe("2031-04-22");
+    expect(lunisolarDate("chinese", 2033, 8, 15)).toBe("2033-09-08");
+    expect(lunisolarDate("chinese", 2026, 1, 1)).toBe("2026-02-17");
+    expect(lunisolarDate("chinese", 2060, 1, 1)).toBeUndefined();
+  });
+
+  it("moves the library's days that land on the wrong date", { timeout: SLOW }, () => {
+    const moved = lunisolarCorrectionsFor("CN").map(
+      (m: { rule: string; library: string; true: string }) => `${m.rule} ${m.library} -> ${m.true}`,
+    );
+    expect(moved).toEqual(["chinese 08-0-15 2033-10-07 -> 2033-09-08", "chinese 08-0-15 2039-10-01 -> 2039-10-02"]);
+
+    const hk = libraryEntries("HK", 2033, 2033).filter((entry: Entry) => /Mid-Autumn|Chung Yeung/.test(entry.name));
+    expect(hk.map((entry: Entry) => `${entry.date} ${entry.name}`)).toEqual([
+      "2033-09-09 The day following the Chinese Mid-Autumn Festival",
+      "2033-10-01 Chung Yeung Festival",
+    ]);
+    const kr = libraryEntries("KR", 2033, 2033).filter((entry: Entry) => entry.name === "Korean Thanksgiving");
+    expect(kr.map((entry: Entry) => entry.date)).toEqual(["2033-09-07", "2033-09-08", "2033-09-09"]);
   });
 });
 

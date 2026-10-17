@@ -9,11 +9,12 @@
  * - a fixed date or range (San Fermín, 6 to 14 July);
  * - the nth weekday of a month (La Tomatina, the last Wednesday of August);
  * - a day relative to Easter, Western or Orthodox (every carnival);
- * - a Chinese lunisolar date, read from date-holidays' Chinese calendar with
- *   its 2033 leap month corrected (the Lantern Festival, 15th of the 1st
- *   month);
+ * - a Chinese lunisolar date, from the generator's astronomical Chinese
+ *   calendar (the Lantern Festival, 15th of the 1st month);
  * - the Thai lunar calendar (Loy Krathong, the 15th waxing day of the 12th
- *   month), computed with the Chulasakarat rules below;
+ *   month), computed with the Chulasakarat rules below, ported from
+ *   pythaidate (MIT licence, notice below). theravada.mjs uses the same
+ *   calendar for the Buddhist holidays of Thailand, Laos and Cambodia;
  * - the full moon a Sri Lankan almanac names Nikini, for the Kandy Perahera;
  * - the Balinese 210-day Pawukon cycle (Galungan).
  *
@@ -30,7 +31,7 @@
  * All arithmetic is on UTC dates, so the output never depends on the
  * machine's time zone.
  */
-import Holidays from "date-holidays";
+import { lunisolarDate } from "../build-holidays.mjs";
 
 // ---------------------------------------------------------------------------
 // Dates. Plain "YYYY-MM-DD" strings, computed in UTC.
@@ -139,43 +140,20 @@ function adventSunday(year) {
 }
 
 // ---------------------------------------------------------------------------
-// The Chinese lunisolar calendar, from date-holidays' rules.
-
-const ruleCalendars = new Map();
-
-/** Every date in a Gregorian year that a date-holidays rule names. */
-function ruleDates(rule, year) {
-  let calendar = ruleCalendars.get(rule);
-  if (!calendar) {
-    calendar = new Holidays({});
-    if (!calendar.setHoliday(rule, { name: { en: rule }, type: "observance" })) {
-      throw new Error(`festivals.mjs: date-holidays cannot read the rule "${rule}"`);
-    }
-    ruleCalendars.set(rule, calendar);
-  }
-  return (calendar.getHolidays(year) ?? []).map((holiday) => holiday.date.slice(0, 10));
-}
-
-const pad = (n) => String(n).padStart(2, "0");
+// The Chinese lunisolar calendar, from the generator.
 
 /**
- * The Gregorian date of a day in a Chinese month (not a leap month) in a
- * Gregorian year. date-holidays puts 2033's leap month after the 7th month,
- * where the official calendar (Purple Mountain Observatory, Hong Kong
- * Observatory) puts it after the 11th: the 8th month must hold the autumn
- * equinox, and Mid-Autumn falls between 7 September and 6 October all
- * century. So in 2033 months 8 to 11 are read one month earlier.
+ * The Gregorian date of a day in a Chinese month (not a leap month) of the
+ * lunar year that starts in a Gregorian year. The generator recomputes the
+ * calendar astronomically (Purple Mountain Observatory rules, at UTC+8),
+ * because date-holidays puts 2033's leap month after the 7th month instead of
+ * the 11th and lets its day count slip a day in some months (Mid-Autumn 2039,
+ * the Lantern Festival in 2044, 2045 and 2050).
  */
 export function chineseDate(year, month, day) {
-  let rule = `chinese ${pad(month)}-0-${pad(day)}`;
-  if (year === 2033 && month >= 8 && month <= 11) {
-    rule = month === 8 ? `chinese 07-1-${pad(day)}` : `chinese ${pad(month - 1)}-0-${pad(day)}`;
-  }
-  const dates = ruleDates(rule, year);
-  if (dates.length !== 1) {
-    throw new Error(`festivals.mjs: ${dates.length} dates for Chinese ${month}/${day} in ${year}`);
-  }
-  return dates[0];
+  const date = lunisolarDate("chinese", year, month, day);
+  if (!date) throw new Error(`festivals.mjs: no Chinese date for ${month}/${day} in ${year}`);
+  return date;
 }
 
 // ---------------------------------------------------------------------------
@@ -186,10 +164,41 @@ export function chineseDate(year, month, day) {
 // or an extra day (adhikavara), with the adjustments that keep consecutive
 // years' weekdays in step. This follows Eade, The Calendrical Systems of
 // Mainland South-East Asia, as implemented in pythaidate
-// (https://github.com/hmmbug/pythaidate, MIT licence, Mark Hollow). The result
-// matches pythaidate for every year 2008 to 2050. The Thai government's
-// calendar sometimes places the extra day differently, so a computed date can
-// be a day later than the official one (2014 and 2015 were).
+// (https://github.com/hmmbug/pythaidate). The result matches pythaidate for
+// every year 2008 to 2050. The Thai government's calendar sometimes places
+// the extra day differently, so a computed date can be a day later than the
+// official one (2014 and 2015 were).
+//
+// Months use the Thai (Sukhothai) numbers. A lunar year starts with month 5
+// in March or April and runs 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, so months
+// 1 to 4 fall in the next January to April. An adhikamasa year repeats the 8th
+// month: its months run 5, 6, 7, 8, 88, 9 and on, 88 being the second 8th.
+// Laos and Cambodia keep the same calendar (scripts/holiday-supplements/
+// theravada.mjs uses it for both).
+//
+// The constants and the year-type logic below are ported from pythaidate,
+// whose licence follows:
+//
+//   Copyright 2023 Mark Hollow
+//
+//   Permission is hereby granted, free of charge, to any person obtaining
+//   a copy of this software and associated documentation files (the
+//   “Software”), to deal in the Software without restriction, including
+//   without limitation the rights to use, copy, modify, merge, publish,
+//   distribute, sublicense, and/or sell copies of the Software, and to
+//   permit persons to whom the Software is furnished to do so, subject to
+//   the following conditions:
+//
+//   The above copyright notice and this permission notice shall be included
+//   in all copies or substantial portions of the Software.
+//
+//   THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+//   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+//   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+//   NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+//   DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+//   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+//   THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 const DAYS_IN_800_YEARS = 292207;
 const EPOCH_OFFSET = 373;
@@ -269,16 +278,33 @@ function thaiYearZero(csYear) {
 }
 
 /**
- * The Gregorian date of a Thai lunar date in the Thai year that starts in a
- * Gregorian year's April: month 7 to 12 (Sukhothai numbering), day 1 to 30
- * (15 is the full moon).
+ * Whether the Thai lunar year that starts in a Gregorian year's spring is an
+ * adhikamasa year, with a second 8th month (88). In such a Gregorian year
+ * Thailand moves each Buddhist holiday a month later: Makha Bucha to the full
+ * moon of the 4th month (the one before that spring), Visakha Bucha to the
+ * 7th and Asalha Bucha to the second 8th.
+ */
+export function thaiLeapMonthYear(gregorianYear) {
+  return thaiYearZero(gregorianYear - 638).type === "C";
+}
+
+/**
+ * The Gregorian date of a Thai lunar date that falls in a Gregorian year.
+ * month is 1 to 12 or 88 (Sukhothai numbering); day is 1 to 30, where 15 is
+ * the full moon and 16 the first waning day. Months 5 to 12 and 88 are those
+ * of the lunar year that starts in that year's March or April; months 1 to 4
+ * are the ones in its January to April, which end the lunar year before. A
+ * day past the end of a month (30 in a 29-day month) rolls into the next.
  */
 export function thaiLunarDate(gregorianYear, month, day) {
-  if (month < 7 || month > 12) throw new Error(`festivals.mjs: Thai month ${month} is not supported`);
-  const csYear = gregorianYear - 638;
+  const csYear = month <= 4 ? gregorianYear - 639 : gregorianYear - 638;
   const { type, offsetDays } = thaiYearZero(csYear);
   const order = type === "C" ? MONTH_ORDER_LEAP : MONTH_ORDER;
-  const days = CUMULATIVE_DAYS[type][order.indexOf(month) - 1] + day - offsetDays;
+  const index = order.indexOf(month);
+  if (index < 1 || !Number.isInteger(day) || day < 1 || day > 30) {
+    throw new Error(`festivals.mjs: there is no Thai lunar date ${month}/${day} in ${gregorianYear}`);
+  }
+  const days = CUMULATIVE_DAYS[type][index - 1] + day - offsetDays;
   return isoOfMs((horakhun(csYear) + days + CS_JDN_OFFSET - UNIX_EPOCH_JDN) * DAY_MS);
 }
 
@@ -545,7 +571,7 @@ const THAI_LUNAR = "Thai lunar date, computed: the official date can differ by a
 const CHINESE_LUNAR = "The date follows the Chinese lunar calendar";
 const NOT_A_HOLIDAY = "Not a public holiday";
 const CHINESE_CALENDAR_SOURCE =
-  "Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected";
+  "Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)";
 
 /**
  * Every festival: country (ISO 3166-1 alpha-2), name, source, the note shown

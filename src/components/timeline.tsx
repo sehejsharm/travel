@@ -10,14 +10,14 @@ import { convert, formatMoney } from "@/lib/reference/fx";
 import type { HolidayKind } from "@/lib/reference/holidays";
 import { activeTrip } from "@/lib/store/state";
 import { useAppState, useHolidaysVersion } from "@/lib/store/use-store";
-import { KIND_LABELS, tripCalendar, type CalendarMark } from "@/lib/trip-calendar";
+import { holidayTone, KIND_LABELS, tripCalendar, type CalendarMark } from "@/lib/trip-calendar";
 import { BORDERLESS_BUTTON_CLASSES } from "./styles";
-import { Card, Chip, type Tone } from "./ui";
+import { Card, Chip } from "./ui";
 
 /**
  * The days to show, each with what is planned and what is on: every day with
- * something scheduled, and every day of the trip that has a holiday or a
- * festival, planned or not.
+ * something scheduled, and every day of the trip that is a day off, planned or
+ * not (tripCalendar decides which days have marks).
  */
 function groupByDay(
   items: TripItem[],
@@ -163,24 +163,10 @@ function calendarFor(trip: Trip, items: TripItem[], holidayVersion: number) {
 }
 
 /**
- * Days off read as amber, the way any heads-up does, since shops, offices and
- * many museums close; everything else has a quiet chip, so the two never look
- * alike. The dot says the rest: amber in outline for a day off for some, the
- * brand's colour for a festival, faint for an observance, which changes nothing.
+ * The chip's tone (holidayTone) sets a day off apart in amber. The dot says
+ * the rest: amber in outline for a day off for some, the brand's colour for a
+ * festival, faint for an observance, which changes nothing.
  */
-const MARK_TONE: Record<HolidayKind, Tone> = {
-  public: "warning",
-  bank: "warning",
-  optional: "neutral",
-  festival: "neutral",
-  observance: "neutral",
-};
-
-/** The chip tone for a kind of holiday, so Discover labels them the same way. */
-export function holidayTone(kind: HolidayKind): Tone {
-  return MARK_TONE[kind];
-}
-
 const MARK_DOT: Record<HolidayKind, string> = {
   public: "bg-warning",
   bank: "bg-warning",
@@ -215,7 +201,7 @@ function DayMarks({
           <span className="min-w-0 flex-1">
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="text-subheadline font-medium text-pretty">{mark.name}</span>
-              <Chip tone={MARK_TONE[mark.kind]}>
+              <Chip tone={holidayTone(mark.kind)}>
                 {KIND_LABELS[mark.kind]}
                 {showCountry && ` · ${getCountry(mark.countryCode)?.name ?? mark.countryCode}`}
               </Chip>

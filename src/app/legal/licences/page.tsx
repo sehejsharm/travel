@@ -20,6 +20,21 @@ const SOFTWARE: [string, string, string][] = [
     "ISC (code), CC BY-SA 3.0 (data)",
     "https://github.com/commenthol/date-holidays",
   ],
+  [
+    "astronomia (Sun and Moon positions for the lunar calendars)",
+    "MIT, © 2013 Sonia Keys, © 2016 commenthol",
+    "https://github.com/commenthol/astronomia",
+  ],
+  [
+    "pythaidate (Thai lunar calendar, ported in scripts/holiday-supplements/festivals.mjs)",
+    "MIT, © 2023 Mark Hollow",
+    "https://github.com/hmmbug/pythaidate",
+  ],
+  [
+    "mmcal (Myanmar calendar, ported in scripts/holiday-supplements/theravada.mjs)",
+    "MIT, © 2018 Yan Naing Aye",
+    "https://github.com/yan9a/mmcal",
+  ],
   ["TypeScript", "Apache-2.0", "https://github.com/microsoft/TypeScript"],
   ["ESLint", "MIT", "https://github.com/eslint/eslint"],
   ["Vitest", "MIT", "https://github.com/vitest-dev/vitest"],
@@ -171,9 +186,12 @@ export default function Licences() {
           listed once for each day. A day off in only some states or regions is marked as regional,
           with where it applies. A day the data gives to one group only (women, say, or the armed
           forces) is not counted as a day off for everyone, and Islamic holidays carry a note that
-          their dates are estimates.
+          their dates are estimates. Chinese, Korean and Vietnamese lunar dates are recomputed from
+          astronomy where the data has them on the wrong day, and some entries the sources below
+          show to be wrong are removed.
           {HOLIDAY_SOURCES.length > 0 &&
-            " Festivals and corrections from the sources below are added on top."}{" "}
+            " Festivals, corrections and the countries the data does not cover come from the" +
+              " sources below, added on top."}{" "}
           The adapted calendar ships inside the app and is shared under the same licence, CC BY-SA
           3.0.
         </p>

@@ -1,38 +1,73 @@
 /**
- * Festivals & shows, answered from Manifest's own holiday and festival
- * calendar instead of a search. It runs on the device, from data that ships
- * with the app, so it costs nothing and sends nothing anywhere: Discover asks
- * /api/advise only for the interests the calendar could not answer.
+ * Festivals & shows, with Manifest's own holiday and festival calendar beside
+ * the search. The search finds concerts, theatre and opera, which the calendar
+ * never has, and a request costs the same with or without the interest, so
+ * Discover sends it to /api/advise like any other. The calendar adds the
+ * festivals on the trip's own dates. It runs on the device, from data that
+ * ships with the app, so that part costs nothing and sends nothing anywhere.
  */
-import type { CalendarAnswer } from "../trip-calendar";
+import type { AdviceResult, AdviceSection } from "./types";
+import type { HolidayKind } from "../reference/holidays";
+import type { CalendarAnswer, CalendarEvent } from "../trip-calendar";
 
-/** The interest the calendar answers. Its id is matched in interests.ts. */
+/** The interest the calendar adds to. Its id is matched in interests.ts. */
 export const CALENDAR_INTEREST = "festivals";
 
 /**
- * Whether the calendar has answered Festivals & shows for this trip: its
- * dates are settled, every destination's calendar is in, and something is on.
- * A trip with no dates yet, or nothing on, still lets the other tiers look.
+ * What the calendar's section lists: festivals, and days off for everyone,
+ * which many festivals are (Diwali, Eid, Christmas) and which change plans as
+ * much. An observance or a day off for some is not a festival, so it is left
+ * to the timeline.
  */
-export function calendarAnswered(answer: CalendarAnswer): boolean {
-  return answer.ready && answer.events.length > 0;
+const LISTED: ReadonlySet<HolidayKind> = new Set<HolidayKind>(["festival", "public", "bank"]);
+
+/**
+ * The events for the "From Manifest's calendar" section, in date order. Empty,
+ * so no section, until the dates are settled and every destination's calendar
+ * is in, and while no festival is on: a day off alone does not make one.
+ */
+export function calendarSection(answer: CalendarAnswer): CalendarEvent[] {
+  if (!answer.ready || !answer.events.some((event) => event.kind === "festival")) return [];
+  return answer.events.filter((event) => LISTED.has(event.kind));
 }
 
 /**
- * The interests to send to /api/advise: everything picked, less what the
- * calendar already answered, so no paid tier is asked for it. The order is
- * kept, since the route keeps only the first few.
+ * Which cached answer belongs to a question: the destination and every
+ * interest asked about, sorted. It is the format the cache always had, so
+ * answers saved before the calendar existed still match.
  */
-export function interestsToLookUp(interests: string[], answer: CalendarAnswer): string[] {
-  if (!interests.includes(CALENDAR_INTEREST) || !calendarAnswered(answer)) return interests;
-  return interests.filter((id) => id !== CALENDAR_INTEREST);
+export function adviceKey(destination: string, interests: string[]): string {
+  return `${destination.toLowerCase()}|${[...interests].sort().join(",")}`;
 }
 
+/** One section on Discover: what the search found for an interest, or the calendar's own. */
+export type ShownSection =
+  | { interestId: string; source: "search"; section: AdviceSection }
+  | { interestId: string; source: "calendar" };
+
 /**
- * Which cached answer belongs to a question. Only the interests actually
- * looked up are in it: the calendar's part is worked out fresh each time, so
- * it follows the trip's dates instead of going stale in the cache.
+ * The sections in the order the interests are picked in. Festivals & shows has
+ * the search's section, when it found anything, then the calendar's, when it
+ * has a festival on, whether or not the search ran or worked. A section the
+ * answer holds for an interest no longer picked still shows, after the rest.
  */
-export function adviceKey(destination: string, lookedUp: string[]): string {
-  return `${destination.toLowerCase()}|${[...lookedUp].sort().join(",")}`;
+export function shownSections(
+  interests: string[],
+  withCalendar: boolean,
+  advice: AdviceResult | undefined,
+): ShownSection[] {
+  const sections = advice?.sections ?? [];
+  const shown: ShownSection[] = [];
+
+  for (const id of interests) {
+    const section = sections.find((candidate) => candidate.interestId === id);
+    if (section) shown.push({ interestId: id, source: "search", section });
+    if (id === CALENDAR_INTEREST && withCalendar) shown.push({ interestId: id, source: "calendar" });
+  }
+  for (const section of sections) {
+    if (!interests.includes(section.interestId)) {
+      shown.push({ interestId: section.interestId, source: "search", section });
+    }
+  }
+  return shown;
 }

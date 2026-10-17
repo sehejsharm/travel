@@ -535,8 +535,8 @@ function vijayadashami(span) {
  * calendars keep it: Ashtami at sunrise, never a day whose sunrise is still
  * Saptami; an Ashtami that holds no sunrise passes to the next day.
  */
-function janmashtamiVaishnava(span) {
-  const days = candidates(span, NEW_DELHI);
+function janmashtamiVaishnava(span, place = NEW_DELHI) {
+  const days = candidates(span, place);
   const held = days.find((d) => holdsSunrise(d, span));
   if (held) return held.iso;
   return days.find((d) => d.rise >= span.end).iso;
@@ -768,9 +768,9 @@ function vasantPanchami(span) {
 }
 
 /** Naraka Chaturdashi: the first day whose arunodaya Chaturdashi touches; with none, udaya. */
-function narakaChaturdashi(span) {
-  const touched = candidates(span, NEW_DELHI).find((d) => overlap(windows.arunodaya, d, span) > 0);
-  return touched ? touched.iso : udaya(span);
+function narakaChaturdashi(span, place = NEW_DELHI) {
+  const touched = candidates(span, place).find((d) => overlap(windows.arunodaya, d, span) > 0);
+  return touched ? touched.iso : udaya(span, place);
 }
 
 /** Karva Chauth: the first day Chaturthi holds at moonrise; with none, udaya. */
@@ -816,6 +816,40 @@ function lunarEntries(year) {
     }
   }
   return entries;
+}
+
+/**
+ * A festival in LUNAR on its own rule, but with sunrise and sunset taken at
+ * `place`, for the neighbouring countries' supplements (south-asia.mjs).
+ * Rules tied to one city (Durga Puja's to Kolkata) keep it. Each day comes
+ * with the other day an almanac a little off would give, if there is one.
+ *
+ * @returns {{ date: string, alternative?: string }[]} the year's days, in order
+ */
+export function lunarFestivalDays(year, name, place = NEW_DELHI) {
+  const row = LUNAR.find(([festival]) => festival === name);
+  if (!row) throw new Error(`india.mjs: no lunar festival named ${JSON.stringify(name)}`);
+  const [, , monthName, n, rule, , offset = 0] = row;
+  const atPlace = (span) => rule(span, place);
+  const spans = [...tithisOf(year, monthName, n), ...(monthName === "Pausha" ? tithisOf(year + 1, monthName, n) : [])];
+  const days = new Map();
+  for (const span of spans) {
+    const { date, alternative } = decide(atPlace, span, offset);
+    if (date.startsWith(String(year)) && !days.has(date)) days.set(date, alternative ? { date, alternative } : { date });
+  }
+  return [...days.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+/**
+ * The days whose sunrise at `place` a tithi of a regular month holds (the
+ * udaya rule), with the other day an almanac a little off would give.
+ */
+export function udayaDays(year, monthName, n, place = NEW_DELHI) {
+  if (!(monthName in month)) throw new Error(`india.mjs: no lunar month named ${JSON.stringify(monthName)}`);
+  return tithisOf(year, monthName, n)
+    .map((span) => decide((s) => udaya(s, place), span, 0))
+    .filter(({ date }) => date.startsWith(String(year)))
+    .map(({ date, alternative }) => (alternative ? { date, alternative } : { date }));
 }
 
 /** A sankranti's day by the sunset rule, with the other day when it is within half an hour of sunset. */
@@ -911,6 +945,12 @@ const NOTIFIED = {
     Pongal: ["2026-01-15", `Tamil harvest festival. A day off in Tamil Nadu, ${TAMIL_NADU_2026}`],
     "Thiruvalluvar Day": ["2026-01-16", `Mattu Pongal. A day off in Tamil Nadu, ${TAMIL_NADU_2026}`],
     "Uzhavar Thirunal": ["2026-01-17", `Kaanum Pongal. A day off in Tamil Nadu, ${TAMIL_NADU_2026}`],
+    // The crescent was not seen on 17 May 2026, and DoPT's memorandum of
+    // 22 May 2026 moved the central holiday from 27 to 28 May.
+    "Eid al-Adha": [
+      "2026-05-28",
+      "Id-ul-Zuha (Bakrid), the feast of the sacrifice. The central government moved the holiday to 28 May after the moon sighting. In Jammu and Kashmir, where local bodies kept the day before, it may be 27 May",
+    ],
   },
 };
 
@@ -938,6 +978,8 @@ export const internals = {
   sankrantiIn,
   janmashtamiSmarta: (year) => tithisOf(year, "Shravana", 23).map((span) => janmashtamiSmarta(span)),
   places: { NEW_DELHI, KOLKATA, CHENNAI, KOCHI },
+  /** The IST date of an instant (a Julian day in UT). */
+  dateOfJd,
 };
 
 const supplements = [
