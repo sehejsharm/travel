@@ -2,4 +2,457 @@
 // scripts/holiday-supplements/. Do not edit: run `node scripts/build-holidays.mjs`.
 
 /** Where the dates beyond date-holidays come from, per country. */
-export const HOLIDAY_SOURCES: { country: string; source: string }[] = [];
+export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
+  {
+    "country": "AM",
+    "source": "Vardavar: Armenian Apostolic Church calendar (14 weeks after Easter), https://armeniadiscovery.com/"
+  },
+  {
+    "country": "AU",
+    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+  },
+  {
+    "country": "AU",
+    "source": "Moomba: City of Melbourne, https://www.melbourne.vic.gov.au/"
+  },
+  {
+    "country": "AU",
+    "source": "Sydney Gay and Lesbian Mardi Gras Parade: Sydney Gay and Lesbian Mardi Gras, https://www.mardigras.org.au/"
+  },
+  {
+    "country": "AU",
+    "source": "Vivid Sydney: NSW Government, https://www.nsw.gov.au/"
+  },
+  {
+    "country": "BE",
+    "source": "Binche Carnival: Carnaval de Binche, https://www.carnavaldebinche.be/"
+  },
+  {
+    "country": "BE",
+    "source": "Gentse Feesten: Stad Gent, https://stad.gent/"
+  },
+  {
+    "country": "BO",
+    "source": "Oruro Carnival: Los Tiempos, https://www.lostiempos.com/"
+  },
+  {
+    "country": "BR",
+    "source": "Círio de Nazaré: O Liberal, https://www.oliberal.com/"
+  },
+  {
+    "country": "BR",
+    "source": "Parintins Folklore Festival: Estado de Minas, https://www.em.com.br/"
+  },
+  {
+    "country": "BR",
+    "source": "Rio Carnival: Riotur, https://prefeitura.rio/riotur/"
+  },
+  {
+    "country": "BS",
+    "source": "Junkanoo: The Islands of the Bahamas, https://www.bahamas.com/"
+  },
+  {
+    "country": "CA",
+    "source": "Calgary Stampede: Calgary Stampede, https://www.calgarystampede.com/"
+  },
+  {
+    "country": "CA",
+    "source": "Carnaval de Québec: Carnaval de Québec, https://carnaval.qc.ca/"
+  },
+  {
+    "country": "CA",
+    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+  },
+  {
+    "country": "CH",
+    "source": "Basel Fasnacht: Kanton Basel-Stadt, https://www.bs.ch/"
+  },
+  {
+    "country": "CH",
+    "source": "Lucerne Carnival: Lucerne Tourism, https://www.luzern.com/"
+  },
+  {
+    "country": "CH",
+    "source": "Sechseläuten: Stadt Zürich, https://www.stadt-zuerich.ch/"
+  },
+  {
+    "country": "CN",
+    "source": "Harbin Ice and Snow Festival: China Daily, https://www.chinadailyhk.com/"
+  },
+  {
+    "country": "CN",
+    "source": "Lantern Festival: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+  },
+  {
+    "country": "CN",
+    "source": "Water-Splashing Festival: Visit Yunnan, https://visityunnanchina.com/"
+  },
+  {
+    "country": "CO",
+    "source": "Carnaval de Barranquilla: Colombia Travel, https://colombia.travel/es/barranquilla/carnaval-de-barranquilla"
+  },
+  {
+    "country": "CO",
+    "source": "Carnaval de Negros y Blancos: Colombia Travel, https://colombia.travel/"
+  },
+  {
+    "country": "CZ",
+    "source": "Christmas markets: Prague City Tourism, https://www.prague.eu/"
+  },
+  {
+    "country": "DE",
+    "source": "Christmas markets: Stadt Nürnberg, https://www.nuernberg.de/"
+  },
+  {
+    "country": "DE",
+    "source": "Cologne Carnival: Stadt Köln, https://www.stadt-koeln.de/"
+  },
+  {
+    "country": "DE",
+    "source": "Kiel Week: Kieler Woche, https://www.kieler-woche.de/"
+  },
+  {
+    "country": "DE",
+    "source": "Oktoberfest: City of Munich, https://www.muenchen.de/int/en/events/oktoberfest.html"
+  },
+  {
+    "country": "EG",
+    "source": "Abu Simbel Sun Festival: Egyptian Ministry of Tourism and Antiquities, https://egymonuments.gov.eg/"
+  },
+  {
+    "country": "ES",
+    "source": "Holy Week processions: Spain's official tourism site, https://www.spain.info/"
+  },
+  {
+    "country": "ES",
+    "source": "La Tomatina: Visit València, https://www.visitvalencia.com/"
+  },
+  {
+    "country": "ES",
+    "source": "Las Fallas: Visit València, https://www.visitvalencia.com/"
+  },
+  {
+    "country": "ES",
+    "source": "Romería del Rocío: Hermandad Matriz de Almonte, https://www.rocio.com/"
+  },
+  {
+    "country": "ES",
+    "source": "San Fermín: Ayuntamiento de Pamplona, https://www.pamplona.es/"
+  },
+  {
+    "country": "ET",
+    "source": "Timkat: Ethiopian Orthodox calendar, https://en.wikipedia.org/wiki/Timkat"
+  },
+  {
+    "country": "FR",
+    "source": "Fête de la Musique: Ministère de la Culture, https://fetedelamusique.culture.gouv.fr/"
+  },
+  {
+    "country": "FR",
+    "source": "Fête des Lumières: Ville de Lyon, https://www.fetedeslumieres.lyon.fr/"
+  },
+  {
+    "country": "FR",
+    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+  },
+  {
+    "country": "GB",
+    "source": "Bonfire Night: VisitBritain, https://www.visitbritain.com/"
+  },
+  {
+    "country": "GB",
+    "source": "Braemar Gathering: Braemar Royal Highland Society, https://braemargathering.org/"
+  },
+  {
+    "country": "GB",
+    "source": "Cheese rolling: SoGlos, https://www.soglos.com/"
+  },
+  {
+    "country": "GB",
+    "source": "Edinburgh Festival Fringe: Edinburgh Festival Fringe Society, https://www.edfringe.com/"
+  },
+  {
+    "country": "GB",
+    "source": "Edinburgh's Hogmanay: Edinburgh's Hogmanay, https://www.edinburghshogmanay.com/"
+  },
+  {
+    "country": "GB",
+    "source": "Glastonbury Festival: Glastonbury Festivals, https://www.glastonburyfestivals.co.uk/"
+  },
+  {
+    "country": "GB",
+    "source": "Lewes Bonfire: Lewes District Council, https://lewes-eastbourne.gov.uk/"
+  },
+  {
+    "country": "GB",
+    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+  },
+  {
+    "country": "GB",
+    "source": "National Eisteddfod: Eisteddfod Genedlaethol Cymru, https://eisteddfod.wales/"
+  },
+  {
+    "country": "GB",
+    "source": "Notting Hill Carnival: Royal Borough of Kensington and Chelsea, https://www.rbkc.gov.uk/"
+  },
+  {
+    "country": "GB",
+    "source": "Up Helly Aa: Visit Shetland, https://www.shetland.org/"
+  },
+  {
+    "country": "GR",
+    "source": "Patras Carnival: Visit Greece, https://www.visitgreece.gr/"
+  },
+  {
+    "country": "GT",
+    "source": "Holy Week in Antigua: Agencia Guatemalteca de Noticias, https://agn.gt/"
+  },
+  {
+    "country": "GT",
+    "source": "Sumpango Giant Kite Festival: La Hora, https://lahora.gt/"
+  },
+  {
+    "country": "HK",
+    "source": "Cheung Chau Bun Festival: Hong Kong Tourism Board, https://www.discoverhongkong.com/"
+  },
+  {
+    "country": "HK",
+    "source": "Tai Hang Fire Dragon Dance: Hong Kong Tourism Board, https://www.discoverhongkong.com/"
+  },
+  {
+    "country": "HU",
+    "source": "Busójárás: Mohács carnival programme, https://xpatloop.com/"
+  },
+  {
+    "country": "ID",
+    "source": "Galungan: Balinese Pawukon calendar, https://baliuntold.com/culture/galungan-and-kuningan/"
+  },
+  {
+    "country": "ID",
+    "source": "Kuningan: Balinese Pawukon calendar, https://baliuntold.com/culture/galungan-and-kuningan/"
+  },
+  {
+    "country": "IE",
+    "source": "Puck Fair: Puck Fair, https://www.puckfair.ie/"
+  },
+  {
+    "country": "IN",
+    "source": "Computed from the Hindu lunisolar and Islamic lunar calendars (Meeus, Astronomical Algorithms; Lahiri ayanamsa; Yallop crescent criterion), checked against the Government of India's gazetted holiday lists, https://dopt.gov.in/"
+  },
+  {
+    "country": "IT",
+    "source": "Battle of the Oranges: Storico Carnevale di Ivrea, Turismo Torino, https://www.turismotorino.org/"
+  },
+  {
+    "country": "IT",
+    "source": "Festa del Redentore: Comune di Venezia, https://www.comune.venezia.it/"
+  },
+  {
+    "country": "IT",
+    "source": "Palio di Siena: Comune di Siena, https://www.comune.siena.it/"
+  },
+  {
+    "country": "IT",
+    "source": "Regata Storica: Comune di Venezia, https://www.comune.venezia.it/"
+  },
+  {
+    "country": "IT",
+    "source": "Venice Carnival: Carnevale di Venezia, https://carnevale.venezia.it/"
+  },
+  {
+    "country": "JP",
+    "source": "Akita Kanto Matsuri: Japan National Tourism Organization, https://www.japan.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Aoi Matsuri: Kyoto City Tourism, https://kyoto.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Aomori Nebuta Matsuri: Japan National Tourism Organization, https://www.japan.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Awa Odori: Japan National Tourism Organization, https://www.japan.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Gion Matsuri: Kyoto City Tourism, https://kyoto.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Gozan Okuribi: Kyoto City Tourism, https://kyoto.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Hakata Gion Yamakasa: Japan National Tourism Organization, https://www.japan.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Jidai Matsuri: Kyoto City Tourism, https://kyoto.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Obon: Japan National Tourism Organization, https://www.japan.travel/en/"
+  },
+  {
+    "country": "JP",
+    "source": "Sanja Matsuri: Tokyo Convention and Visitors Bureau, https://www.gotokyo.org/"
+  },
+  {
+    "country": "JP",
+    "source": "Sapporo Snow Festival: Sapporo Snow Festival Executive Committee, https://www.snowfes.com/"
+  },
+  {
+    "country": "JP",
+    "source": "Sendai Tanabata Matsuri: Tohoku Kizuna Matsuri, https://tohoku-kizunamatsuri.jp/"
+  },
+  {
+    "country": "JP",
+    "source": "Sumida River Fireworks: Sumidagawa Fireworks Festival, https://www.sumidagawa-hanabi.com/"
+  },
+  {
+    "country": "JP",
+    "source": "Takayama Festival: Gifu Prefecture tourism, https://www.kankou-gifu.jp/"
+  },
+  {
+    "country": "JP",
+    "source": "Tenjin Matsuri: Osaka Convention and Tourism Bureau, https://osaka-info.jp/"
+  },
+  {
+    "country": "JP",
+    "source": "Yosakoi Matsuri: Japan National Tourism Organization, https://www.japan.travel/en/"
+  },
+  {
+    "country": "LK",
+    "source": "Kandy Esala Perahera: Sri Dalada Maligawa schedule, https://kandyesalaperahera.com/dates; Nikini full moon computed (Meeus, Astronomical Algorithms)"
+  },
+  {
+    "country": "MN",
+    "source": "Naadam: Law on Public Holidays and Observances, art. 4.1.1, https://legalinfo.mn/"
+  },
+  {
+    "country": "MX",
+    "source": "Day of the Dead: Visit Mexico, https://www.visitmexico.com/"
+  },
+  {
+    "country": "MX",
+    "source": "Guelaguetza: Visit Mexico, https://www.visitmexico.com/"
+  },
+  {
+    "country": "MX",
+    "source": "Las Posadas: Visit Mexico, https://www.visitmexico.com/"
+  },
+  {
+    "country": "MX",
+    "source": "Night of the Radishes: Visit Mexico, https://www.visitmexico.com/"
+  },
+  {
+    "country": "MY",
+    "source": "Mid-Autumn Festival: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+  },
+  {
+    "country": "NL",
+    "source": "Keukenhof tulip season: Keukenhof, https://keukenhof.nl/"
+  },
+  {
+    "country": "PE",
+    "source": "Corpus Christi in Cusco: TreXperience Peru, https://trexperienceperu.com/"
+  },
+  {
+    "country": "PE",
+    "source": "Inti Raymi: Lima Easy, https://www.limaeasy.com/"
+  },
+  {
+    "country": "PH",
+    "source": "Ati-Atihan: Ati-Atihan festival, https://en.wikipedia.org/wiki/Ati-Atihan"
+  },
+  {
+    "country": "PH",
+    "source": "Dinagyang: Daily Tribune, https://tribune.net.ph/"
+  },
+  {
+    "country": "PH",
+    "source": "Feast of the Black Nazarene: Manila Bulletin, https://mb.com.ph/"
+  },
+  {
+    "country": "PH",
+    "source": "Sinulog: SunStar Cebu, https://www.sunstar.com.ph/"
+  },
+  {
+    "country": "PR",
+    "source": "Fiestas de la Calle San Sebastián: Discover Puerto Rico, https://www.discoverpuertorico.com/"
+  },
+  {
+    "country": "PT",
+    "source": "Santo António: Visit Lisboa, https://www.visitlisboa.com/"
+  },
+  {
+    "country": "PT",
+    "source": "São João do Porto: Visit Porto, https://www.visitporto.travel/"
+  },
+  {
+    "country": "RU",
+    "source": "Maslenitsa: Russian Orthodox calendar (the week before Great Lent), https://www.dp.ru/"
+  },
+  {
+    "country": "SG",
+    "source": "Mid-Autumn Festival: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+  },
+  {
+    "country": "TH",
+    "source": "Loy Krathong: Tourism Authority of Thailand, https://www.thailand.go.th/; Thai lunar calendar computed as in pythaidate (MIT), https://github.com/hmmbug/pythaidate"
+  },
+  {
+    "country": "TH",
+    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+  },
+  {
+    "country": "TH",
+    "source": "Phuket Vegetarian Festival: Tourism Authority of Thailand, https://www.tatnews.org/"
+  },
+  {
+    "country": "TH",
+    "source": "Yi Peng: Tourism Authority of Thailand, https://www.thailand.go.th/; Thai lunar calendar computed as in pythaidate (MIT), https://github.com/hmmbug/pythaidate"
+  },
+  {
+    "country": "TR",
+    "source": "Şeb-i Arus: Ministry of Culture and Tourism, https://sebiarus.ktb.gov.tr/"
+  },
+  {
+    "country": "TT",
+    "source": "Trinidad Carnival: Tourism Trinidad, https://visittrinidad.tt/"
+  },
+  {
+    "country": "TW",
+    "source": "Lantern Festival: Taiwan Tourism Administration, https://www.taiwan.net.tw/"
+  },
+  {
+    "country": "US",
+    "source": "Albuquerque International Balloon Fiesta: Albuquerque International Balloon Fiesta, https://balloonfiesta.com/"
+  },
+  {
+    "country": "US",
+    "source": "Burning Man: Burning Man Project, https://burningman.org/"
+  },
+  {
+    "country": "US",
+    "source": "Coachella: Coachella Valley Music and Arts Festival, https://www.coachella.com/"
+  },
+  {
+    "country": "US",
+    "source": "Lunar New Year: Chinese lunisolar calendar, from date-holidays (https://github.com/commenthol/date-holidays) with its 2033 leap month corrected"
+  },
+  {
+    "country": "US",
+    "source": "Mardi Gras in New Orleans: New Orleans & Company, https://www.neworleans.com/"
+  },
+  {
+    "country": "US",
+    "source": "Merrie Monarch Festival: Merrie Monarch Festival, https://www.merriemonarch.com/"
+  },
+  {
+    "country": "US",
+    "source": "Rose Parade: Tournament of Roses, https://tournamentofroses.com/"
+  }
+];

@@ -151,6 +151,7 @@ export const HOLIDAY_LOADERS: Record<string, () => Promise<Loaded>> = {
   MG: () => load(import("./MG.json")),
   MK: () => load(import("./MK.json")),
   ML: () => load(import("./ML.json")),
+  MN: () => load(import("./MN.json")),
   MQ: () => load(import("./MQ.json")),
   MR: () => load(import("./MR.json")),
   MS: () => load(import("./MS.json")),

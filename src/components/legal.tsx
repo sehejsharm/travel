@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { CONTACT_EMAIL } from "@/lib/contact";
 import { ScreenHeader } from "./ui";
 
-export const LEGAL_UPDATED = "2026-10-15";
+export const LEGAL_UPDATED = "2026-10-17";
 
 export const LEGAL_PAGES: { href: string; title: string; blurb: string }[] = [
   { href: "/legal/privacy", title: "Privacy policy", blurb: "What is stored, and what leaves the device" },

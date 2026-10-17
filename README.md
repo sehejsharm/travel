@@ -16,6 +16,7 @@ npm install
 npm run dev        # http://localhost:3000
 npm test           # rules engine, extractor, checklists, calendar, share
 npm run typecheck
+npm run holidays:build   # regenerate the holiday calendar (see Reference data)
 ```
 
 Copy `.env.example` to `.env.local`; every variable is optional and explained
@@ -42,8 +43,9 @@ per-IP budget):
 - `POST /api/extract` — reads pasted or shared text, or a screenshot, and
   returns the fields for the device to file.
 - `POST /api/advise` — Discover's suggestions. The client sends the
-  destination, the chosen interests, the titles and place names already filed,
-  and each filed place's name, city and notes.
+  destination, the chosen interests (less Festivals & shows when the holiday
+  calendar answered it on the device), the titles and place names already
+  filed, and each filed place's name, city and notes.
 
 Neither stores anything: no database, no filesystem write, no request bodies
 in logs. Every page is prerendered static, so all it needs is a host that runs
@@ -58,11 +60,11 @@ caching `/api`.
 
 | Screen | Route | What it does |
 | --- | --- | --- |
-| Trip | `/` | Countdown, what needs fixing, next up, budget, and the day-by-day timeline |
+| Trip | `/` | Countdown, what needs fixing, next up, budget, and the day-by-day timeline, with each day's holidays and festivals |
 | Cabinet | `/cabinet` | Everything filed, filterable by places, activities, purchases, bookings |
 | Add | `/add` | Paste or share in text or a Reel/TikTok/YouTube link, pick a screenshot or take a photo, or type an item in by hand; watch it get extracted and grounded, file it |
 | Checks | `/checks` | Every finding, plus the packing list and pre-trip tasks |
-| Discover | `/discover` | Things to do by interest, each naming where it came from |
+| Discover | `/discover` | Things to do by interest, each naming where it came from; Festivals & shows from the holiday calendar |
 | More | `/more` | Calendar export, share link, recap, destination brief |
 | Recap | `/recap` | Spend, places, and which platform each item actually came from |
 | Shared | `/share#…` | Read-only plan, carried in the URL fragment so it never reaches a server |
@@ -103,6 +105,15 @@ Anthropic's web search (`search.ts`). With a key set, a write step
 (`write.ts`) turns everything gathered into one line per place, and `verify.ts`
 drops any name that did not come from a source.
 
+Festivals & shows is answered before any of that, on the device: the Discover
+screen lists every holiday and festival in the trip's countries on the trip's
+own dates, from the holiday calendar below, labelled "From Manifest's
+calendar". When the calendar has something for those dates, that interest is
+left out of the request to `/api/advise` (`src/lib/advisor/calendar.ts`), so no
+paid tier is asked for it; with only that interest picked, nothing is sent at
+all. With the dates still to be settled, or nothing on, it is looked up like any
+other interest.
+
 ### The checks
 
 `src/lib/rules/` is pure functions over `(trip, items, now)`, so all of it is
@@ -122,7 +133,8 @@ unit tested without a database.
   vaccination advice, and yellow fever proof where a route can trigger it.
 - **Prep** — plug and voltage mismatches, the weather you are packing for,
   time zone shift, cash-heavy destinations, baggage allowance, roaming, and
-  public holidays that fall inside the trip.
+  public holidays that fall inside the trip (each country's own days off, in
+  that country's window).
 
 Countries you only change planes in are excluded from compliance and prep
 checks — you do not clear immigration on a connection.
@@ -151,7 +163,7 @@ changing:
 | `airports.ts` | Airport coordinates, connection times | OAG, airline feeds |
 | `climate.ts` | Seasonal normals for packing | A forecast API, inside two weeks |
 | `allowances.ts` | Baggage and duty-free limits | Airline and customs feeds |
-| `holidays.ts` | Public holidays | Any holiday API |
+| `holidays.ts` | Holidays, regional days off, observances and festivals, 208 countries, 2026 to 2050 | Any holiday API |
 | `fx.ts` | Currency conversion | Any live FX feed |
 | `countries.ts` | Plugs, voltage, emergency numbers, tipping | — |
 
@@ -160,11 +172,38 @@ built on them tells the user to confirm with the embassy. Getting this wrong has
 real consequences for a traveller, so the data is never presented as
 authoritative.
 
+### The holiday calendar
+
+`src/lib/reference/holiday-data/` is generated, never edited by hand:
+`npm run holidays:build` (`scripts/build-holidays.mjs`) takes every country
+[date-holidays](https://github.com/commenthol/date-holidays) knows, 2026 to
+2050, with each state's own days off as "optional", and merges the supplements
+in `scripts/holiday-supplements/` on top (India's Hindu, Jain, Sikh, Buddhist
+and Islamic calendar, and 112 festivals in 41 other countries). Each entry is
+`public` or `bank` (a day off), `optional` (a day off in some regions or for
+some people), `observance` or `festival`. `npm run holidays:check` fails when
+the committed files are stale, for CI. How each supplement's dates are worked
+out, and what they were checked against, is in `docs/holiday-dates.md`.
+
+Coverage as last built: 208 countries, 109,447 entries (69,189 public, 1,180
+bank, 11,425 optional, 15,342 observance, 12,311 festival), every country with
+a day off in every year. Each country is its own chunk, fetched the first time
+a trip goes there (`loadHolidays`, called from `useTripView`) and then cached
+by the service worker; the reads are synchronous and the checks, the timeline
+and Discover re-render when a country arrives (`subscribeHolidays`,
+`holidaysVersion`). `src/lib/trip-calendar.ts` turns it into the timeline's
+day marks and Discover's events.
+
 ## Known limits
 
 - The gazetteer covers Japan; place names elsewhere file without coordinates and
   sit out the distance checks.
-- FX rates and climate normals are static, and holidays are loaded for 2026.
+- FX rates and climate normals are static. Holidays run from 2026 to 2050, but
+  lunar and Islamic dates are calculated, so the official day can differ by
+  one (the note on each says so), and governments add or move days at short
+  notice. Twelve destinations in `countries.ts` have no holiday data yet
+  (Nepal, Bhutan, the Maldives, Macau, Cambodia, Laos, Myanmar, Qatar, Oman,
+  Kuwait, Jordan and Papua New Guinea), and Mongolia has only Naadam.
 - Instagram and TikTok gate oEmbed behind an app token, so for those the
   server reads the page's Open Graph tags, which they serve only some of the
   time; when they do not, the pasted caption carries the extraction. YouTube

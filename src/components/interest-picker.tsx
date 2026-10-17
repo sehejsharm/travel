@@ -1,6 +1,6 @@
 "use client";
 
-import { INTERESTS } from "@/lib/advisor/interests";
+import { INTERESTS, MAX_INTERESTS, togglePick } from "@/lib/advisor/interests";
 
 /**
  * The first question the advisor asks. Tapping a few of these is the whole
@@ -20,13 +20,10 @@ export function InterestPicker({
   min?: number;
 }) {
   const chosen = new Set(selected);
-
-  function toggle(id: string) {
-    const next = new Set(chosen);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    onChange(INTERESTS.filter((interest) => next.has(interest.id)).map((interest) => interest.id));
-  }
+  // Only ones still on the list count: an id from an old backup is not a section.
+  const count = INTERESTS.filter((interest) => chosen.has(interest.id)).length;
+  // At the limit the rest wait, rather than be picked and then quietly dropped.
+  const full = count >= MAX_INTERESTS;
 
   return (
     <div className="flex flex-col gap-3">
@@ -38,12 +35,13 @@ export function InterestPicker({
             <button
               key={interest.id}
               type="button"
-              onClick={() => toggle(interest.id)}
+              onClick={() => onChange(togglePick(selected, interest.id))}
               aria-pressed={active}
-              className={`press flex flex-col items-start gap-1 rounded-card border p-3 text-left ${
+              disabled={full && !active}
+              className={`press flex flex-col items-start gap-1 rounded-card border p-3 text-left disabled:opacity-40 ${
                 active
                   ? "border-accent bg-accent-soft"
-                  : "border-line bg-surface hover:border-line-strong"
+                  : "border-line bg-surface enabled:hover:border-line-strong"
               }`}
             >
               <span className="flex w-full items-center justify-between gap-2">
@@ -61,12 +59,13 @@ export function InterestPicker({
                   ✓
                 </span>
               </span>
+              {/* Balanced and pretty, so a narrow tile breaks "Camping & / road trips", not "Camping & road / trips". */}
               <span
-                className={`text-subheadline font-medium ${active ? "text-accent-strong" : "text-ink"}`}
+                className={`text-balance text-subheadline font-medium ${active ? "text-accent-strong" : "text-ink"}`}
               >
                 {interest.label}
               </span>
-              <span className="text-caption text-ink-soft">
+              <span className="text-pretty text-caption text-ink-soft">
                 {interest.blurb}
               </span>
             </button>
@@ -74,13 +73,21 @@ export function InterestPicker({
         })}
       </div>
 
-      <p className="text-caption text-ink-soft tabular">
-        {selected.length > 0
-          ? `${selected.length} picked — each becomes a section of your suggestions.`
-          : min > 0
-            ? `Pick at least ${min}.`
-            : "Optional — you can pick these later."}
+      {/* Polite, so reaching the limit is said out loud, not only shown by the dimmed rest. */}
+      <p aria-live="polite" className="text-caption text-ink-soft tabular">
+        {pickedCaption(count, min)}
       </p>
     </div>
   );
+}
+
+function pickedCaption(count: number, min: number): string {
+  if (count > MAX_INTERESTS) {
+    return `${count} picked — Discover looks up ${MAX_INTERESTS} at a time, so unpick ${count - MAX_INTERESTS} to choose which.`;
+  }
+  if (count === MAX_INTERESTS) {
+    return `${count} picked, the most Discover looks up at a time. Unpick one to swap it for another.`;
+  }
+  if (count > 0) return `${count} picked — each becomes a section of your suggestions.`;
+  return min > 0 ? `Pick at least ${min}.` : "Optional — you can pick these later.";
 }
