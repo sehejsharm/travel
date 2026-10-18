@@ -65,6 +65,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "BR",
+    "source": "Ministério da Gestão e da Inovação, yearly portaria of national holidays and pontos facultativos, https://www.gov.br/gestao/"
+  },
+  {
+    "country": "BR",
     "source": "Parintins Folklore Festival: Estado de Minas, https://www.em.com.br/"
   },
   {
@@ -293,6 +297,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "GT",
+    "source": "Ministerio de Trabajo, Inspección General de Trabajo: Father's Day is not a paid holiday, https://www.mintrabajo.gob.gt/"
+  },
+  {
+    "country": "GT",
     "source": "Sumpango Giant Kite Festival: La Hora, https://lahora.gt/"
   },
   {
@@ -314,6 +322,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "HU",
     "source": "Busójárás: Mohács carnival programme, https://xpatloop.com/"
+  },
+  {
+    "country": "HU",
+    "source": "Munka Törvénykönyve, 102. §, and the Országgyűlés bill T/13464 (2026), https://www.parlament.hu/irom42/13464/13464.pdf"
   },
   {
     "country": "ID",
@@ -580,6 +592,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Rijksoverheid, Bevrijdingsdag (5 mei) vrije dag, https://www.rijksoverheid.nl/onderwerpen/bevrijdingsdag/vraag-en-antwoord/bevrijdingsdag-5-mei-vrije-dag"
   },
   {
+    "country": "NO",
+    "source": "Lov om helligdager og helligdagsfred: 29 July is a flag day, not a public holiday, https://lovdata.no/"
+  },
+  {
     "country": "NP",
     "source": "Ministry of Home Affairs, Government of Nepal, public holiday notices in Nepal Rajpatra, https://www.moha.gov.np/; Bikram Sambat and lunar dates computed from the Surya Siddhanta as the Nepal Panchanga Nirnayak Samiti does; Islamic dates from date-holidays, a day later"
   },
@@ -672,6 +688,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Solomon Islands Government Gazette, national and provincial public holidays, https://solomons.gov.sb/"
   },
   {
+    "country": "SE",
+    "source": "Swedish collective agreements, as published by employers such as Uppsala University, https://www.uu.se/medarbetare/anstallning/anstallningsvillkor/arbetstid/roda-dagar-och-klamdagar"
+  },
+  {
     "country": "SG",
     "source": "Mid-Autumn Festival: Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)"
   },
@@ -682,6 +702,14 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "SG",
     "source": "Ministry of Manpower, public holidays, https://www.mom.gov.sg/employment-practices/public-holidays; Vesak Day from 2027 by the Chinese calendar, and Deepavali from 2028 by the Tamil almanac, computed from the Hindu lunisolar calendar (Meeus, Astronomical Algorithms; Lahiri ayanamsa)"
+  },
+  {
+    "country": "SJ",
+    "source": "Lov om helligdager og helligdagsfred: 29 July is a flag day, not a public holiday, https://lovdata.no/"
+  },
+  {
+    "country": "SM",
+    "source": "Legge 152 of 1990 on the calendar of holidays, https://www.consigliograndeegenerale.sm/"
   },
   {
     "country": "SR",

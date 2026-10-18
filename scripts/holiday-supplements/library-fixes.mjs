@@ -20,7 +20,13 @@
  * - Kinds: Easter Sunday in the Philippines (not in the yearly proclamation),
  *   Denmark's Constitution Day and Christmas Eve (banks close and shops close
  *   early by law), St Olav's Day in the Faroe Islands (off for most workers),
- *   Poland's Flag Day (a working day).
+ *   Poland's Flag Day (a working day). Library "optional" days that are no
+ *   one's day off become observances: Brazil's Carnival weekend, Guatemala's
+ *   Father's Day, St Olav's Day in Norway and Svalbard, Sweden's Twelfth
+ *   Night, Walpurgis Night and All Saints' Eve, San Marino's New Year's Eve.
+ * - Notes on "optional" days, saying who has them off: Brazil's Ash
+ *   Wednesday, Hungary's Christmas Eve. (Notes that suit every year of a
+ *   library day are in build-holidays.mjs, LIBRARY_NOTES.)
  * - Notes: the Vatican's days for the reigning pope.
  *
  * Every date is computed with UTC dates, so the output never depends on the
@@ -70,7 +76,17 @@ const CUTI_BERSAMA_NOTE =
 /** The decrees' collective-leave days still to come or in 2027; each year's is published in September. */
 const CUTI_BERSAMA = {
   2026: ["2026-12-24"],
-  2027: ["2027-02-05", "2027-03-09", "2027-03-12", "2027-03-15", "2027-03-25", "2027-05-18", "2027-05-19", "2027-12-24"],
+  // SKB 1205, 3 and 2 of 2026 (signed 15 September 2026), all eight days.
+  2027: [
+    "2027-02-05", // Chinese New Year (Imlek), Saturday 6 February
+    "2027-03-09", // Eid al-Fitr, 10 and 11 March
+    "2027-03-12",
+    "2027-03-15",
+    "2027-03-25", // Good Friday (Wafat Yesus Kristus), 26 March
+    "2027-05-18", // Eid al-Adha, 17 May
+    "2027-05-19", // Vesak (Waisak), 20 May
+    "2027-12-24", // Christmas
+  ],
 };
 
 const LAST_DECREE = 2027;
@@ -188,6 +204,51 @@ export function usDayAfterThanksgiving(entries) {
 }
 
 // ---------------------------------------------------------------------------
+// Library "optional" days: who has them off, or that no one does.
+
+/** Brazil's Carnival: the weekend before the Monday and Tuesday off, and Ash Wednesday's morning. */
+function brazilCarnival(year) {
+  const sunday = easter(year);
+  return [
+    entry(addDays(sunday, -50), "Carnival", "observance", "The Carnival weekend. Banks and many offices close on Monday and Tuesday"),
+    entry(addDays(sunday, -49), "Carnival", "observance", "The Carnival weekend. Banks and many offices close on Monday and Tuesday"),
+    entry(
+      addDays(sunday, -46),
+      "Carnival",
+      "optional",
+      "Ash Wednesday, the end of Carnival. Federal offices open at 2 pm, and many businesses open late",
+    ),
+  ];
+}
+
+/**
+ * Hungary's Christmas Eve: not in the Labour Code's list of holidays (Mt.
+ * 102. §) yet, though a bill to add it (T/13464, September 2026) has every
+ * party's support. In 2026 the government's working-day decree makes it a
+ * rest day, worked on Saturday 12 December.
+ */
+function hungaryChristmasEve(year) {
+  const shops = "Shops must close by 2 pm";
+  // The bill is named only for 2026 and 2027, in words that stay true once
+  // it is decided. Revisit every year when T/13464 passes or fails.
+  const notes = {
+    2026: `A day off for most workers, made up by working on Saturday 12 December. Parliament is debating a bill to make it a public holiday. ${shops}`,
+    2027: `Not a public holiday yet: many employers give the day off. A bill to make it one was before Parliament in 2026. ${shops}`,
+  };
+  const note = notes[year] ?? `Not a public holiday: many employers give the day off. ${shops}`;
+  return [entry(ymd(year, 12, 24), "Christmas Eve", "optional", note)];
+}
+
+/** Sweden's All Saints' Eve: the Friday from 30 October to 5 November. */
+function swedenAllSaintsEve(year) {
+  let date = ymd(year, 10, 30);
+  while (weekday(date) !== 5) date = addDays(date, 1);
+  return date;
+}
+
+const OLSOK = "St Olav's Day (Olsok)";
+
+// ---------------------------------------------------------------------------
 // The list.
 
 const LIBRARY_FIXES = [
@@ -221,6 +282,62 @@ const LIBRARY_FIXES = [
         "Day off for many government and education workers; for others only if their collective agreement grants it, often only every fifth year. Liberation festivals with free music in about 14 cities",
       ),
     ],
+  },
+  {
+    country: "BR",
+    source:
+      "Ministério da Gestão e da Inovação, yearly portaria of national holidays and pontos facultativos, https://www.gov.br/gestao/",
+    entries: brazilCarnival,
+  },
+  {
+    country: "GT",
+    source: "Ministerio de Trabajo, Inspección General de Trabajo: Father's Day is not a paid holiday, https://www.mintrabajo.gob.gt/",
+    entries: (year) => [
+      entry(ymd(year, 6, 17), "Father's Day", "observance", "Not a day off by law, though some employers give working fathers the day off"),
+    ],
+  },
+  {
+    country: "HU",
+    source: "Munka Törvénykönyve, 102. §, and the Országgyűlés bill T/13464 (2026), https://www.parlament.hu/irom42/13464/13464.pdf",
+    entries: hungaryChristmasEve,
+  },
+  {
+    country: "NO",
+    source: "Lov om helligdager og helligdagsfred: 29 July is a flag day, not a public holiday, https://lovdata.no/",
+    entries: (year) => [
+      entry(ymd(year, 7, 29), OLSOK, "observance", "A flag day, not a day off. Trondheim holds its St Olav Festival around it"),
+    ],
+  },
+  {
+    country: "SJ",
+    source: "Lov om helligdager og helligdagsfred: 29 July is a flag day, not a public holiday, https://lovdata.no/",
+    entries: (year) => [entry(ymd(year, 7, 29), OLSOK, "observance", "A flag day, not a day off")],
+  },
+  {
+    country: "SE",
+    source:
+      "Swedish collective agreements, as published by employers such as Uppsala University, https://www.uu.se/medarbetare/anstallning/anstallningsvillkor/arbetstid/roda-dagar-och-klamdagar",
+    entries: (year) => [
+      entry(ymd(year, 1, 5), "Twelfth Night", "observance", "Not a day off, but many workplaces close early"),
+      entry(
+        ymd(year, 4, 30),
+        "Walpurgis Night",
+        "observance",
+        "Not a day off, but many workplaces close early. Bonfires and spring songs in the evening",
+      ),
+      // Four hours shorter at Uppsala and Örebro universities, not a day off.
+      entry(
+        swedenAllSaintsEve(year),
+        "All Saints' Eve",
+        "observance",
+        "Not a day off, but many workplaces, government offices among them, close at midday. Shops stay open",
+      ),
+    ],
+  },
+  {
+    country: "SM",
+    source: "Legge 152 of 1990 on the calendar of holidays, https://www.consigliograndeegenerale.sm/",
+    entries: (year) => [entry(ymd(year, 12, 31), "New Year's Eve", "observance", "A working day: not a holiday since 1990")],
   },
   {
     country: "PH",

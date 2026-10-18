@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -38,7 +38,24 @@ const find = (country: string, date: string, name: string) =>
 describe("library-fixes supplement", () => {
   it("loads, with a source for each country", () => {
     const loaded = supplementEntries(supplements, "library-fixes.mjs") as { country: string; source: string }[];
-    expect(loaded.map((s) => s.country).sort()).toEqual(["DK", "FO", "ID", "MY", "NL", "PH", "PL", "US", "VA"]);
+    expect(loaded.map((s) => s.country).sort()).toEqual([
+      "BR",
+      "DK",
+      "FO",
+      "GT",
+      "HU",
+      "ID",
+      "MY",
+      "NL",
+      "NO",
+      "PH",
+      "PL",
+      "SE",
+      "SJ",
+      "SM",
+      "US",
+      "VA",
+    ]);
     for (const supplement of loaded) expect(supplement.source).toMatch(/https:\/\//);
   });
 });
@@ -53,6 +70,7 @@ describe("Indonesia", () => {
 
   it("lists the decrees' collective leave for 2026 and 2027 only", () => {
     const leave = data("ID").filter(([, , name]) => name === "Collective leave (cuti bersama)");
+    // 2027: the eight days of SKB 1205, 3 and 2 of 2026, 25 March (before Good Friday) among them.
     expect(leave.map(([date, kind]) => `${date} ${kind}`)).toEqual([
       "2026-12-24 optional",
       "2027-02-05 optional",
@@ -158,5 +176,68 @@ describe("kinds and notes", () => {
 
   it("says the Vatican's papal days are for the current pope", () => {
     expect(find("VA", "2040-05-08", "Anniversary of the election of Pope Leo XIV")?.[3]).toMatch(/current pope/);
+  });
+});
+
+describe("the library's optional days", () => {
+  const countries = readdirSync(DATA_DIR)
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => file.slice(0, -".json".length));
+
+  it("each say where or for whom they are a day off", () => {
+    const bare = countries.flatMap((country) =>
+      data(country)
+        .filter(([, kind, , note]) => kind === "optional" && note.trim() === "")
+        .map(([date, , name]) => `${country} ${date} ${name}`),
+    );
+    expect(bare).toEqual([]);
+  });
+
+  it("are observances where they are no one's day off", () => {
+    expect(find("BR", "2026-02-14", "Carnival")?.[1]).toBe("observance");
+    expect(find("BR", "2026-02-15", "Carnival")?.[1]).toBe("observance");
+    expect(find("BR", "2026-02-16", "Carnival")?.[1]).toBe("bank");
+    expect(find("BR", "2026-02-18", "Carnival")).toEqual([
+      "2026-02-18",
+      "optional",
+      "Carnival",
+      "Ash Wednesday, the end of Carnival. Federal offices open at 2 pm, and many businesses open late",
+    ]);
+    expect(find("GT", "2026-06-17", "Father's Day")?.[1]).toBe("observance");
+    for (const country of ["NO", "SJ"]) {
+      expect(find(country, "2026-07-29", "St Olav's Day (Olsok)")?.[1]).toBe("observance");
+      expect(data(country).some(([, , name]) => name === "Olsok")).toBe(false);
+    }
+    expect(find("SE", "2027-01-05", "Twelfth Night")?.[1]).toBe("observance");
+    expect(find("SE", "2027-04-30", "Walpurgis Night")?.[1]).toBe("observance");
+    expect(find("SE", "2027-11-05", "All Saints' Eve")?.[3]).toMatch(/^Not a day off, but many workplaces/);
+    expect(find("SM", "2026-12-31", "New Year's Eve")?.[1]).toBe("observance");
+  });
+
+  it("calls Sweden's allhelgonaafton All Saints' Eve, the Friday before All Saints' Day", () => {
+    expect(data("SE").some(([, , name]) => name === "Halloween")).toBe(false);
+    for (let year = FROM; year <= TO; year++) {
+      const eve = data("SE").filter(([date, , name]) => name === "All Saints' Eve" && date.startsWith(`${year}-`));
+      const saints = data("SE").find(([date, , name]) => name === "All Saints' Day" && date.startsWith(`${year}-`));
+      expect(eve).toHaveLength(1);
+      expect(eve[0][1]).toBe("observance");
+      expect(weekday(eve[0][0])).toBe(5);
+      expect(saints && weekday(saints[0])).toBe(6);
+      expect(new Date(`${eve[0][0]}T00:00:00Z`).getTime() + 86_400_000).toBe(new Date(`${saints![0]}T00:00:00Z`).getTime());
+    }
+  });
+
+  it("name the group that has them off", () => {
+    expect(find("GT", "2026-05-10", "Mother's Day")?.[3]).toMatch(/working mothers/);
+    expect(find("AR", "2026-07-10", "Tourism Purposes Non-Working Day")?.[3]).toMatch(/government offices close/);
+    expect(find("AR", "2026-12-24", "Christmas Eve")?.[3]).toMatch(/national government/);
+    expect(find("BR", "2026-12-31", "New Year's Eve")?.[3]).toMatch(/^Federal offices/);
+    for (const country of ["GU", "PR", "VI"]) {
+      expect(find(country, "2030-12-24", "Christmas Eve")?.[3]).toMatch(/government staff/);
+    }
+    expect(find("PH", "2026-02-17", "Chinese New Year")?.[3]).toMatch(/^A special non-working day/);
+    expect(find("HU", "2026-12-24", "Christmas Eve")?.[3]).toMatch(/Saturday 12 December/);
+    expect(find("HU", "2027-12-24", "Christmas Eve")?.[3]).toMatch(/^Not a public holiday yet.*before Parliament in 2026/);
+    expect(find("HU", "2028-12-24", "Christmas Eve")?.[3]).toBe("Not a public holiday: many employers give the day off. Shops must close by 2 pm");
   });
 });

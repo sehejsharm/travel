@@ -16,9 +16,10 @@ The build runs in five steps, for every year from 2026 to 2050:
    fixes where a law changed (`RULE_FIXES`), one name for one holiday
    (`NAME_ALIASES`), English names where the library has none or a wrong one
    (`ENGLISH_NAMES`), "Not a day off in ..." on a national day off that some
-   regions do not keep (`STATE_GAPS`), and the Chinese, Korean and Vietnamese
-   lunisolar calendars recomputed from astronomy, which moves 32 library days
-   to the right date.
+   regions do not keep (`STATE_GAPS`), notes on library days that need one,
+   among them `optional` days that had none (`LIBRARY_NOTES`), and the
+   Chinese, Korean and Vietnamese lunisolar calendars recomputed from
+   astronomy, which moves 32 library days to the right date.
 3. **Supplements drop** library entries that are wrong (`drop` rules, each of
    which must match at least one entry, or the build stops).
 4. **Supplements add** what is missing, in file-name order, and an entry with
@@ -30,6 +31,9 @@ The build runs in five steps, for every year from 2026 to 2050:
 
 Each country becomes one JSON file, loaded on demand (one build chunk per
 country). `npm run holidays:check` fails when the committed files are stale.
+The build stops if any `optional` entry, the library's or a supplement's, has
+no note, since the note must say where or for whom it is a day off. The error
+names each country and holiday (`optionalWithoutNote`).
 
 | Supplement | What it does | Section |
 | --- | --- | --- |
@@ -41,7 +45,7 @@ country). `npm run holidays:check` fails when the committed files are stale.
 | `hindu-buddhist-diaspora.mjs` | Vesak, Deepavali, Thaipusam, Nyepi, Phagwah and others in eight countries | Hindu and Buddhist holidays outside South Asia |
 | `middle-east.mjs` (with `_solar-hijri.mjs`) | 13 countries added; UAE, Iran, Azerbaijan, Bahrain and Uzbekistan fixed | The Middle East and Central Asia |
 | `law-updates.mjs` | Newer laws and kinds in 18 countries (China, Taiwan, Vietnam, Ethiopia, Canada and others) | Newer holiday laws |
-| `library-fixes.mjs` | Library faults that are not newer laws, in 9 countries (Indonesia, Malaysia, the United States and others) | Corrections to the library |
+| `library-fixes.mjs` | Library faults that are not newer laws, in 16 countries (Indonesia, Malaysia, the United States, Brazil, Sweden and others) | Corrections to the library |
 | `pacific-east-asia.mjs` | 17 Pacific and East Asian countries and territories added; the Cayman Islands fixed | The Pacific |
 | `islamic-southeast-asia.mjs`, `fiji.mjs`, `mauritius.mjs` | Published 2026 and 2027 Islamic days, Fiji's and Mauritius's national days | Corrections made while merging |
 
@@ -60,17 +64,18 @@ As last built (`npm run holidays:build`):
 | Entries | 109,447 | 128,431 |
 | `public` | 69,189 | 84,465 |
 | `bank` | 1,180 | 1,641 |
-| `optional` | 11,425 | 13,119 |
-| `observance` | 15,342 | 16,302 |
+| `optional` | 11,425 | 12,894 |
+| `observance` | 15,342 | 16,527 |
 | `festival` | 12,311 | 12,904 |
-| JSON | 8.2 MB | 11.0 MB |
+| JSON | 8.2 MB | 11.0 MB (11,004,312 bytes) |
 
 Every one of the 242 ISO 3166-1 codes for a sovereign state or inhabited
 territory has a file (the seven without a permanent population, AQ, BV, GS,
 HM, IO, TF and UM, are left out), plus Kosovo (XK) and the Canary Islands
 (IC), and every file has a day off in every year 2026 to 2050. The largest
-files are Germany (297 KB, 11.0 KB gzipped), Japan (296 KB), India (290 KB)
-and the United States (262 KB).
+files are Germany (297 KiB, 11.0 KiB with `gzip -9`), Japan (296 KiB), India
+(290 KiB) and the United States (262 KiB). The build's summary prints the
+three largest as "KB" (296.6 for Germany).
 
 The 37 countries that come from supplements alone:
 
@@ -211,7 +216,9 @@ Nauryz substitutes are now in `RULE_FIXES` below, and the Cook Islands'
 - `ENGLISH_NAMES` gives the app's name for a library holiday the library has
   no English for (it falls back to the country's language: Tunisia's Arabic,
   Brazil's and Spain's regional days, Switzerland's cantons) or has wrong
-  (typos, mistranslations, the Queen's Birthday under a king). A name is
+  (typos, mistranslations, the Queen's Birthday under a king; Sweden's
+  "Halloween" is allhelgonaafton, now "All Saints' Eve", and Norway's and
+  Svalbard's "Olsok" is "St Olav's Day (Olsok)"). A name is
   looked up without its " (substitute day)" suffix, so its substitutes follow,
   and a one-off library date marked as a substitute gets the suffix too. The
   build summary lists any untranslated library name left over.
@@ -220,6 +227,20 @@ Nauryz substitutes are now in `RULE_FIXES` below, and the Cook Islands'
   year; Russia's names for its Crimea days, which Ukraine and the UN General
   Assembly do not recognise), and `REGION_NAMES` shows Crimea and Sevastopol
   as "Russian-occupied" in "Day off in ..." notes.
+- Every library `optional` day now has a note saying where or for whom it
+  is a day off. Before the build began checking (as of commit 516543c), 503
+  entries had none. `LIBRARY_NOTES` gives one where the same words suit
+  every year: Argentina's tourism days (government offices close, private
+  employers choose) and its Christmas Eve and New Year's Eve (recent decrees
+  gave government staff the day off; banks open), Brazil's Christmas Eve and
+  New Year's Eve (federal offices close in the afternoon), Guatemala's
+  Mother's Day (working mothers only), the Philippines' Chinese New Year (a
+  special non-working day), and Christmas Eve in Guam, Puerto Rico and the
+  US Virgin Islands (the governor often gives government staff the day off).
+  The rest are in `library-fixes.mjs` (see "Corrections to the library"),
+  among them Sweden's All Saints' Eve, now an `observance`. One of these
+  notes rests on less than the others: the Guam and Virgin Islands wording
+  was confirmed for Puerto Rico only.
 - `STATE_GAPS`: in Australia, Switzerland, the United Kingdom, Malaysia and
   St Helena, whose state calendars in date-holidays are reliable for it, a
   national day off that some regions do not keep (no day off that date, and
@@ -243,7 +264,7 @@ Nauryz substitutes are now in `RULE_FIXES` below, and the Cook Islands'
 | KZ | Labour Code: a day off on a holiday moves to the next working day after the holiday | a substitute for 21 or 22 March can land on 22 or 23 March, themselves Nauryz days | the substitutes go after 23 March (2026: 24 and 25 March; 2027: 24 March) |
 | KE | Public Holidays Act (Cap. 110) as amended in 2024: 10 October is Mazingira Day | Moi Day | Mazingira Day, with its Sunday substitute |
 | NG | Public Holidays Act (Cap. P40) and the Ministry of Interior's notices | Children's Day (27 May) and National Youth Day (1 November) as days off; 1 Muharram as a national day off | Children's Day and National Youth Day `observance`; Islamic New Year `optional`, for the states that declare it |
-| SH | The Queen's Birthday ended with Elizabeth II; St Helena keeps the King's Birthday on a Friday in November (15 November 2024, 14 November 2025, 13 November 2026) | Queen's Birthday, third Monday of April | King's Birthday, `friday after 11-10`, noted as an estimate |
+| SH | The Queen's Birthday ended with Elizabeth II; the Public Holidays Ordinance, First Schedule, as amended in 2024 (Public Holidays (Amendment) Ordinance 2024), makes the King's official birthday the Friday following Remembrance Day, 11 November: Friday 15 November 2024, 14 November 2025, 13 November 2026 and 12 November 2027 in the Government's notices | Queen's Birthday, third Monday of April | King's Birthday, `friday after 11-12` (the first Friday after 11 November, so 12 to 18 November: the 18th when 11 November is a Friday, as in 2033, 2039, 2044 and 2050; tested for 2023 to 2028 and 2033) |
 
 Chuseok's `korean 8-0-14 P3D` already matches the law (the day before, the
 day, the day after). Checked against their statutes and left as they are:
@@ -1925,7 +1946,7 @@ confirm dates, never as the only source for a rule.
 
 `scripts/holiday-supplements/library-fixes.mjs` corrects date-holidays where
 it is wrong but no law has changed (newer laws are in `law-updates.mjs`).
-Tests: `src/lib/reference/library-fixes-holidays.test.ts` (12 tests). Three of
+Tests: `src/lib/reference/library-fixes-holidays.test.ts` (16 tests). Three of
 its fixes need the whole calendar, so they are `finish` steps on the merged
 entries.
 
@@ -1940,6 +1961,18 @@ entries.
 | Faroe Islands | St Olav's Eve and Day observances | `optional`: an afternoon off and a day off for most workers under union agreements |
 | Poland | Flag Day (2 May) `optional` | `observance`: a working day |
 | Vatican City | The pope's election anniversary and name day | Notes that they are the current pope's, Leo XIV's |
+| Brazil | Carnival Saturday, Sunday and Ash Wednesday `optional`, with no note | The weekend becomes an `observance`, since no one has it off (banks and many offices close on the Monday and Tuesday). Ash Wednesday stays `optional`: federal offices open at 2 pm |
+| Guatemala | Father's Day (17 June) `optional` | `observance`: not a day off by law |
+| Hungary | Christmas Eve `optional`, with no note | Still `optional`, with a note. In 2026 it is a day off for most workers, made up on Saturday 12 December. Shops close by 2 pm. The 2026 and 2027 notes name the bill to make it a public holiday (T/13464); later years do not, so they do not go stale. Revisit when the bill is decided |
+| Norway, Svalbard | Olsok (29 July) `optional` | `observance`, as "St Olav's Day (Olsok)": a flag day, not a day off |
+| Sweden | Twelfth Night (5 January), Walpurgis Night (30 April) and All Saints' Eve (the Friday from 30 October to 5 November) `optional` | `observance`: not days off, though many workplaces close early (on All Saints' Eve, at midday). The hours come from two state universities, Uppsala and Örebro, not the central state agreement |
+| San Marino | New Year's Eve `optional` | `observance`: a working day, not a holiday since Law 152 of 1990 |
+
+These last six rows fix library `optional` days that had no note and that
+one note per name could not fix: a day that is no one's day off, a note that
+changes by year (Hungary), or one name over days of different kinds
+(Brazil's Carnival). The ones that one note fixes for every year are in the
+generator's `LIBRARY_NOTES` (see "Names, notes and regions").
 
 ## Corrections made while merging
 
@@ -2206,13 +2239,14 @@ own days off.
   followed in the data past the trip's dates, so a run that started before
   the trip, or a planned day before the trip inside it, counts. Its note says
   when it runs. Of the 1,669 festival runs over a day, 1,644 already say "Runs
-  X to Y"; Bhutan's Paro Tshechu and the 175 observance runs from
-  date-holidays do not, so the app adds it in the same words ("Runs 6 to 8
-  May").
+  X to Y". Bhutan's Paro Tshechu and all 200 observance runs over a day
+  (Grenada's festivals, Venezuela's Holy Week, Kyrgyzstan's days of history,
+  Brazil's Carnival weekend and others) do not, so the app adds it in the
+  same words ("Runs 6 to 8 May").
 - A day off, and a day off for some, shows on each of its days, since each
   day changes what is open.
 - Keukenhof (53 days) is one line on a month in the Netherlands; Germany's
-  Christmas markets (29 days in 2026) are one line on a December trip.
+  Christmas markets (28 days in 2026) are one line on a December trip.
 
 ### The trip screen with nothing scheduled
 
@@ -2229,11 +2263,13 @@ headed "Days off on your dates".
 - Beside the search's Festivals & shows, a "From Manifest's calendar" section
   lists the calendar's festivals on the trip's dates, and its days off for
   everyone (Diwali, Eid and Christmas are days off in many countries), each
-  labelled with its kind. It shows when the dates are settled, every
-  country's calendar is in, and Festivals & shows is picked. A day off alone
+  labelled with its kind. It shows when Festivals & shows is picked, the
+  dates are settled, every country's calendar is in, and the trip's dates
+  there hold at least one festival or day off for everyone. A day off alone
   is enough for it, since many of the biggest festivals (Songkran, Chinese
   New Year, Thingyan, Carnival) are stored as days off. Observances and days
-  off for some are never listed in it.
+  off for some are never listed in it. While the dates are not settled, a
+  line says the calendar adds the festivals once they are set.
 - Each card names its country when the trip has more than one, or when the
   Where field holds a place other than the trip's own destination (the
   calendar follows the trip, not the field).

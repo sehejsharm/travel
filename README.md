@@ -63,7 +63,7 @@ caching `/api`.
 | Cabinet | `/cabinet` | Everything filed, filterable by places, activities, purchases, bookings |
 | Add | `/add` | Paste or share in text or a Reel/TikTok/YouTube link, pick a screenshot or take a photo, or type an item in by hand; watch it get extracted and grounded, file it |
 | Checks | `/checks` | Every finding, plus the packing list and pre-trip tasks |
-| Discover | `/discover` | Things to do by interest, each naming where it came from; the festivals on the trip's dates from the holiday calendar, beside the search |
+| Discover | `/discover` | Things to do by interest, each naming where it came from; the festivals and days off on the trip's dates from the holiday calendar, beside the search |
 | More | `/more` | Calendar export, share link, recap, destination brief |
 | Recap | `/recap` | Spend, places, and which platform each item actually came from |
 | Shared | `/share#…` | Read-only plan, carried in the URL fragment so it never reaches a server |
@@ -108,8 +108,13 @@ Festivals & shows is looked up like any other interest, since the search finds
 concerts, theatre and opera, which the calendar never has. Beside it, Discover
 lists the festivals and days off in the trip's countries on the trip's own
 dates, from the holiday calendar below, labelled "From Manifest's calendar"
-(`src/lib/advisor/calendar.ts`). It shows when a festival is on and the dates
-are settled, before or after a search, and when the search fails.
+(`src/lib/advisor/calendar.ts`). It shows when Festivals & shows is picked,
+the dates are settled, each country's calendar has loaded, and the trip's
+dates hold a festival or a day off for everyone, before or after a search and
+when the search fails. If the search finds nothing it can verify (a 503) but
+the calendar has festivals or days off to list, a short note says so in place
+of the error. While a country's calendar is still loading, or cannot load
+because the device is offline, a line says so.
 
 ### The checks
 
@@ -183,20 +188,23 @@ Islamic calendar; Sri Lanka, Bangladesh and the Maldives; Nepal, Bhutan and
 Mongolia on their own calendars; Thailand, Laos, Cambodia and Myanmar; Hindu
 and Buddhist days in the diaspora; the Middle East and Central Asia; the
 Pacific, Macau and North Korea; newer holiday laws in 18 countries; library
-faults in 9 more; and 112 festivals in 41 countries. A supplement can also
+faults in 16 more; and 112 festivals in 41 countries. A supplement can also
 drop library entries that are wrong, and rework a country's merged calendar
 for rules that need all of it (substitute days). Each entry is
 `public` or `bank` (a day off), `optional` (a day off in some regions or for
-some people), `observance` or `festival`. `npm run holidays:check` fails when
-the committed files are stale, for CI. How each supplement's dates are worked
-out, and what they were checked against, is in `docs/holiday-dates.md`.
+some people), `observance` or `festival`. Every `optional` entry has a note
+saying where or for whom it is a day off, and the build stops on one without.
+`npm run holidays:check` fails when the committed files are stale, for CI.
+How each supplement's dates are worked out, and what they were checked
+against, is in `docs/holiday-dates.md`.
 
 Coverage as last built: 244 countries and territories (every sovereign state
 and inhabited territory, 37 of them from supplements alone), 128,431 entries
-(84,465 public, 1,641 bank, 13,119 optional, 16,302 observance, 12,904
+(84,465 public, 1,641 bank, 12,894 optional, 16,527 observance, 12,904
 festival), 11.0 MB of JSON, every country with a day off in every year
-(`src/lib/reference/holiday-coverage.test.ts`). Each country is its own chunk, fetched the first time
-a trip goes there (`loadHolidays`, called from `useTripView`) and then cached
+(`src/lib/reference/holiday-coverage.test.ts`). Each country is its own
+chunk, fetched the first time a trip goes there (`loadHolidays`, called from
+`useTripView`, and again when the device comes back online) and then cached
 by the service worker; the reads are synchronous and the checks, the timeline
 and Discover re-render when a country arrives (`subscribeHolidays`,
 `holidaysVersion`). `src/lib/trip-calendar.ts` turns it into the timeline's

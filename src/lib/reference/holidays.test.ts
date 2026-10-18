@@ -19,6 +19,7 @@ import {
   lunisolarDisagreements,
   lunisolarMonths,
   mergeEntries,
+  optionalWithoutNote,
   supplementEntries,
 } from "../../../scripts/build-holidays.mjs";
 import type { Trip } from "../domain/types";
@@ -483,6 +484,40 @@ describe("holiday generator", () => {
     });
   });
 
+  it("lists each optional day with no note once, with its first date", () => {
+    expect(
+      optionalWithoutNote("ZZ", [
+        { date: "2027-05-05", kind: "optional", name: "Some Day", note: "" },
+        { date: "2026-05-05", kind: "optional", name: "Some Day", note: " " },
+        { date: "2026-06-06", kind: "optional", name: "Regional Day", note: "Day off in the north" },
+        { date: "2026-07-07", kind: "observance", name: "Marked Day", note: "" },
+      ]),
+    ).toEqual(["ZZ Some Day (2026-05-05 and 1 more)"]);
+  });
+
+  describe("with an optional day that has no note", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "holiday-supplements-"));
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+    writeFileSync(
+      path.join(dir, "c-zz.mjs"),
+      `export default [{
+        country: "ZZ",
+        source: "Test source, https://example.org/zz",
+        entries: (year) => [
+          { date: year + "-05-05", name: "Only Here", kind: "public" },
+          { date: year + "-06-06", name: "Some People's Day", kind: "optional" },
+          { date: year + "-07-07", name: "Regional Day", kind: "optional", note: "Day off in the north" },
+        ],
+      }];\n`,
+    );
+
+    it("stops the build, naming the country and the holiday", async () => {
+      await expect(build({ supplementsDir: dir, countries: ["ZZ"] })).rejects.toThrow(
+        /"optional" days with no note saying where or for whom they are a day off \(1\): ZZ Some People's Day \(2026-06-06 and 24 more\)/,
+      );
+    });
+  });
+
   describe("with a drop rule that matches nothing", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "holiday-supplements-"));
     afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -613,8 +648,20 @@ describe("holiday generator corrections", () => {
     expect(ng.find((e) => e.name === "Children's Day")?.kind).toBe("observance");
     expect(ng.find((e) => e.name === "National Youth Day")?.kind).toBe("observance");
     expect(ng.find((e) => e.name === "Islamic New Year")?.kind).toBe("optional");
-    const sh = libraryEntries("SH", 2026, 2026) as Entry[];
-    expect(sh.filter((e) => /Birthday/.test(e.name)).map((e) => `${e.date} ${e.name}`)).toEqual(["2026-11-13 King's Birthday"]);
+    // The Ordinance as amended in 2024: the Friday following Remembrance Day,
+    // 11 November. So 12 to 18 November, and the 18th when the 11th is a
+    // Friday (2033), never Remembrance Day itself.
+    const sh = libraryEntries("SH", 2023, 2033) as Entry[];
+    expect(sh.filter((e) => /Birthday/.test(e.name) && e.date <= "2028-12-31").map((e) => `${e.date} ${e.name}`)).toEqual([
+      "2023-11-17 King's Birthday",
+      "2024-11-15 King's Birthday",
+      "2025-11-14 King's Birthday",
+      "2026-11-13 King's Birthday",
+      "2027-11-12 King's Birthday",
+      "2028-11-17 King's Birthday",
+    ]);
+    expect(sh.filter((e) => /Birthday/.test(e.name) && e.date.startsWith("2033-")).map((e) => e.date)).toEqual(["2033-11-18"]);
+    expect(sh.find((e) => e.name === "King's Birthday")?.note).toBe("The Friday after Remembrance Day, 11 November");
     expect(Object.keys(RULE_FIXES).sort()).toEqual(["CN", "KE", "KR", "KZ", "NG", "SH", "TW"]);
   });
 

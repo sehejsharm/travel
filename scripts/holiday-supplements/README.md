@@ -22,8 +22,8 @@ touching the committed data, write somewhere else:
 
 Every `*.mjs` file in this folder, in file-name order, except:
 
-- a file whose name starts with `_` (`_shared.mjs`): a helper that
-  supplements import, not a supplement itself;
+- a file whose name starts with `_` (such as `_solar-hijri.mjs`): a helper
+  that supplements import, not a supplement itself;
 - a file whose name ends in `.test.mjs`.
 
 Tests belong in `src/lib/reference/<name>-holidays.test.ts` (vitest), which
@@ -71,13 +71,15 @@ export default [
   - `"public"`: a day off. Shops, offices and many museums close.
   - `"bank"`: a bank holiday. Banks and many offices close.
   - `"optional"`: a day off in some regions or for some people. Say which in
-    the note.
+    the note: the build stops on an `optional` entry with no note, the
+    library's included.
   - `"observance"`: marked, but not a day off.
   - `"festival"`: a cultural or religious festival, or a big event, that is not
     a day off.
-- `note` is optional, in plain English, and shown to travellers. A computed
-  lunar or sighting-based date ends its note with "Lunar date, estimated: the
-  official date can differ by a day." (Islamic dates: "Islamic lunar date,
+- `note` is optional, except on an `optional` entry, which must say where or
+  for whom it is a day off. It is in plain English and shown to travellers. A
+  computed lunar or sighting-based date ends its note with "Lunar date,
+  estimated: the official date can differ by a day." (Islamic dates: "Islamic lunar date,
   estimated: the official date can differ by a day", as the library writes it.)
 - `source` says where the dates come from, with a URL. It is listed on the
   Licences page, so cite the publisher and keep within its licence.
@@ -168,7 +170,12 @@ library's own data, so a supplement does not need to:
 - `REGION_NAMES`: regions named otherwise in "Day off in ..." notes.
 - `LIBRARY_NOTES`: a note added to a library holiday, by country and cleaned
   name, where a traveller needs one (Vietnam's Tết days, which the
-  government sets each year; Russia's names for its Crimea days).
+  government sets each year; Russia's names for its Crimea days), and on
+  library `optional` days that have none, saying who has the day off. When
+  one note per name will not do (a note that changes by year, or one name
+  over days of different kinds), `library-fixes.mjs` repeats the entries
+  with their own notes, and it makes an `optional` day that is no one's day
+  off an `observance`.
   `NOTE_FIXES` corrects typos in the library's own notes.
 - A library `public` day whose note gives it to one group only (women,
   Muslims, the armed forces) becomes `optional`.

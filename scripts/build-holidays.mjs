@@ -25,6 +25,9 @@
  * the same holiday on the same date as a library one replaces it, and a
  * supplement's `finish` can rework the country's merged calendar.
  *
+ * Every "optional" day must say in its note where or for whom it is a day
+ * off; one without stops the build (optionalWithoutNote).
+ *
  * The output is deterministic: the same library version and supplements give
  * byte-identical files, whatever the machine's time zone or locale.
  *
@@ -228,12 +231,13 @@ const ENGLISH_NAMES = {
   MS: { "Queen's Birthday Celebration": "King's Birthday Celebration" },
   NA: { "Public Holiday": "Public Holiday" },
   NC: { "Jour de l'an": "New Year's Day" },
-  NO: { "Midsummar Eve": "Midsummer Eve" },
+  NO: { "Midsummar Eve": "Midsummer Eve", Olsok: "St Olav's Day (Olsok)" },
   PA: { "Primer Grito de Independencia": "First Cry of Independence", "Separation Day (from Columbia)": "Separation Day (from Colombia)" },
   PL: { "Greater Poland Uprising Remebrence Day": "Greater Poland Uprising Remembrance Day" },
   PT: { "Implantação da República": "Republic Day", "Restauração da Independência": "Restoration of Independence Day" },
-  SE: { Vasaloppet: "Vasaloppet ski race" },
-  SJ: { "Midsummar Eve": "Midsummer Eve" },
+  // allhelgonaafton, the eve of All Saints' Day (a Saturday), not Halloween.
+  SE: { Halloween: "All Saints' Eve", Vasaloppet: "Vasaloppet ski race" },
+  SJ: { "Midsummar Eve": "Midsummer Eve", Olsok: "St Olav's Day (Olsok)" },
   SK: { "Day of victory over fascism": "Day of Victory over Fascism" },
   SM: { "Cerimonia di investitura dei Capitani Reggenti": "Investiture of the Captains Regent" },
   SN: { "Magal de Touba": "Grand Magal of Touba" },
@@ -309,14 +313,48 @@ export const NAME_ALIASES = {
   },
 };
 
-/** Notes added to library holidays: an estimate of a yearly decision, or context a traveller needs. */
+/** The US federal Christmas Eve, inherited by the territories, where it is not a holiday either. */
+const TERRITORY_CHRISTMAS_EVE =
+  "Not a public holiday, but the governor often gives government staff the day off. Many businesses close early";
+
+/**
+ * Notes added to library holidays: an estimate of a yearly decision, or
+ * context a traveller needs. An "optional" library day needs one saying who
+ * has the day off (the build stops on one without), unless its state lists
+ * give it "Day off in ...".
+ */
 const LIBRARY_NOTES = {
+  AR: {
+    // Ley 27.399: on a non-working day (día no laborable) the employer decides.
+    "Tourism Purposes Non-Working Day":
+      "A non-working day added to make a long weekend: government offices close, and private employers choose whether to open",
+    // Not holidays; the government gave its staff the day off by decree in 2024 and 2025 (Decreto 883/2025), banks excluded.
+    "Christmas Eve":
+      "Not a public holiday. In recent years the national government and some provinces have given their staff the day off. Banks and most shops open",
+    "New Year's Eve":
+      "Not a public holiday. In recent years the national government and some provinces have given their staff the day off. Banks and most shops open",
+  },
+  BR: {
+    // The yearly federal portaria: ponto facultativo from the afternoon (13:00 in 2026, 14:00 before).
+    "Christmas Eve": "Federal offices close in the afternoon, and many shops and offices close early",
+    "New Year's Eve": "Federal offices close in the afternoon, and many shops and offices close early",
+  },
+  // Decreto 1794 and the Labour Code: a paid day off for working mothers.
+  GT: { "Mother's Day": "A paid day off for working mothers only. Shops and offices open" },
+  GU: { "Christmas Eve": TERRITORY_CHRISTMAS_EVE },
+  PH: {
+    // A special (non-working) day in each year's proclamation since 2012.
+    "Chinese New Year":
+      "A special non-working day: government offices and schools close. Private employers can open, and pay extra to those who work",
+  },
+  PR: { "Christmas Eve": TERRITORY_CHRISTMAS_EVE },
   RU: {
     "Day of the Reunification of Crimea with Russia":
       "Russia's name for the day. The annexation is not recognised by Ukraine or the UN General Assembly (Resolution 68/262)",
     "Day of Sevastopol's Return to Russia":
       "Russia's name for the day. The annexation is not recognised by Ukraine or the UN General Assembly (Resolution 68/262)",
   },
+  VI: { "Christmas Eve": TERRITORY_CHRISTMAS_EVE },
   VN: {
     "Vietnamese New Year":
       "Five days off for Tết. The government sets the exact days each year, so they can move by a day or two",
@@ -385,13 +423,15 @@ export const RULE_FIXES = {
     },
   },
   SH: {
-    why: "The Queen's Birthday (third Monday of April) ended with Elizabeth II. St Helena now keeps the King's Birthday in November: Friday 15 November 2024, Friday 14 November 2025 and Friday 13 November 2026, the Friday nearest 14 November",
+    why: "The Queen's Birthday (third Monday of April) ended with Elizabeth II. The Public Holidays Ordinance, First Schedule, as amended by the Public Holidays (Amendment) Ordinance 2024, makes the King's official birthday the Friday following Remembrance Day, 11 November: Friday 15 November 2024, 14 November 2025, 13 November 2026 and 12 November 2027 in the Government's notices. When 11 November is itself a Friday (2033, 2039, 2044, 2050) the day is the 18th",
     remove: ["3rd monday in April"],
     add: {
-      "friday after 11-10": {
+      // "after" includes the day itself, so 11-12 gives the first Friday after
+      // 11 November: 12 to 18 November, never Remembrance Day itself.
+      "friday after 11-12": {
         name: { en: "King's Birthday" },
         type: "public",
-        note: "Estimated: the government sets the day each year. 2024 to 2026 were the Friday nearest the King's birthday, 14 November",
+        note: "The Friday after Remembrance Day, 11 November",
       },
     },
   },
@@ -1393,8 +1433,26 @@ export function finishEntries(entries, supplements) {
 }
 
 /**
+ * The "optional" entries with no note. Optional means a day off only in some
+ * regions or for some people, so the note must say which ("Day off in ...",
+ * "Government offices close"); the build stops on any of these. Returns each
+ * holiday once, as "CC name (first date, and how many more)".
+ */
+export function optionalWithoutNote(country, entries) {
+  const dates = new Map();
+  for (const entry of entries) {
+    if (entry.kind !== "optional" || (entry.note ?? "").trim() !== "") continue;
+    dates.set(entry.name, [...(dates.get(entry.name) ?? []), entry.date]);
+  }
+  return [...dates].map(([name, list]) => {
+    const [first, ...rest] = [...list].sort();
+    return `${country} ${name} (${first}${rest.length ? ` and ${rest.length} more` : ""})`;
+  });
+}
+
+/**
  * Whether a file in the supplements folder is a supplement: an .mjs module,
- * but not a helper ("_shared.mjs") or a test ("thai.test.mjs").
+ * but not a helper ("_solar-hijri.mjs") or a test ("thai.test.mjs").
  */
 export function isSupplementFile(file) {
   return file.endsWith(".mjs") && !file.startsWith("_") && !file.endsWith(".test.mjs");
@@ -1506,6 +1564,7 @@ export async function build({
   const files = new Map();
   const stats = { countries: [], supplements: [], nonLatin: [], untranslated: [], lunisolar: [] };
   untranslated.clear();
+  const unexplained = [];
 
   for (const country of countries) {
     const own = supplements.filter((supplement) => supplement.country === country);
@@ -1536,6 +1595,7 @@ export async function build({
       ),
       own,
     );
+    unexplained.push(...optionalWithoutNote(country, entries));
     const json = countryJson(entries, from, to);
     files.set(`${country}.json`, json);
 
@@ -1559,6 +1619,12 @@ export async function build({
     });
   }
 
+  if (unexplained.length > 0) {
+    throw new Error(
+      `"optional" days with no note saying where or for whom they are a day off (${unexplained.length}): ${unexplained.join("; ")}. ` +
+        "Give each a note (LIBRARY_NOTES, or a supplement entry with the same date and name) or another kind.",
+    );
+  }
   stats.untranslated = [...untranslated].sort();
   files.set("index.ts", indexSource(countries));
   files.set("sources.ts", sourcesSource(supplements.filter((s) => countries.includes(s.country))));
