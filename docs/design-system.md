@@ -106,6 +106,12 @@ Rules:
 
 - Fixed bottom bars pad with `.pb-bar`: `max(16px, env(safe-area-inset-bottom))`.
   The page clears the tab bar with `.pb-safe`.
+- A long screen keeps its one next step in reach with `ActionBar`, placed last.
+  On a phone it is a `.nav-surface` bar stacked on the tab bar (the shell
+  publishes the tab bar's height as `--tab-bar-height`). On a wide screen it is
+  a `rounded-sheet` panel floating 24px off the bottom. At the end of the page
+  it rests where it rode, and its material, hairline and shadow fade out over
+  the last 16px of scroll, as iOS bars do at a scroll edge.
 
 ## Navigation and structure
 

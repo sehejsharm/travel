@@ -10,6 +10,7 @@ import {
   SECONDARY_BUTTON_CLASSES,
 } from "@/components/styles";
 import {
+  ActionBar,
   Card,
   Chip,
   EmptyState,
@@ -153,19 +154,19 @@ export default function DiscoverScreen() {
           <div className="mt-3">
             <InterestPicker selected={draftInterests ?? []} onChange={setDraftInterests} />
           </div>
-          <div className="mt-4">
-            <PrimaryButton
-              onClick={() => {
-                const picked = draftInterests ?? [];
-                updateTrip(trip.id, { interests: picked });
-                void find(picked);
-              }}
-              disabled={!draftInterests?.length}
-            >
-              Turn suggestions on
-            </PrimaryButton>
-          </div>
         </Card>
+        <ActionBar>
+          <PrimaryButton
+            onClick={() => {
+              const picked = draftInterests ?? [];
+              updateTrip(trip.id, { interests: picked });
+              void find(picked);
+            }}
+            disabled={!draftInterests?.length}
+          >
+            Turn suggestions on
+          </PrimaryButton>
+        </ActionBar>
       </div>
     );
   }
@@ -184,18 +185,19 @@ export default function DiscoverScreen() {
 
         <Card className="p-4">
           <InterestPicker selected={picked} onChange={setDraftInterests} />
-          <div className="mt-4">
-            <PrimaryButton
-              onClick={() => {
-                updateTrip(trip.id, { interests: picked });
-                void find(picked);
-              }}
-              disabled={picked.length === 0}
-            >
-              Save and find things to do
-            </PrimaryButton>
-          </div>
         </Card>
+        {/* Kept in reach: on a phone the end of 22 tiles is screens away. */}
+        <ActionBar>
+          <PrimaryButton
+            onClick={() => {
+              updateTrip(trip.id, { interests: picked });
+              void find(picked);
+            }}
+            disabled={picked.length === 0}
+          >
+            Save and find things to do
+          </PrimaryButton>
+        </ActionBar>
       </div>
     );
   }

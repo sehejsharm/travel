@@ -141,6 +141,26 @@ const SIDEBAR_ICON = (
   </svg>
 );
 
+/**
+ * Publishes the tab bar's height as --tab-bar-height, so a screen's own bottom
+ * bar (ActionBar) stacks exactly on it, home indicator and all. A wide screen
+ * hides the tab bar, which then measures 0. A ref callback's return value is
+ * its cleanup.
+ */
+function publishTabBarHeight(bar: HTMLElement | null) {
+  if (!bar) return;
+  const root = document.documentElement;
+  const publish = () =>
+    root.style.setProperty("--tab-bar-height", `${bar.getBoundingClientRect().height}px`);
+  publish();
+  const observer = new ResizeObserver(publish);
+  observer.observe(bar);
+  return () => {
+    observer.disconnect();
+    root.style.removeProperty("--tab-bar-height");
+  };
+}
+
 function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
@@ -246,6 +266,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
 
         <nav
+          ref={publishTabBarHeight}
           aria-label="Main"
           className="nav-surface pb-bar fixed inset-x-0 bottom-0 z-30 border-t border-line lg:hidden"
         >

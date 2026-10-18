@@ -58,6 +58,19 @@ export function Card({
   );
 }
 
+/**
+ * A long screen's next step, kept in reach while the screen scrolls: a bar
+ * stacked on the tab bar on a phone, a panel floating off the bottom on a wide
+ * screen. Where it sits is .action-bar's job (globals.css). Put it last.
+ */
+export function ActionBar({ children }: { children: ReactNode }) {
+  return (
+    <div className="action-bar nav-surface z-20 -mx-5 border-t border-line px-5 py-3 lg:mx-0 lg:rounded-sheet lg:border lg:p-2 lg:shadow-float">
+      {children}
+    </div>
+  );
+}
+
 export function SectionTitle({
   children,
   trailing,

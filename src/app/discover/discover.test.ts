@@ -136,3 +136,30 @@ describe("Discover's Festivals & shows", () => {
     expect(source).toMatch(/holidayTone[\s\S]*from "@\/lib\/trip-calendar"/);
   });
 });
+
+describe("Discover's interest question", () => {
+  /** The markup inside the action bar, or null when the screen has none. */
+  function actionBar(html: string): string | null {
+    return html.match(/<div class="action-bar [^"]*">([\s\S]*?)<\/div>/)?.[1] ?? null;
+  }
+
+  it("keeps its button in the action bar, after the tiles, on the first visit", () => {
+    const html = show(trip({ interests: [] }));
+
+    expect(html).toContain("What are you into?");
+    expect(actionBar(html)).toMatch(/<button[^>]*>Save and find things to do<\/button>/);
+    // Last on the screen, so the bar settles below the tiles at the end.
+    expect(html.indexOf("action-bar")).toBeGreaterThan(html.lastIndexOf("aria-pressed"));
+  });
+
+  it("does the same on a trip that keeps Discover quiet", () => {
+    const html = show(trip({ interests: [], purpose: "business" }));
+
+    expect(html).toContain("Kept quiet for this trip");
+    expect(actionBar(html)).toMatch(/<button[^>]*disabled=""[^>]*>Turn suggestions on<\/button>/);
+  });
+
+  it("has no action bar once interests are picked", () => {
+    expect(actionBar(show(trip()))).toBeNull();
+  });
+});
