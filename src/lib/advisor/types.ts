@@ -3,14 +3,18 @@ import type { PlaceRef } from "../domain/types";
 /**
  * Which tier of the waterfall an answer came from. It is shown on every
  * card: a suggestion with no traceable source is not worth giving.
+ *
+ * "calendar" is Manifest's own holiday and festival calendar. Discover fills
+ * Festivals & shows from it on the device; the route never returns it.
  */
-export type SourceTier = "saved" | "community" | "places" | "web";
+export type SourceTier = "saved" | "community" | "places" | "web" | "calendar";
 
 export const TIER_LABELS: Record<SourceTier, string> = {
   saved: "From your own saves",
   community: "From Manifest's own list",
   places: "From Google Places",
   web: "From the web",
+  calendar: "From Manifest's calendar",
 };
 
 export interface Candidate {

@@ -7,7 +7,7 @@ import { buildRecap } from "./recap";
 import { baggageForFlight, dutyFreeAllowance } from "./reference/allowances";
 import { weatherFor } from "./reference/climate";
 import { healthAdvisory } from "./reference/health";
-import { holidaysBetween } from "./reference/holidays";
+import { holidaysBetween, loadHolidays } from "./reference/holidays";
 import { placeFacts } from "./reference/places";
 
 const TRIP: Trip = {
@@ -217,7 +217,9 @@ describe("reference lookups", () => {
     expect(advisory.lastVerified).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it("finds holidays inside a date range only", () => {
+  it("finds holidays inside a date range only", async () => {
+    // Each country's calendar is its own chunk, read only once it has loaded.
+    await loadHolidays(["JP"]);
     expect(holidaysBetween("JP", "2026-10-01", "2026-10-31")).toHaveLength(1);
     expect(holidaysBetween("JP", "2026-10-14", "2026-10-22")).toHaveLength(0);
   });
