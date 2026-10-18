@@ -51,6 +51,10 @@ in logs. Every page is prerendered static, so all it needs is a host that runs
 Next.js route handlers; it is set up for Vercel. What each route sends where
 is spelled out, for users, at `/legal/privacy`.
 
+Production is https://travel-kappa-steel-34.vercel.app: every push to `main`
+deploys there (Vercel project `manifest19/travel`). Changes reach `main`
+through pull requests, and each pull request gets its own preview deployment.
+
 It installs as a PWA — standalone display, generated icons, and a service
 worker that caches the shell and content-hashed build assets while never
 caching `/api`.
