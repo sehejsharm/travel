@@ -316,12 +316,14 @@ body {
   }
 
   /*
-   * A screen's bottom action bar (ActionBar in ui.tsx). On a phone it stacks
-   * on the tab bar, whose height the app shell publishes as --tab-bar-height.
-   * On a wide screen, with no tab bar, it floats 24px off the bottom. The
-   * negative margin takes back the part of the page's bottom padding (.pb-safe,
-   * or lg:pb-16) the bar stands in, so at the end of the page it rests exactly
-   * where it rode instead of lifting off the tab bar.
+   * A screen's bottom action bar (ActionBar in ui.tsx). Below lg it is a
+   * full-bleed bar stacked on the tab bar, whose height the app shell
+   * publishes as --tab-bar-height; at lg, with no tab bar, a panel floating
+   * 24px off the bottom. The negative margin takes back the part of the page's
+   * bottom padding (.pb-safe, or lg:pb-16) the bar stands in, so at the end of
+   * the page it rests exactly where it rode instead of lifting off. The lg
+   * query is Tailwind's own, in rem, so it switches with lg:hidden on the tab
+   * bar whatever the browser's font size.
    */
   .action-bar {
     position: sticky;
@@ -329,36 +331,56 @@ body {
     margin-bottom: calc(
       var(--tab-bar-height, 0px) - max(16px, env(safe-area-inset-bottom, 0px)) - 6rem
     );
+    margin-inline: calc(50% - 50vw);
+    padding-inline: calc(50vw - 50%);
   }
 
-  @media (min-width: 1024px) {
+  @media (min-width: 64rem) {
     .action-bar {
       bottom: 1.5rem;
       margin-bottom: -2.5rem;
+      /* shadow-float, written as the token it maps to: @theme inline does not emit --shadow-float. */
+      --action-bar-shadow: var(--shadow-lg);
     }
   }
 }
 
-/* A control tabbed to scrolls clear of the bars instead of under them. */
+/* A control scrolled to stays clear of the header and of both bottom bars. */
 :root:has(.action-bar) {
+  scroll-padding-top: var(--header-height, 0px);
   scroll-padding-bottom: calc(var(--tab-bar-height, 0px) + 6rem);
 }
 
 /*
  * Scroll-edge appearance, as on iOS: the action bar is a material only while
- * the page runs on beneath it. Over the last 16px of scroll the material, the
- * hairline and the shadow fade out, leaving the button on the page. Where
- * scroll-driven animation is missing, the bar simply keeps its material.
+ * the page runs on beneath it. Its resting look is the button alone; while
+ * the page has more to scroll, the first keyframe (filled backwards) lays the
+ * material, hairline and shadow over it, and over the last 16px of scroll they
+ * fade. A page too short to scroll has nothing beneath the bar, and an
+ * inactive timeline leaves the resting look. Without scroll-driven animation
+ * the block is skipped and the bar keeps its material throughout.
  */
 @supports (animation-timeline: scroll()) {
-  .action-bar {
-    animation: action-bar-edge linear both;
+  /* Doubled to outrank .nav-surface, which comes later and sets the material. */
+  .action-bar.action-bar {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    animation: action-bar-ride linear both;
     animation-timeline: scroll(root);
     animation-range: calc(100% - 1rem) 100%;
   }
 }
 
-@keyframes action-bar-edge {
+/* The material repeats .nav-surface's: a keyframe cannot apply a class. */
+@keyframes action-bar-ride {
+  from {
+    background-color: var(--material);
+    border-color: var(--line);
+    box-shadow: var(--action-bar-shadow, none);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
   to {
     background-color: transparent;
     border-color: transparent;

@@ -65,7 +65,7 @@ export function Card({
  */
 export function ActionBar({ children }: { children: ReactNode }) {
   return (
-    <div className="action-bar nav-surface z-20 -mx-5 border-t border-line px-5 py-3 lg:mx-0 lg:rounded-sheet lg:border lg:p-2 lg:shadow-float">
+    <div className="action-bar nav-surface z-20 border-t border-line py-3 lg:mx-0 lg:rounded-sheet lg:border lg:p-2 lg:shadow-float">
       {children}
     </div>
   );
