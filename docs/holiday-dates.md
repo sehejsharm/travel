@@ -8,18 +8,25 @@ knows which dates are firm and which are close calls.
 
 ## Overview
 
-The build runs in four steps, for every year from 2026 to 2050:
+The build runs in five steps, for every year from 2026 to 2050:
 
 1. **date-holidays** (3.37.0) gives every country it knows, with each state's
    or region's own days off as `optional` and a note saying where.
 2. **The generator corrects the library** before anything is merged: rule
    fixes where a law changed (`RULE_FIXES`), one name for one holiday
-   (`NAME_ALIASES`), and the Chinese, Korean and Vietnamese lunisolar calendars
-   recomputed from astronomy, which moves 32 library days to the right date.
+   (`NAME_ALIASES`), English names where the library has none or a wrong one
+   (`ENGLISH_NAMES`), "Not a day off in ..." on a national day off that some
+   regions do not keep (`STATE_GAPS`), and the Chinese, Korean and Vietnamese
+   lunisolar calendars recomputed from astronomy, which moves 32 library days
+   to the right date.
 3. **Supplements drop** library entries that are wrong (`drop` rules, each of
    which must match at least one entry, or the build stops).
 4. **Supplements add** what is missing, in file-name order, and an entry with
    the same date and name as a library one replaces it.
+5. **Supplements finish**: a supplement's `finish` gets the country's merged
+   calendar and returns it reworked, for rules that need every day at once
+   (substitute days in Malaysia, Korea's Labour Day substitutes, the US day
+   after Thanksgiving under its state names).
 
 Each country becomes one JSON file, loaded on demand (one build chunk per
 country). `npm run holidays:check` fails when the committed files are stale.
@@ -28,14 +35,15 @@ country). `npm run holidays:check` fails when the committed files are stale.
 | --- | --- | --- |
 | `festivals.mjs` | 112 festivals and big events in 41 countries | Festivals |
 | `india.mjs` | India's Hindu, Jain, Sikh, Buddhist and Islamic calendar | India |
-| `south-asia.mjs` | Sri Lanka and Bangladesh fixed; the Maldives added; three Indian library days replaced | South Asia |
+| `south-asia.mjs` | Sri Lanka and Bangladesh fixed; the Maldives added; Indian library days replaced (Vishu, Poila Baishakh, Guru Gobind Singh Jayanti and six state days) | South Asia |
 | `himalaya.mjs` (with `_tibetan-calendar.mjs`, `_nepali-calendar.mjs`) | Nepal and Bhutan added; Mongolia completed; Russia's Buddhist and Radonitsa days continued | Nepal, Bhutan, Mongolia |
-| `theravada.mjs` | Thailand's Buddhist days continued; Laos, Cambodia and Myanmar added | Thailand, Laos, Cambodia and Myanmar |
+| `theravada.mjs` | Thailand's Buddhist days continued and its weekend substitute days added; Laos, Cambodia and Myanmar added | Thailand, Laos, Cambodia and Myanmar |
 | `hindu-buddhist-diaspora.mjs` | Vesak, Deepavali, Thaipusam, Nyepi, Phagwah and others in eight countries | Hindu and Buddhist holidays outside South Asia |
-| `middle-east.mjs` (with `_solar-hijri.mjs`) | 13 countries added; UAE, Iran and Azerbaijan fixed | The Middle East and Central Asia |
-| `law-updates.mjs` | Newer laws and kinds in 16 countries (China, Taiwan, Vietnam, Ethiopia, Canada and others) | Newer holiday laws |
+| `middle-east.mjs` (with `_solar-hijri.mjs`) | 13 countries added; UAE, Iran, Azerbaijan, Bahrain and Uzbekistan fixed | The Middle East and Central Asia |
+| `law-updates.mjs` | Newer laws and kinds in 18 countries (China, Taiwan, Vietnam, Ethiopia, Canada and others) | Newer holiday laws |
+| `library-fixes.mjs` | Library faults that are not newer laws, in 9 countries (Indonesia, Malaysia, the United States and others) | Corrections to the library |
 | `pacific-east-asia.mjs` | 17 Pacific and East Asian countries and territories added; the Cayman Islands fixed | The Pacific |
-| `islamic-southeast-asia.mjs`, `fiji.mjs`, `mauritius.mjs` | Published 2027 Islamic days, Fiji's and Mauritius's national days | Corrections made while merging |
+| `islamic-southeast-asia.mjs`, `fiji.mjs`, `mauritius.mjs` | Published 2026 and 2027 Islamic days, Fiji's and Mauritius's national days | Corrections made while merging |
 
 Files whose name starts with `_` are helpers, not supplements. Every
 supplement is deterministic and independent of the machine's time zone: the
@@ -49,20 +57,20 @@ As last built (`npm run holidays:build`):
 | | Before this round | Now |
 | --- | --- | --- |
 | Countries and territories | 208 | 244 (207 from date-holidays, 37 from supplements only) |
-| Entries | 109,447 | 128,313 |
-| `public` | 69,189 | 84,417 |
-| `bank` | 1,180 | 1,616 |
-| `optional` | 11,425 | 13,176 |
-| `observance` | 15,342 | 16,200 |
+| Entries | 109,447 | 128,431 |
+| `public` | 69,189 | 84,465 |
+| `bank` | 1,180 | 1,641 |
+| `optional` | 11,425 | 13,119 |
+| `observance` | 15,342 | 16,302 |
 | `festival` | 12,311 | 12,904 |
-| JSON | 8.2 MB | 10.8 MB |
+| JSON | 8.2 MB | 11.0 MB |
 
 Every one of the 242 ISO 3166-1 codes for a sovereign state or inhabited
 territory has a file (the seven without a permanent population, AQ, BV, GS,
 HM, IO, TF and UM, are left out), plus Kosovo (XK) and the Canary Islands
 (IC), and every file has a day off in every year 2026 to 2050. The largest
-files are Japan (296 KB, 9.8 KB gzipped), Germany (295 KB), India (287 KB) and
-the United States (266 KB).
+files are Germany (297 KB, 11.0 KB gzipped), Japan (296 KB), India (290 KB)
+and the United States (262 KB).
 
 The 37 countries that come from supplements alone:
 
@@ -91,7 +99,7 @@ The 37 countries that come from supplements alone:
 | Nauru (NR) | 430 | 430 | 0 | 0 | 0 | 0 |
 | Niue (NU) | 327 | 327 | 0 | 0 | 0 | 0 |
 | Oman (OM) | 396 | 370 | 0 | 0 | 26 | 0 |
-| Papua New Guinea (PG) | 285 | 279 | 0 | 0 | 0 | 6 |
+| Papua New Guinea (PG) | 310 | 304 | 0 | 0 | 0 | 6 |
 | Pitcairn Islands (PN) | 275 | 200 | 0 | 25 | 50 | 0 |
 | Palestine (PS) | 487 | 386 | 0 | 75 | 26 | 0 |
 | Palau (PW) | 332 | 332 | 0 | 0 | 0 | 0 |
@@ -101,7 +109,7 @@ The 37 countries that come from supplements alone:
 | Tajikistan (TJ) | 405 | 380 | 0 | 0 | 25 | 0 |
 | Tokelau (TK) | 225 | 150 | 0 | 0 | 75 | 0 |
 | Timor-Leste (TL) | 602 | 452 | 0 | 50 | 100 | 0 |
-| Turkmenistan (TM) | 379 | 329 | 0 | 0 | 0 | 50 |
+| Turkmenistan (TM) | 411 | 361 | 0 | 0 | 0 | 50 |
 | Tuvalu (TV) | 563 | 313 | 0 | 250 | 0 | 0 |
 | Samoa (WS) | 300 | 275 | 0 | 0 | 0 | 25 |
 | Yemen (YE) | 488 | 437 | 25 | 0 | 26 | 0 |
@@ -121,7 +129,8 @@ dry run, with `HOLIDAY_DATA_DIR`) and checks the calendar as a whole:
   Guru Gobind Singh Jayanti in India and Myanmar's Kayin New Year (lunar dates
   that straddle New Year, so some years have two and some none); Sri Lanka's
   Duruthu poya (the January full moon falls on 31 December in 2028 and 2047);
-  and Mauritius's Assumption and All Saints' Day, which alternate. Five regional
+  Mauritius's Assumption and All Saints' Day, which alternate; and Indonesia's
+  collective leave, listed only for the years decreed. Five regional
   days that fall on a national one in a given year are listed by year.
 - **Frozen lunar dates.** A lunar holiday (a precise list of names: poya, Eid,
   Vesak, Diwali, Mid-Autumn, Chuseok, Lhosar, Tshechu, Chhath and so on) is not
@@ -150,10 +159,18 @@ the scan's loose pattern ("Holiday" contains "holi", "Valentine" contains
 "lent") or solar dates that really are fixed (Nowruz, Songkran, Thingyan,
 Pongal, Qingming in years it falls on 5 April).
 
+A rerun of the first half on the current data (day-off names, `public`,
+`bank` or `optional`, listed in 2026 to 2028 but not in 2050, substitute and
+"day following" days aside) finds 35 names, each explained as above or
+added since as a yearly decree or a declared election: China's, Turkmenistan's
+and Uzbekistan's 2026 extra days off, Indonesia's collective leave (2026 and
+2027) and the 2026 election days in Israel and South Africa.
+
 ## The generator: drops, aliases, rule fixes and the lunisolar calendars
 
-`scripts/build-holidays.mjs` does four things between reading
-date-holidays and merging the supplements.
+`scripts/build-holidays.mjs` does these things between reading
+date-holidays and merging the supplements, and runs each supplement's
+`finish` last.
 
 ### Dropping library entries
 
@@ -176,16 +193,45 @@ same-day pairs with similar names found these, which are aliased:
 
 | Country | Library names | Now |
 | --- | --- | --- |
-| US | "Day after Thanksgiving Day" (federal observance, California) and "Day After Thanksgiving" (7 states) | one "Day After Thanksgiving", day off in 8 states |
+| US | "Day after Thanksgiving Day" (federal observance, California) and "Day After Thanksgiving" (7 states) | one "Day After Thanksgiving", day off in 8 states (13 once `library-fixes.mjs` joins the five states that call it something else) |
 | US | "General Election Day" (Hawaii) and "Election Day" (10 states) | one "Election Day" |
 | VN | "Vietnamese New Year Holidays" (5 days) and "Vietnamese New Year" (day 1) | one "Vietnamese New Year", 5 days |
-| RU | Radonitsa under 5 regional names | one "Day of Remembrance of the Departed (Radonitsa)" |
+| RU | Radonitsa under 6 regional names (Irkutsk's is "Unity Day of Remembrance") | one "Day of Remembrance of the Departed (Radonitsa)" |
+| RU | Ingushetia's "Eid al-Fitr (Markhash)" and "Eid al-Adha (Ghurba)", against every other republic's "Uraza-Bayram" and "Kurban-Bayram" | one "Uraza-Bayram" and one "Kurban-Bayram" |
 
 Other same-day pairs were left alone because they are different holidays
 (Easter Monday and Orthodox Easter Monday, two regions' own days, a
 substitute day on New Year's Eve, a festival entry beside the day off it
-belongs to). Two pairs are library rule faults, not aliases, and are listed
-under "Not fixed" below (Kazakhstan Nauryz, Cook Islands 2 January).
+belongs to). Two pairs were library rule faults, not aliases: Kazakhstan's
+Nauryz substitutes are now in `RULE_FIXES` below, and the Cook Islands'
+2 January is under "Not fixed".
+
+### Names, notes and regions
+
+- `ENGLISH_NAMES` gives the app's name for a library holiday the library has
+  no English for (it falls back to the country's language: Tunisia's Arabic,
+  Brazil's and Spain's regional days, Switzerland's cantons) or has wrong
+  (typos, mistranslations, the Queen's Birthday under a king). A name is
+  looked up without its " (substitute day)" suffix, so its substitutes follow,
+  and a one-off library date marked as a substitute gets the suffix too. The
+  build summary lists any untranslated library name left over.
+- `NOTE_FIXES` corrects typos in the library's notes; `LIBRARY_NOTES` adds a
+  note to a library holiday that needs one (Vietnam's Tết days, set each
+  year; Russia's names for its Crimea days, which Ukraine and the UN General
+  Assembly do not recognise), and `REGION_NAMES` shows Crimea and Sevastopol
+  as "Russian-occupied" in "Day off in ..." notes.
+- `STATE_GAPS`: in Australia, Switzerland, the United Kingdom, Malaysia and
+  St Helena, whose state calendars in date-holidays are reliable for it, a
+  national day off that some regions do not keep (no day off that date, and
+  not the same holiday moved a few days) gets "Not a day off in ...", and
+  becomes `optional` when more than a third of the regions do not keep it
+  (Malaysia's Nuzul Al-Quran and Switzerland's Boxing Day become `optional`;
+  Easter Monday, not kept in Scotland, and Switzerland's Good Friday stay
+  `public` with the note). Elsewhere the state lists are not reliable for
+  this (federal days in the United States close federal offices and banks in
+  every state), so they are left alone.
+- A library `public` day whose note gives it to one group only (women,
+  Muslims, the armed forces) becomes `optional`.
 
 ### Library rules that disagree with the law (`RULE_FIXES`)
 
@@ -194,6 +240,10 @@ under "Not fixed" below (Kazakhstan Nauryz, Cook Islands 2 January).
 | KR | Regulations on Holidays of Government Offices, art. 2: Seollal is the day before, the day and the day after | `korean 01-0-01 P3D`: the day and the two after | `1 day before korean 01-0-01 P3D` |
 | CN | 全国年节及纪念日放假办法 as amended by State Council Decree 795 (from 2025): Spring Festival is the Eve and days 1 to 3; Labour Day is 1 and 2 May | Eve, days 1 and 2; 1 May | adds day 3 and 2 May, since 2025 |
 | TW | 紀念日及節日實施條例 as amended in 2025 (from 2026): the day before New Year's Eve, the Eve and days 1 to 3; a day on a weekend is made up on a working day | Eve and days 1 to 3, plus a "fourth day" every year and a weekday rule with no basis in law | day before the Eve added; the fourth day and the weekday rule removed; one make-up day after the holiday for each of the five days on a Saturday or Sunday |
+| KZ | Labour Code: a day off on a holiday moves to the next working day after the holiday | a substitute for 21 or 22 March can land on 22 or 23 March, themselves Nauryz days | the substitutes go after 23 March (2026: 24 and 25 March; 2027: 24 March) |
+| KE | Public Holidays Act (Cap. 110) as amended in 2024: 10 October is Mazingira Day | Moi Day | Mazingira Day, with its Sunday substitute |
+| NG | Public Holidays Act (Cap. P40) and the Ministry of Interior's notices | Children's Day (27 May) and National Youth Day (1 November) as days off; 1 Muharram as a national day off | Children's Day and National Youth Day `observance`; Islamic New Year `optional`, for the states that declare it |
+| SH | The Queen's Birthday ended with Elizabeth II; St Helena keeps the King's Birthday on a Friday in November (15 November 2024, 14 November 2025, 13 November 2026) | Queen's Birthday, third Monday of April | King's Birthday, `friday after 11-10`, noted as an estimate |
 
 Chuseok's `korean 8-0-14 P3D` already matches the law (the day before, the
 day, the day after). Checked against their statutes and left as they are:
@@ -334,9 +384,9 @@ Fixtures are in `src/lib/reference/holiday-coverage.test.ts` (on the data) and
 
 ### Not fixed (upstream)
 
-- Kazakhstan: a Nauryz substitute lands on 23 March, itself a Nauryz day, in
-  some years. Cook Islands: 2 January 2034 is both "Day after New Year's Day"
-  and New Year's substitute.
+- Cook Islands: 2 January 2034 is both "Day after New Year's Day" and New
+  Year's substitute. (Kazakhstan's Nauryz substitute on 23 March, itself a
+  Nauryz day, is now fixed in `RULE_FIXES`.)
 - Hong Kong 2033: Chung Yeung falls on 1 October, National Day; the ordinance
   has no rule for two holidays on one day, so both are listed on it.
 
@@ -399,17 +449,16 @@ Kochi for Onam, Chennai for Pongal and Puthandu):
 
 | Rule | Festivals |
 | --- | --- |
-| Tithi at sunrise (the first of two; a tithi that holds no sunrise takes the day it starts) | Mahavir Jayanti, Buddha Purnima, Hanuman Jayanti, Guru Purnima, Guru Nanak Jayanti, Guru Gobind Singh Jayanti, Navratri, Ugadi, Anant Chaturdashi, Chhath, Durga Saptami and Ashtami |
+| Tithi at sunrise (the first of two; a tithi that holds no sunrise takes the day it starts) | Mahavir Jayanti, Buddha Purnima, Hanuman Jayanti, Guru Purnima, Guru Nanak Jayanti, Guru Gobind Singh Jayanti, Navratri, Ugadi, Anant Chaturdashi, Chhath, Durga Puja's Saptami, Ashtami, Navami and Vijaya Dashami (at Kolkata, as the Bengali almanacs date them) |
 | Tithi at sunrise, the second of two | Rath Yatra |
 | Most of madhyahna (the middle fifth of daytime) | Ganesh Chaturthi |
 | Last day touching madhyahna | Ram Navami |
 | Begun by two fifths of daytime | Vasant Panchami |
 | Most of daytime | Govardhan Puja |
 | Last day touching aparahna (the fourth fifth of daytime) | Bhai Dooj |
-| Aparahna ladder with the Shravana-nakshatra rule | Dussehra, Durga Vijaya Dashami |
+| Aparahna ladder with the Shravana-nakshatra rule | Dussehra |
 | Most of pradosh (dusk) | Diwali, Dhanteras |
 | Pradosh after Bhadra, with the three-prahar rule | Holika Dahan (Holi is the next day) |
-| Begun two muhurtas before sunset | Durga Navami |
 | Nishita (midnight) ladder | Maha Shivaratri |
 | Touching arunodaya (the 96 minutes before sunrise) | Naraka Chaturdashi |
 | Tithi at moonrise | Karva Chauth |
@@ -482,13 +531,19 @@ Match rate, 2020 to 2030:
 Also matched in full: Ram Navami, Mahavir Jayanti, Buddha Purnima and Guru Nanak
 Jayanti against the gazette, 2020 to 2027. The 2027 restricted list's
 Vasant Panchami, Ugadi, Vaisakhi, Puthandu, Rath Yatra, Guru Gobind Singh
-Jayanti, Pongal, Onam and Durga Ashtami and Navami all match too, as do Onam
-2020 to 2026 and Dussehra 2014. Over the wider set of Islamic dates India kept
-from 2015 to 2026 (Eid al-Fitr, Eid al-Adha, Muharram, Milad-un-Nabi and the
-start of Ramadan), 51 of 54 match. The three misses were borderline evenings:
-Muharram 2021 (computed 19 August, kept 20th), and Milad-un-Nabi 2024 and 2025
-(computed a day late). Against panchang-ts, a library tuned to Drik Panchang,
-every festival agrees for 2020 to 2050 except the cases below.
+Jayanti, Pongal, Onam and Durga Ashtami all match too, as do Onam 2020 to 2026
+and Dussehra 2014. Its Mahanavami (8 October 2027) is the central
+government's restricted holiday, not West Bengal's day: the Durga Puja
+entries follow the Bengali almanacs' sunrise rule at Kolkata, which matches
+West Bengal's 2026 days (Navami on 20 October, Bijoya Dashami on 21 October,
+when the rest of India keeps Dussehra on the 20th). Over the wider set of
+Islamic dates India kept from 2015 to 2026 (Eid al-Fitr, Eid al-Adha,
+Muharram, Milad-un-Nabi and the start of Ramadan), 51 of 54 match. The three
+misses were borderline evenings: Muharram 2021 (computed 19 August, kept
+20th), and Milad-un-Nabi 2024 and 2025 (computed a day late). Against
+panchang-ts, a library tuned to Drik Panchang, every festival agrees for 2020
+to 2050 except the cases below (Durga Puja's Navami and Vijaya Dashami were
+compared before they moved to Kolkata's sunrise rule, and not since).
 
 Where sources disagree, or where this file differs from someone:
 
@@ -516,12 +571,13 @@ Where sources disagree, or where this file differs from someone:
 
 ### What date-holidays gets wrong for India
 
-`south-asia.mjs` drops three library entries and replaces them: the fixed
+`south-asia.mjs` drops these library entries and replaces them: the fixed
 Guru Gobind Singh Jayanti on 5 January (the lunar date in `india.mjs` stays),
 Kerala's "Vaisakhi" on 21 April (now Vishu, on the first sunrise after the
-Mesha sankranti) and West Bengal's Bengali New Year fixed on 15 April (now on
-the day after the Mesha sankranti, which is the 14th in some years). See
-"South Asia" below.
+Mesha sankranti), West Bengal's Bengali New Year fixed on 15 April (now on
+the day after the Mesha sankranti, which is the 14th in some years), four
+state days on a lunar date that the library pins to their 2025 dates, and two
+state days filed under the wrong state. See "South Asia" below.
 
 ## South Asia: Sri Lanka, Bangladesh, the Maldives
 
@@ -687,7 +743,7 @@ a public holiday. The calendars disagree on 2026's National Day (14 or
 15 August) and Embraced Islam (13 or 14 September); the library-based dates
 are 14 August and 13 September.
 
-### India: three library days replaced
+### India: library days replaced
 
 - Guru Gobind Singh Jayanti, fixed on 5 January (Chandigarh, Haryana): dropped.
   `india.mjs`'s lunar date (Pausha Shukla Saptami) stays. Because Pausha
@@ -710,6 +766,20 @@ are 14 August and 13 September.
   now has it among the notified dates, with a note saying so.
 - The library has no Pongal for India; the 15 January Pongal the review
   flagged is `india.mjs`'s own computed date, not a duplicate.
+- Four state days on a lunar date, which the library repeats on their 2025
+  month-days every year: dropped, and computed on the tithi at sunrise, as
+  the states' lists give them (`udayaDays`): Basava Jayanti (Vaishakha
+  Shukla Tritiya, Karnataka; 20 April 2026), Maharaja Agrasen Jayanti
+  (Ashvin Shukla Pratipada, Haryana), Maharishi Valmiki Jayanti (Ashvin
+  Purnima, Himachal Pradesh) and Kanakadasa Jayanti (Kartika Krishna
+  Tritiya, Karnataka). Their notes carry the lunar estimate, and name the
+  other day in a close call.
+- "Bhanu Jayanti / Martyrs' Day" on 13 July, which the library gives to Jammu
+  and Kashmir and Meghalaya: dropped. Jammu and Kashmir dropped Martyrs' Day
+  from 2020, and Bhanu Jayanti is Sikkim's, so it comes back as "Bhanu
+  Jayanti", a day off in Sikkim.
+- YMA Day (15 June), filed under Meghalaya: dropped and given back to
+  Mizoram, whose day it is (the Young Mizo Association's).
 
 ## Nepal, Bhutan, Mongolia and Russia's Buddhist regions
 
@@ -879,8 +949,7 @@ which leaves no room for a March New Year, so 7 February is kept.
 | Zul | Kalmykia | Phugpa 10/25 (from 2026; the library stops in 2025) |
 | White Month Festival (Sagaalgan) | Buryatia, Zabaykalsky Krai | Mongolian New Year |
 | Shagaa | Tuva | Mongolian New Year |
-| Day of Remembrance of the Departed (Radonitsa) | ten regions | Orthodox Easter + 9 days |
-| Unity Day of Remembrance | Irkutsk Oblast | Orthodox Easter + 9 days |
+| Day of Remembrance of the Departed (Radonitsa) | eleven regions, Irkutsk Oblast among them | Orthodox Easter + 9 days |
 | Constitution Day of the Republic of Tuva | Tuva | 6 May |
 | Naadym | Tuva | the Friday from 18 to 24 July (estimate) |
 | First Monday of the Uastyrdzhi (Djeorguiba) Festival | North Ossetia | the Monday from 17 to 23 November (estimate) |
@@ -888,8 +957,10 @@ which leaves no room for a March New Year, so 7 February is kept.
 The library has Radonitsa every year for Adygea, Kabardino-Balkaria,
 Karachay-Cherkessia and Dagestan, but for 2026 only in Bryansk, Krasnodar,
 Omsk, Penza, Saratov and Stavropol; it was a day off in 2025 too (buhexpert8:
-Krasnodar, Stavropol, Penza, Saratov, Irkutsk). From 2027 the supplement drops
-the library's Radonitsa and gives one entry naming all ten regions, as the
+Krasnodar, Stavropol, Penza, Saratov, Irkutsk). Irkutsk Oblast's own name
+for it, the common day of remembrance ("Unity Day of Remembrance" in the
+library), is aliased to the same day. From 2027 the supplement drops the
+library's Radonitsa and gives one entry naming all eleven regions, as the
 generator merges 2026's. Naadym (19 July 2024, 18 July 2025, 24 July 2026)
 and Uastyrdzhi (festival from 17 November 2024; 23 November 2026) are set by
 decree each year, so their notes say they are estimates; the rules fit every
@@ -952,7 +1023,7 @@ below as a fixture.
 | TH | Visakha Bucha (library name "Vesak Day") | full moon of month 6 (7) |
 | TH | Asalha Bucha ("Asalha Puja") | full moon of month 8 (88) |
 | TH | Buddhist Lent (Khao Phansa) | the day after Asalha Bucha |
-| TH | Substitute days | Makha, Visakha and Asalha Bucha on a Saturday or Sunday give the next weekday that is not a public holiday; Buddhist Lent gives none and does not block one |
+| TH | Substitute days | every public holiday on a Saturday or Sunday, the library's fixed ones and the computed Buddhist ones alike, gives the next weekday that is not a public holiday or another substitute (King Bhumibol's Birthday on Saturday 5 December 2026: Monday 7 December); Songkran gets one substitute, after the span, however many of its days fall on a weekend; 31 December on a weekend is made up after New Year's Day; Buddhist Lent gives none and does not block one |
 | LA | 1 Jan, 8 Mar, 14 to 16 Apr (Pi Mai), 1 May, 2 Dec | fixed, public; a weekend day gives the next working day |
 | LA | Lao Women's Union Day, 20 Jul | optional (women only), with a substitute for women |
 | LA | Boun That Luang | the 4 days before the full moon of month 12, and the full moon (festival, Vientiane) |
@@ -990,7 +1061,10 @@ holidays for 2024 to 2026.
 - Thailand: 19 of 19 (Makha Bucha 2024, 2026, 2027; Visakha Bucha 2024,
   2026, 2027; Asalha Bucha 2020, 2024 to 2027; Buddhist Lent 2020, 2025,
   2026; substitute days 26 Feb 2024, 22 Jul 2024, 1 Jun 2026, 22 Feb 2027,
-  19 Jul 2027).
+  19 Jul 2027). The fixed holidays' substitutes follow the same rule: Monday
+  7 December 2026 for King Bhumibol's Birthday, as the embassies' 2026 lists
+  give it, and Tuesday 16 April 2024 for Songkran (13 and 14 April on the
+  weekend).
 - Against date-holidays' hard-coded TH dates (from timeanddate.com,
   2010 to 2026): Makha Bucha 13 of 17, Asalha Bucha and Buddhist Lent 11 of 17
   each. The library's Vesak dates come from an Indian almanac and are not
@@ -1046,9 +1120,10 @@ holidays for 2024 to 2026.
 - Deepavali in Myanmar: India's Diwali (matched 2025 and 2026). The
   government announces it a week or two ahead.
 
-**Not covered.** Thailand's fixed holidays still have no substitute days in
-date-holidays (New Year's Day on Saturday 1 January 2028, for one), and its
-Labour Day (1 May) is missing. Lao Khao Phansa and Visakha Bousa are left
+**Not covered.** Thailand's Labour Day (1 May) is missing (date-holidays
+has no Thai substitute days either; `theravada.mjs` now makes them for the
+fixed holidays too, so New Year's Day on Saturday 1 January 2028 gives
+Monday 3 January). Lao Khao Phansa and Visakha Bousa are left
 out: whether Laos moves them in an adhikamasa year, as Thailand does, could
 not be checked. Myanmar's one-off extra days (31 December in 2017 to 2021,
 for example) are not predictable and are left out.
@@ -1085,7 +1160,10 @@ Sunday holiday gives the next working day off in Singapore, Malaysia,
 Trinidad and Tobago and Guyana; in Fiji a Saturday or Sunday Diwali moves to
 the Monday (the Sunday itself is marked as a festival); Suriname, Indonesia
 and Mauritius have none. Malaysia's note warns that Kedah, Kelantan and
-Terengganu, with a Friday and Saturday weekend, differ.
+Terengganu, with a Friday and Saturday weekend, differ. Malaysia's substitute
+days are then worked out again on the finished calendar by
+`library-fixes.mjs` (see "Corrections to the library"), since the library
+gives none for its Islamic days and can put one on another holiday.
 
 Islamic holidays, Chinese New Year (Imlek) and Isra Mi'raj continue to 2050
 in the library for all eight countries, so nothing is added for them.
@@ -1233,16 +1311,17 @@ fixed in `islamic-southeast-asia.mjs`, `fiji.mjs` and `mauritius.mjs` (see
 
 `scripts/holiday-supplements/middle-east.mjs`, with the Solar Hijri calendar in
 `scripts/holiday-supplements/_solar-hijri.mjs`. Tests:
-`src/lib/reference/middle-east-holidays.test.ts` (31 tests).
+`src/lib/reference/middle-east-holidays.test.ts` (36 tests).
 
 ### What it covers
 
 | Country | Library | What the supplement does |
 | --- | --- | --- |
-| United Arab Emirates | has data | Laylat al-Mi'raj and the first day of Ramadan become observances (they are not days off). Adds Arafat Day, the last day of Ramadan before Eid al-Fitr, Commemoration Day (1 December) and the second National Day (3 December). |
-| Iran | has data | Drops and recomputes every Solar Hijri holiday: Nowruz (1 to 4 Farvardin), Islamic Republic Day (12 Farvardin), Sizdah Bedar (13 Farvardin), 14 and 15 Khordad, 22 Bahman, 29 Esfand. Adds notes. |
-| Azerbaijan | has data | Replaces the library's one-day "Spring Festival" with Novruz, 20 to 24 March, and its make-up days. Fixes 2026's Ramazan Bayram make-up days. |
-| Uzbekistan | has data | Unchanged: the library is right. |
+| United Arab Emirates | has data | Laylat al-Mi'raj and the first day of Ramadan become observances (they are not days off). Adds Arafat Day, the last day of Ramadan before Eid al-Fitr, and Commemoration Day (1 December) and the second National Day (3 December) as `optional`, since the government adds one or both to 2 December each year. |
+| Iran | has data | Drops and recomputes every Solar Hijri holiday: Nowruz (1 to 4 Farvardin), Islamic Republic Day (12 Farvardin), Sizdah Bedar (13 Farvardin), 14 and 15 Khordad, 22 Bahman, 29 Esfand. Adds notes. Moves the nine Islamic days that Iran's official 1405 calendar (March 2026 to March 2027) puts a day after the library's. |
+| Azerbaijan | has data | Replaces the whole library list, which is out of date: adds Victory Day (8 November) and Novruz as five days (20 to 24 March), gives each Bayram two days, makes 18 October, 12 November and 17 November observances (working days; the Cabinet's 2026 list leaves them out), makes 20 January a day off, renames 28 May Independence Day, and moves the day off of any holiday on a weekend or on another holiday (art. 105). |
+| Bahrain | has data | Eid al-Fitr as three days and Ashura as two, as the government gives them, with a day of either break on the Friday and Saturday weekend made up on the next working day. |
+| Uzbekistan | has data | The library's holidays are right; adds the presidential decree's extra days off for 2026 (some for six-day-week employees only, as `optional`). |
 | Qatar, Oman, Kuwait, Jordan, Iraq, Lebanon, Palestine, Syria, Yemen, Afghanistan, Kyrgyzstan, Tajikistan, Turkmenistan | none | The full current list of public holidays, 2026 to 2050, plus Ramadan's start (observance) and a few big festivals (Arbaeen in Iraq; Horse Day and Melon Day in Turkmenistan). |
 
 ### Method
@@ -1301,10 +1380,16 @@ corrected by the equation of time (good to half a minute). Results:
   dates of 1408 (March 2029 to March 2030) and 1412 (Kabul within 8 minutes)
   carry "Solar date, estimated: the official date can differ by a day."
 
-**Weekend make-up days**: Azerbaijan (Labour Code art. 105: each Novruz day on a
-Saturday or Sunday moves to the next working day after the five days) and
+**Weekend make-up days**: Azerbaijan (Labour Code art. 105: a holiday on a
+Saturday or Sunday, or on the same day as another holiday, moves its day off
+to the next working day; a Bayram day inside Novruz is the one that moves, so
+2026's Ramazan Bayram, 20 and 21 March, was off on 27 and 30 March),
 Tajikistan (single-day holidays on a Saturday or Sunday move to the next
-working day; the 2026 list shows 9 March, 11 May and 29 June). Kyrgyzstan's
+working day; the 2026 list shows 9 March, 11 May and 29 June), Turkmenistan
+(a holiday on a Sunday moves to the next working day by presidential decree,
+as in 2020 and 2021; 2026 uses the published decree, which also made
+28 September an extra day off, and the rule applies from 2027) and Bahrain
+(its Eid al-Fitr and Ashura breaks, on a Friday or Saturday). Kyrgyzstan's
 2025 Labour Code ended transfers, so none. Uzbekistan's library rule (next
 Monday) matches the 2026 decree (Navro'z on Saturday 21 March, off on Monday
 23 March).
@@ -1319,11 +1404,23 @@ with a note when they coincide.
 
 - **UAE**: MoHRE and the Federal Authority for Government Human Resources
   (khaleejtimes.com, gulfnews.com, mohre.gov.ae). Commemoration Day and
-  National Day give two days off taken from 1 to 3 December (2 and 3 December
-  in 2024, 1 and 2 December in 2025); all three are listed, with a note.
+  National Day give two or three days off taken from 1 to 3 December (2 and
+  3 December in 2024, 1 and 2 December in 2025); all three are listed, with a
+  note, and only 2 December is `public`.
 - **Iran**: Solar Hijri computed; rule from Heydari-Malayeri, "A concise
-  review of the Iranian calendar" (arXiv astro-ph/0409620). Iran's Islamic
-  holidays were not re-checked (not in this slice).
+  review of the Iranian calendar" (arXiv astro-ph/0409620). Islamic holidays:
+  the library's Umm al-Qura dates, except where the official 1405 calendar
+  (University of Tehran's calendar council) differs: Shawwal 1447 starts a
+  day later (Eid al-Fitr on 21 and 22 March 2026), and so do Safar and Rajab
+  1448, and 1 Shawwal 1448 falls on 10 March 2027. Those nine days carry a
+  note that the Leader's office can still move them after the moon is
+  sighted. Each winter's calendar for the next year goes in the same table.
+- **Bahrain**: the Crown Prince and Prime Minister's holiday circulars and the
+  Central Bank of Bahrain's notices (2026: Eid al-Fitr 20 to 22 March, made
+  up on 23 and 24 March; Ashura 25 and 26 June, made up on 28 June).
+- **Uzbekistan**: the presidential decree of 24 December 2025 on 2026's extra
+  days off (yep.uz, EY's payroll update). Later years are added as each
+  December's decree comes out.
 - **Azerbaijan**: Azerbaijani embassies' non-working-day notices
   (budapest.mfa.gov.az, jakarta.mfa.gov.az, berlin.mfa.gov.az), azal.az.
 - **Qatar**: Amiri Diwan announcements (The Peninsula, Gulf News, Time Out
@@ -1362,7 +1459,8 @@ with a note when they coincide.
   November are observances (working days since 2025).
 - **Tajikistan**: timeanddate, calendarlabs, publicholidays.asia.
 - **Turkmenistan**: Ministry of Labour and Social Protection 2026 schedule
-  (beyan.tm).
+  (beyan.tm), and the September 2026 decree for the 35th anniversary of
+  independence.
 
 ### Match rates (published dates encoded in the tests)
 
@@ -1377,6 +1475,10 @@ with a note when they coincide.
 | UAE: Arafat and Eid al-Adha 2026 | 4 of 4 |
 | UAE: December days off 2024 and 2025 | 4 of 4 (plus one listed day that was worked in each year) |
 | Azerbaijan: 2026 Novruz and make-up days (20 to 30 March) | 9 of 9 |
+| Azerbaijan: the Cabinet's whole 2026 list of days off | 25 of 25 |
+| Bahrain: 2026 Eid al-Fitr and Ashura breaks, with made-up days | 5 of 5, 3 of 3 |
+| Iran: the 1405 calendar's Islamic days that differ from the library | 9 of 9 |
+| Uzbekistan: the 2026 decree's extra days off | 7 of 7 |
 | Uzbekistan: 2026 Navro'z and make-up day | 2 of 2 |
 | Qatar: 2026 Sport Day, National Day; Eids inside the announced breaks | 2 of 2, 6 of 6 |
 | Oman: 2026 fixed and Islamic days | 6 of 6 |
@@ -1392,7 +1494,7 @@ with a note when they coincide.
 | Afghanistan: 2026 national days | 5 of 5 |
 | Kyrgyzstan: 2026 calendar (January, May, other days off) | 7 of 7, 10 of 10, 4 of 4 |
 | Tajikistan: 2026 March, May and June days off | 7 of 7, 6 of 6 |
-| Turkmenistan: 2026 days off | 13 of 13 |
+| Turkmenistan: 2026 days off, with the September decree | 15 of 15 |
 
 ### Disagreements and choices
 
@@ -1401,7 +1503,8 @@ with a note when they coincide.
   starts the month a day after Saudi Arabia.
 - **UAE, 2024**: the government also gave 29 Ramadan (8 April); the rule
   gives only the day before Eid.
-- **UAE, December**: three days listed, two given each year.
+- **UAE, December**: three days listed, two or three given each year; only
+  2 December is listed as a day off for everyone.
 - **Lebanon, Martyrs' Day**: law 6 May; calendars give the first Sunday of May
   (4 May 2025, 3 May 2026). Listed as an observance on 6 May, which does not
   claim a weekday off either way. The Rafic Hariri day (14 February) is an
@@ -1423,6 +1526,9 @@ with a note when they coincide.
   the core days.
 - Oman's fixed and Islamic days from 2027 (the government moves them next to
   the weekend each year).
+- Moved days the government confirms each year: Azerbaijan's (the Cabinet),
+  Turkmenistan's from 2027 (the president's decree) and Bahrain's made-up
+  Eid and Ashura days. Uzbekistan's decree days are listed for 2026 only.
 - Afghanistan's Solar Hijri dates in 1408 and 1412 (2029 to 2030, 2033 to
   2034).
 - Yemen's Eid spans, Qatar's March bank holiday, Afghanistan's Withdrawal Day
@@ -1434,30 +1540,32 @@ with a note when they coincide.
 ## Newer holiday laws, and kinds that hide closures
 
 `scripts/holiday-supplements/law-updates.mjs`. Tests:
-`src/lib/reference/law-updates-holidays.test.ts` (21 tests). The dates each
+`src/lib/reference/law-updates-holidays.test.ts` (24 tests). The dates each
 check uses are fixtures in the test file.
 
 It corrects date-holidays where a law changed after the library's rules were
 written, where the library's kind says "not a day off" for a day most of the
 country takes off, and where a rule the library hard-codes for one year needs
-a general form. It changes 16 countries.
+a general form. It changes 18 countries.
 
 ### What it covers
 
 | Country | What the library has | What the supplement does |
 | --- | --- | --- |
-| China | The 2025 law's four Spring Festival days and two Labour Days (RULE_FIXES in the generator); no weekend make-up days | Adds the make-up day the law gives for a holiday on a weekend or on another holiday, notes on the three long breaks, and the State Council's 2026 schedule (extra days off and weekend working days) |
+| China | The 2025 law's four Spring Festival days and two Labour Days (RULE_FIXES in the generator); no weekend make-up days | Adds the make-up day the law gives for a holiday on a weekend or on another holiday, notes on the three long breaks, and the State Council's 2026 schedule (extra days off, 2 January among them, and weekend working days) |
 | Taiwan | Labour Day "private sector", Teachers' Day, Retrocession Day and Constitution Day as observances; Sunday substitutes only; Children's Day and Tomb Sweeping Day on one date with no extra day | All four become days off (2025 act); every substitute is recomputed: Saturday to the working day before, Sunday to the working day after; Children's Day moves when it shares 4 April with Tomb Sweeping Day |
 | Hong Kong | The extra day when Ching Ming meets Easter, hard-coded for 2026 only | Adds it for 2037, 2042 and 2048 |
-| United Kingdom | Late-August bank holiday "optional" | `bank`, "Not in Scotland, which has the first Monday of August" |
-| Canada | Victoria Day, Thanksgiving "optional"; Truth and Reconciliation Day an observance; Remembrance Day split into "Armistice Day" for Newfoundland and Labrador | Victoria Day and Thanksgiving `public`, noting the provinces that don't keep them; Truth and Reconciliation Day `optional` with where it is a day off; one Remembrance Day entry naming every province |
+| United Kingdom | Late-August bank holiday "optional"; in Scotland, a 1 January on a Saturday gives two substitutes both named after New Year's Day | Late-August bank holiday `public`, "Not in Scotland, which has the first Monday of August"; Scotland's second substitute (4 January) named after 2 January |
+| Canada | Victoria Day, Thanksgiving "optional"; Truth and Reconciliation Day an observance; Easter Monday "optional" as a day off in Ontario and two territories; Remembrance Day split into "Armistice Day" for Newfoundland and Labrador | Victoria Day and Thanksgiving `public`, noting the provinces that don't keep them; Truth and Reconciliation Day `optional` with where it is a day off (Manitoba among them); Easter Monday `optional` (federal workers; in Quebec, it or Good Friday); one Remembrance Day entry naming every province |
 | Australia | King's Birthday in June "optional" with six states and territories | `public`, "Not in Western Australia or Queensland, which keep it later in the year" |
 | Spain | Maundy Thursday "optional" with 17 regions | `public`, "Not a day off in Catalonia or the Valencian Community" |
-| Ethiopia | Genna on 6 January in most years, Timkat always 19 January, Enkutatash and Meskel a day late in the wrong years; no Labour Day or Patriots' Victory Day | Drops the wrong days and puts all four feasts on the Ethiopian calendar's days; adds 1 May and 5 May |
+| Ethiopia | Genna on 6 January in most years, Timkat always 19 January, Enkutatash and Meskel a day late in the wrong years; no Labour Day or Patriots' Victory Day; Derg Downfall Day, the Day of Lament and the first day of Ramadan as days off | Drops the wrong days and puts all four feasts on the Ethiopian calendar's days; adds 1 May and 5 May; Derg Downfall Day and the first day of Ramadan become observances and the Day of Lament is dropped, as none is among Proclamation 1334/2024's 12 closure days |
 | Mexico | Inauguration day on 1 December every six years | Moves it to 1 October (2030, 2036, 2042, 2048) |
 | Japan | Citizens' Holiday only on 22 September | Adds 21 September 2032 and 2049 |
-| South Korea | No 1 May; no election days | Labour Day, a public holiday from 2026; the 2026 local and 2028 National Assembly election days |
-| Vietnam | One National Day, no Culture Day, no weekend make-up days | The second National Day, Vietnamese Culture Day (from 2026), make-up days for holidays on a weekend, and 2026's swapped day for government offices |
+| South Korea | No 1 May; no election days | Labour Day, a public holiday from 2026, with its substitute days (a `finish` on the merged calendar); the 2026 local and 2028 National Assembly election days |
+| South Africa | No 2026 local election day | 4 November 2026, declared a public holiday |
+| Israel | No 2026 Knesset election day | 27 October 2026, a paid day off by law |
+| Vietnam | One National Day, no Culture Day, no weekend make-up days | The second National Day (2027's published), Vietnamese Culture Day (from 2026), make-up days for holidays on a weekend, and 2026's swapped day for government offices |
 | Morocco | No Amazigh New Year or Unity Day; one day each for Eid al-Fitr, Eid al-Adha and Mawlid | Adds 14 January (since 2024), 31 October (from 2026) and the second day of each Eid and of Mawlid |
 | Egypt | No Arafat Day | Adds it (9 Dhu al-Hijjah) |
 | Greece | Clean Monday named "Ash Sunday" | Renamed |
@@ -1562,7 +1670,7 @@ Kataklysmos is the day after Orthodox Pentecost (Easter plus 50).
 | Taiwan 2026: every weekday off, and the total | DGPA 115 office calendar (via Kaohsiung City Government) | 16 of 16 weekdays; 120 days off, as published |
 | Taiwan 2027: every weekday off, and the total | DGPA 116 office calendar (ettoday, 104 Job Bank, 21 May 2026) | 17 of 17 weekdays; 121 days off, as published |
 | Taiwan's Children's Day rule | 2024, 2025 (from memory: 2016, 2021) | 2 of 2 |
-| China 2026: every weekday off, February to December, and the five weekend working days | State Council notice of 4 November 2025 (Xinhua) | 17 of 17, 5 of 5 |
+| China 2026: every weekday off, and the six weekend working days | State Council notice of 4 November 2025 (Xinhua) | 19 of 19, 6 of 6 |
 | China's make-up rule | 2025 schedule (Dragon Boat on Saturday 31 May, off Monday 2 June) | 1 of 1 |
 | Qingming 2026 to 2050 | VSOP87 (astronomia) at UTC+8; 2026 the State Council's | 25 of 25 |
 | Hong Kong's Easter clash rule | Gazettes of 2010, 2015, 2021, 2026 | 4 of 4 |
@@ -1574,7 +1682,10 @@ Kataklysmos is the day after Orthodox Pentecost (Easter plus 50).
 | Egypt: Arafat Day 2026 | calendarlabs, Egypt Independent | 1 of 1 |
 | Cyprus: Green Monday and Kataklysmos 2026 | Eratosthenes Centre, fastforward.com.cy | 2 of 2 |
 | Mexico: 1 October every six years | DOF 30 September 2024 decree | law text |
-| Korea: Labour Day 2026 | Money Today, 28 April 2026 | 1 of 1 |
+| Korea: Labour Day 2026, and the amendment's substitute rule (2027: Monday 3 May) | Money Today, 28 April 2026 | 1 of 1; rule |
+| South Africa: local election day 2026 | SAnews, the President's declaration | 1 of 1 |
+| Israel: Knesset election day 2026 | Times of Israel, 17 July 2026 | 1 of 1 |
+| Vietnam: second National Day 2027 | Ministry of Home Affairs notice 11483/TB-BNV | 1 of 1 |
 
 ### Estimated, and what can differ
 
@@ -1587,12 +1698,13 @@ Kataklysmos is the day after Orthodox Pentecost (Easter plus 50).
 - Hong Kong 2037, 2042 and 2048: from the rule the 2015, 2021 and 2026 gazettes
   applied; the text of Cap. 149's clause was not found. The note says
   "Estimated".
-- Vietnam's second National Day after 2026: the note says the government picks
+- Vietnam's second National Day after 2027: the note says the government picks
   1 or 3 September each year.
 - Japan 2032 and 2049: the equinox is confirmed by the National Astronomical
   Observatory each February for the next year. Neither is a close call
   (20:11 and 22:42 JST on 22 September).
-- Korea: election days after 2028 are left out.
+- Korea: election days after 2028 are left out. South Africa's and Israel's
+  election days are listed only once declared (2026).
 - Islamic second days (Morocco) and Arafat Day (Egypt) carry the library's
   "Islamic lunar date, estimated" note.
 
@@ -1600,16 +1712,16 @@ Kataklysmos is the day after Orthodox Pentecost (Easter plus 50).
 
 - Ethiopia: the Proclamation 1334/2024 summary lists 12 closure days and does
   not include Derg Downfall Day (28 May), the Day of Lament or the first day of
-  Ramadan, which the library has as public holidays. Calendars for 2026 still
-  list 28 May, and the full text was not reachable, so the library's kinds are
-  kept.
-- Canada: Truth and Reconciliation Day's status in Manitoba (optional in 2025)
-  and Nova Scotia (not a day off) may change; Prince Edward Island is taken as
-  a day off.
+  Ramadan, which the library has as public holidays. The supplement follows
+  the proclamation: the first two are observances and the Day of Lament is
+  dropped, and a test checks that no year has more than 12 named days off.
+  Some calendars for 2026 still list 28 May as a day off.
+- Canada: Truth and Reconciliation Day's status in Nova Scotia (not a day off)
+  may change; Manitoba and Prince Edward Island are taken as days off.
 - Egypt moves some days off to a Thursday each year by cabinet decision
   (30 June 2026 was taken on 2 July); that is not predictable and not encoded.
-- China's New Year 2026: whether Friday 2 January was a swapped day off was not
-  confirmed, so January 2026 has only 1 January.
+- China's New Year 2026: Friday 2 January is the schedule's extra day off,
+  swapped for Sunday 4 January as a working day.
 - Cyprus: Easter Tuesday appears on only one of four 2026 lists, so it is not
   added.
 
@@ -1709,7 +1821,7 @@ the notes say so.
 | Country | Checked against | Match |
 | --- | --- | --- |
 | Cayman Islands | Government 2026 list (Caymanian Times): 12 days; King's Birthday 2016 to 2026 (gov.ky via the library) | 12 of 12; birthday rule 8 of 11 |
-| Papua New Guinea | National Gazette G832 (19 Aug 2025) for 2026; IPA 2025 list | 10 of 10; 3 of 3 |
+| Papua New Guinea | National Gazette G832 (19 Aug 2025) for 2026, with Easter Saturday (in the Public Holidays Act; the 2024 gazette left it out); IPA 2025 list | 11 of 11; 3 of 3 |
 | Solomon Islands | 2025 and 2026 gazettes (King's Birthday 2023 to 2025, Malaita's 2026 day); 2026 calendars | 3 of 3; 8 of 8 |
 | Samoa | MCIL calendar 2026 (to May); calendars for the rest of 2026 | 9 of 9 |
 | Timor-Leste | Government lists 2021 to 2025 (Eids); calendars for 2026 | Eids 5 of 10; fixed days 16 of 16 |
@@ -1809,23 +1921,49 @@ python-holidays 0.106 for the cross-check. Aggregators (CalendarLabs,
 Calendarific, HolidayDB, Office Holidays, Tallyfy, ClockIt) were used only to
 confirm dates, never as the only source for a rule.
 
+## Corrections to the library
+
+`scripts/holiday-supplements/library-fixes.mjs` corrects date-holidays where
+it is wrong but no law has changed (newer laws are in `law-updates.mjs`).
+Tests: `src/lib/reference/library-fixes-holidays.test.ts` (12 tests). Three of
+its fixes need the whole calendar, so they are `finish` steps on the merged
+entries.
+
+| Country | Library | Now |
+| --- | --- | --- |
+| Indonesia | No Easter Sunday; no collective leave | Easter Sunday (Kebangkitan Yesus Kristus), a national holiday in every year's joint decree. The decrees' collective-leave days (cuti bersama) still to come in 2026 (24 December) and all of 2027's, as `optional`: government offices close, private employers choose. After 2027, Eid al-Fitr's note says collective leave is usually added, set each September |
+| Malaysia | Sunday substitutes for its fixed days only, and one can land on another holiday | Holidays Act 1951, s.3: every federal holiday on a Sunday gives the next day that is not a holiday or another substitute (2026: Hari Raya Aidilfitri's second day, Sunday 22 March, off on Monday 23 March; 2027: Awal Muharram on Sunday 6 June, off on Tuesday 8 June, after the Agong's Birthday). A day some states do not keep gets its substitute in the same states (`finish`) |
+| United States | The day after Thanksgiving under six state names; Nevada's Family Day and West Virginia's Lincoln's Day on the fourth Friday of November | One entry naming the 13 states that take it off and what each one calls it; Nevada's and West Virginia's follow Thanksgiving, as their laws say (`finish`) |
+| Netherlands | Liberation Day (5 May) filed as a school holiday, so it was dropped | `optional`: a day off for many government and education workers, for others only if their collective agreement grants it |
+| Philippines | Easter Sunday `public` | `observance`: it is not in the yearly proclamation |
+| Denmark | Constitution Day and Christmas Eve observances | `bank`: banks close and shops must close early by law |
+| Faroe Islands | St Olav's Eve and Day observances | `optional`: an afternoon off and a day off for most workers under union agreements |
+| Poland | Flag Day (2 May) `optional` | `observance`: a working day |
+| Vatican City | The pope's election anniversary and name day | Notes that they are the current pope's, Leo XIV's |
+
 ## Corrections made while merging
 
 Found while putting the supplements together. Tests:
 `src/lib/reference/national-days-holidays.test.ts`, plus the Tết fixture in
 the coverage test.
 
-### South-east Asia's 2027 Islamic days (`islamic-southeast-asia.mjs`)
+### South-east Asia's 2026 and 2027 Islamic days (`islamic-southeast-asia.mjs`)
 
 Singapore, Malaysia and Indonesia start a Hijri month by the MABIMS criteria
 (the crescent at least 3° high and 6.4° from the Sun at sunset), which can be a
-day after the Umm al-Qura calendar date-holidays follows. In 2025 and 2026 they
-agreed with the library, so nothing is shifted across the board. In 2027 the
-three governments' lists put Shawwal and Dhu al-Hijjah 1448 a day later, and
-they agree with each other:
+day after the Umm al-Qura calendar date-holidays follows. In 2025 they agreed
+with the library, so nothing is shifted across the board. In 2026 Shawwal
+1447 started a day after Umm al-Qura: Indonesia's sidang isbat of 19 March
+2026 saw no crescent and set 1 Syawal on Saturday 21 March, so the joint
+decree's Idul Fitri days off are 21 and 22 March, not the library's 20 and
+21 (20 March was collective leave). The library already has Singapore's and
+Malaysia's Hari Raya on 21 March, so only Indonesia moves. In 2027 the three
+governments' lists put Shawwal and Dhu al-Hijjah 1448 a day later, and they
+agree with each other:
 
 | Country | Holiday | Library | Published | Source |
 | --- | --- | --- | --- | --- |
+| Indonesia (2026) | Idul Fitri | 20 and 21 March | 21 and 22 March | the 2026 joint decree (Kepmenag 1497/2025, Menaker 2/2025, MenPANRB 5/2025; setneg.go.id) and the sidang isbat |
 | Singapore | Hari Raya Puasa | 9 March | Wednesday 10 March | Ministry of Manpower 2027 list (18 June 2026, via HCAmag and People Matters) |
 | Singapore | Hari Raya Haji | 16 May | Monday 17 May | same |
 | Indonesia | Idul Fitri | 9 and 10 March | 10 and 11 March | SKB 1205/3/2 of 2026 (setneg.go.id, Antara, Katadata, Investortrust) |
@@ -1841,6 +1979,8 @@ says the Eid dates still await the Minister of Religious Affairs' decision,
 and Malaysia's calendars mark theirs provisional, so every note keeps the
 library's caveat. Brunei, also a MABIMS country, is left on the library's
 dates: no 2027 list was found. Years after 2027 stay on the library's dates.
+Indonesia's other decree days (Easter Sunday and the collective-leave days)
+are in `library-fixes.mjs`.
 
 ### Fiji's national days (`fiji.mjs`)
 
@@ -2043,13 +2183,17 @@ live in `src/lib/trip-calendar.ts` (timeline and trip screen) and
 ### Which countries
 
 `calendarCountries(trip, items)` gives the trip's destinations
-(`destinationCountries`, which leaves the home country out). When there are
-none, a trip at home gets the home country's calendar, once the trip's
-destinations, its legs, or an item's place or arrival place name the home
-country. A trip with nothing to go on gets none. The timeline, Discover, the
-trip view's loading and Discover's own retry all use it. The public-holiday
-check does not: it still leaves the home country out, since a traveller knows
-their own days off.
+(`destinationCountries`, which leaves the home country out), plus the home
+country when the trip itself names it as a destination or a leg (a week in
+London, then Paris). A trip at home, with no other destination, also gets the
+home country when an item's place or arrival place names it (a weekend in the
+Lake District from London); a trip abroad does not get it from a place alone,
+since its outbound flight leaves from home. Each country's days show only on
+the days the trip is there: its leg, or the trip's dates when it has no legs.
+A trip with nothing to go on gets none. The timeline, Discover, the trip
+view's loading and Discover's own retry all use it. The public-holiday check
+does not: it still leaves the home country out, since a traveller knows their
+own days off.
 
 ### The timeline
 
@@ -2085,14 +2229,22 @@ headed "Days off on your dates".
 - Beside the search's Festivals & shows, a "From Manifest's calendar" section
   lists the calendar's festivals on the trip's dates, and its days off for
   everyone (Diwali, Eid and Christmas are days off in many countries), each
-  labelled with its kind. It shows only when the dates are settled, every
-  country's calendar is in, Festivals & shows is picked, and at least one
-  `festival` is on: days off alone, observances and days off for some never
-  make the section, and observances and days off for some are never listed
-  in it.
-- It shows before any search, after one, and when the search fails (the route
-  answers 503 without an API key): the error shows above it and does not
-  replace it.
+  labelled with its kind. It shows when the dates are settled, every
+  country's calendar is in, and Festivals & shows is picked. A day off alone
+  is enough for it, since many of the biggest festivals (Songkran, Chinese
+  New Year, Thingyan, Carnival) are stored as days off. Observances and days
+  off for some are never listed in it.
+- Each card names its country when the trip has more than one, or when the
+  Where field holds a place other than the trip's own destination (the
+  calendar follows the trip, not the field).
+- While a country's calendar is still loading, a status line says so; if its
+  fetch has finished and the calendar is still not in (offline, with the
+  chunk not cached), the line says it loads when the device is back online.
+- It shows before any search, after one, and when the search fails. When the
+  route answers 503 (nothing it could verify, as without an API key) and the
+  calendar has listed something, a note says the search found nothing and
+  what is below comes from the calendar, in place of the error; any other
+  error shows above the section and does not replace it.
 
 ### Loading
 
@@ -2119,9 +2271,10 @@ Notes tell travellers which dates are estimates. In summary:
 - **Islamic dates** everywhere are date-holidays' Umm al-Qura dates, moved a
   day where a country is consistently a day later (Sri Lanka, Bangladesh,
   Nepal, Myanmar's Eid al-Adha), or replaced by a published date (India's
-  notified dates, South-east Asia's 2027 lists). They carry "Islamic lunar
-  date, estimated: the official date can differ by a day". India's are its
-  own, from crescent visibility.
+  notified dates, Indonesia's 2026 Idul Fitri, South-east Asia's 2027 lists,
+  Iran's 1405 calendar). They carry "Islamic lunar date, estimated: the
+  official date can differ by a day". India's are its own, from crescent
+  visibility.
 - **Lunar and lunisolar dates** after the last published year carry "Lunar
   date, estimated: the official date can differ by a day." The Chinese, Korean,
   Vietnamese and Tibetan calendars are exact arithmetic or astronomy, so their
@@ -2130,33 +2283,33 @@ Notes tell travellers which dates are estimates. In summary:
   other day in a close call.
 - **Spans a government sets each year** are modelled by their usual core and
   say so: Vietnam's Tết (except 2027, which is published), China's bridged
-  breaks and swapped working days after 2026, Indonesia's cuti bersama (not
-  listed), the Gulf states' Eid breaks, Myanmar's Thingyan office holidays
-  after 2026, Bangladesh's Eid breaks after 2026, Oman's moved days, and the
+  breaks and swapped working days after 2026, the Gulf states' Eid breaks,
+  Myanmar's Thingyan office holidays after 2026, Bangladesh's Eid breaks after
+  2026, Oman's moved days, Turkmenistan's moved days after 2026, and the
   government-picked days in Kiribati, Fiji (Girmit Day, Ratu Sukuna Day),
-  Tuva and North Ossetia.
+  Tuva and North Ossetia. Indonesia's cuti bersama and Uzbekistan's decree
+  days are listed only for the years decreed (2026 and 2027; 2026).
 - **Not modelled**: holidays kept only in Sanaa (Yemen) or Iraq's Kurdistan
   Region; Malaysian states with a Friday and Saturday weekend, whose
   replacement days differ (the note warns); one-off days (elections other than
   those listed, state funerals, special bank holidays); school holidays.
-- **Library faults left as they are**: Kazakhstan (a Nauryz substitute lands
-  on 23 March, itself a Nauryz day, in some years), the Cook Islands (2 January
-  2034 is both "Day after New Year's Day" and New Year's substitute), and Hong
-  Kong 2033 (Chung Yeung falls on National Day, 1 October; the ordinance has no
+- **Library faults left as they are**: the Cook Islands (2 January 2034 is
+  both "Day after New Year's Day" and New Year's substitute) and Hong Kong
+  2033 (Chung Yeung falls on National Day, 1 October; the ordinance has no
   rule for that, so both are listed on one day).
 - **Kinds left for the owner to decide**: Bangladesh's executive-order days
   (Shab-e-Barat, Shab-e-Qadr, Maha Navami, 22 October 2026) are `bank`;
   Nepal's three Lhosars are `public`, as the 2083 notice lists them for
-  everyone; Ethiopia's Derg Downfall Day, Day of Lament and first day of
-  Ramadan stay `public` until Proclamation 1334/2024's text is read; Iran's
-  Solar Hijri days are dropped and recomputed although the library's dates were
-  right (the notes are the gain); the Philippines' special non-working days stay
-  `optional`; Mordovia's one-off Fyodor Ushakov day stays.
-- **Not added**: Thailand's substitute days for its fixed holidays and its
-  Labour Day; Lao Khao Phansa and Visakha Bousa; minor Nepali community days;
-  Maldives Martyrs' Day; Cyprus's Easter Tuesday; Korean election days after
-  2028; the Falklands' and Macau's half days and year-end closures; Iran's
-  Islamic days re-checked against Iran's own sightings.
+  everyone; Iran's Solar Hijri days are dropped and recomputed although the
+  library's dates were right (the notes are the gain); the Philippines'
+  special non-working days stay `optional`; Mordovia's one-off Fyodor Ushakov
+  day stays.
+- **Not added**: Thailand's Labour Day; Lao Khao Phansa and Visakha Bousa;
+  minor Nepali community days; Maldives Martyrs' Day; Cyprus's Easter Tuesday;
+  Korean election days after 2028; the Falklands' and Macau's half days and
+  year-end closures; Iran's Islamic days after its 1405 calendar (from March
+  2027), which stay on the library's Umm al-Qura dates until the next
+  calendar is added.
 
 ## Maintenance: yearly decrees to add
 
@@ -2172,11 +2325,14 @@ put it in that supplement's test as a fixture, and rebuild.
 | June | Singapore's Ministry of Manpower | `islamic-southeast-asia.mjs` (Islamic days), `hindu-buddhist-diaspora.mjs` (Vesak, Deepavali) |
 | mid-year | Malaysia's federal list; Hong Kong's gazette; Sri Lanka's gazette | `islamic-southeast-asia.mjs`, `hindu-buddhist-diaspora.mjs`; the library (Hong Kong); `south-asia.mjs` |
 | July | India's DoPT list for the next year | `india.mjs` (`NOTIFIED`) |
-| September | Indonesia's joint decree (SKB) | `islamic-southeast-asia.mjs`, `hindu-buddhist-diaspora.mjs` (Nyepi, Waisak) |
+| September | Indonesia's joint decree (SKB) | `islamic-southeast-asia.mjs`, `hindu-buddhist-diaspora.mjs` (Nyepi, Waisak), `library-fixes.mjs` (`CUTI_BERSAMA`, `LAST_DECREE`) |
 | October | Vietnam's Ministry of Home Affairs (Tết, the second National Day) | `law-updates.mjs` |
 | October to November | Bangladesh's list; Cambodia's sub-decree; Mauritius's PMO notice; the Thai Cabinet and Bank of Thailand | `south-asia.mjs` (`BD_PUBLISHED`, `BD_EID_SPANS`); `theravada.mjs`; `mauritius.mjs`, `hindu-buddhist-diaspora.mjs`; `theravada.mjs` |
 | November | China's State Council schedule (extra days off, weekend working days) | `law-updates.mjs` |
+| December | Uzbekistan's presidential decree (extra days off); Turkmenistan's decrees moving Sunday holidays; Azerbaijan's Cabinet (moved days) | `middle-east.mjs` (`UZ_DECREES`; Turkmenistan's and Azerbaijan's rules) |
+| winter | Iran's official calendar for the next Solar Hijri year | `middle-east.mjs` (`IR_PUBLISHED`) |
 | late in the year | Fiji's Cabinet; Laos's Prime Minister's Office; Myanmar's notification (Thingyan span); Bhutan's RCSC; Kiribati, Solomon Islands and Papua New Guinea gazettes; Korea's election dates | `fiji.mjs` (`PUBLISHED`); `theravada.mjs`; `himalaya.mjs`; `pacific-east-asia.mjs`; `law-updates.mjs` |
+| when declared | Election days declared as holidays (South Africa, Israel) | `law-updates.mjs` |
 | days before | The Gulf states' and others' Eid breaks, after the moon is sighted | not modelled; notes say the date can differ |
 
 When date-holidays is upgraded, rebuild: a `drop` rule that no longer matches

@@ -620,7 +620,7 @@ function fijiEntries(year) {
 const MAURITIUS = [
   ["Maha Shivaratree", "Maha Shivaratri", 0, "Night-long worship of Shiva. Pilgrims walk to the sacred lake of Grand Bassin in the days before, so roads there are busy"],
   ["Ugadi", "Ugadi and Gudi Padwa", 0, "Ougadi, the Telugu New Year"],
-  ["Ganesh Chaturthi", "Ganesh Chaturthi", 1, "Birth of Ganesh. Mauritius keeps the holiday the day after the Chaturthi"],
+  ["Ganesh Chaturthi", "Ganesh Chaturthi", 1, "Birth of Ganesh. Mauritius keeps the holiday the day after the festival"],
   ["Divali", "Diwali", 0, DEEPAVALI],
 ];
 

@@ -49,6 +49,11 @@ describe("2027 Islamic days in Singapore, Malaysia and Indonesia", { timeout: SL
     expect(datesOf(id, "Laylat al-Mi'raj", 2027)).toEqual(["2027-01-05", "2027-12-26"]);
   });
 
+  it("matches Indonesia's 2026 decree: Idul Fitri on 21 and 22 March, a day after the library", () => {
+    const id = merged(islamicSoutheastAsia, "islamic-southeast-asia.mjs", "ID");
+    expect(datesOf(id, "End of Ramadan (Eid al-Fitr)", 2026)).toEqual(["2026-03-21", "2026-03-22"]);
+  });
+
   it("matches Malaysia's 2027 federal list", () => {
     const my = merged(islamicSoutheastAsia, "islamic-southeast-asia.mjs", "MY");
     expect(datesOf(my, "End of Ramadan (Eid al-Fitr)", 2027)).toEqual(["2027-03-10", "2027-03-11"]);

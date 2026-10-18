@@ -132,14 +132,17 @@ describe("the interest picker", () => {
   it("offers all of them, and none is off-limits below the limit", () => {
     const html = render(["food", "gems"]);
     expect(count(html, /<button/g)).toBe(INTERESTS.length);
-    expect(count(html, /disabled=""/g)).toBe(0);
+    expect(count(html, / (?:aria-)?disabled="/g)).toBe(0);
     expect(html).toContain("Film locations");
     expect(html).toContain("2 picked");
   });
 
   it("holds the rest back at the limit, and says why", () => {
     const html = render(ids.slice(0, MAX_INTERESTS));
-    expect(count(html, /disabled=""/g)).toBe(INTERESTS.length - MAX_INTERESTS);
+    // Unavailable rather than disabled, so each stays in the Tab order and is announced.
+    expect(count(html, /aria-disabled="true"/g)).toBe(INTERESTS.length - MAX_INTERESTS);
+    expect(count(html, / disabled="/g)).toBe(0);
+    expect(count(html, /aria-describedby="/g)).toBe(INTERESTS.length - MAX_INTERESTS);
     expect(count(html, /aria-pressed="true"/g)).toBe(MAX_INTERESTS);
     expect(html).toContain("the most Discover looks up at a time");
   });

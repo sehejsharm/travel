@@ -118,24 +118,29 @@ function compareMarks(a: CalendarMark, b: CalendarMark): number {
 }
 
 /**
- * The countries whose calendars apply to a trip: its destinations, or, for a
- * trip at home (a weekend in the Lake District from London), the home
- * country, once the trip or one of its places says it is there. The checks
- * still leave the home country out: a traveller knows their own days off, but
- * the timeline and Discover can show them.
+ * The countries whose calendars apply to a trip: its destinations, plus the
+ * home country when the trip itself names it, as a destination or a leg (a
+ * week in London, then Paris). For a trip at home (a weekend in the Lake
+ * District from London) one of its places naming home is enough too. A trip
+ * abroad does not get it from a place alone, since its outbound flight leaves
+ * from home. The checks still leave the home country out: a traveller knows
+ * their own days off, but the timeline and Discover can show them, each on
+ * the days the trip is there (its leg, or the trip's dates without legs).
  */
 export function calendarCountries(trip: Trip, items: TripItem[]): string[] {
   const destinations = destinationCountries(trip, items);
-  if (destinations.length > 0) return destinations;
-
   const home = (trip.homeCountry ?? "").trim().toUpperCase();
-  if (!home) return [];
-  const named = [
+  if (!home) return destinations;
+
+  const isHome = (code: string | undefined) => code?.trim().toUpperCase() === home;
+  const declared = [
     ...(trip.legs ?? []).map((leg) => leg.countryCode),
     ...(trip.destinationCountries ?? []),
-    ...items.flatMap((item) => [item.place?.countryCode, item.arrivalPlace?.countryCode]),
-  ];
-  return named.some((code) => code?.trim().toUpperCase() === home) ? [home] : [];
+  ].some(isHome);
+  if (destinations.length > 0) return declared ? [...destinations, home] : destinations;
+
+  const placed = items.some((item) => isHome(item.place?.countryCode) || isHome(item.arrivalPlace?.countryCode));
+  return declared || placed ? [home] : [];
 }
 
 /** The trip's countries an item happens in, on its own day. */

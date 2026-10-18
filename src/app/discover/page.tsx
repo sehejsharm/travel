@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InterestPicker } from "@/components/interest-picker";
 import { Field, PrimaryButton, TextInput } from "@/components/form";
 import {
@@ -59,13 +59,43 @@ const TIER_TONE: Record<string, "accent" | "ok" | "neutral" | "warning"> = {
 const CALENDAR_NOTE =
   "The festivals and days off on your dates come from Manifest's calendar, on this device. Nothing was searched for them.";
 
+/**
+ * In place of the advise route's "nothing came back" (a 503) when the calendar
+ * has listed something: that answer is about the search, not about the
+ * festivals and days off below it.
+ */
+const SEARCH_EMPTY_NOTE =
+  "The search found nothing it could verify, so what is below comes from Manifest’s calendar only. To search further, add an API key for the paid tiers, or file a few places yourself first.";
+
+/** What went wrong with the search, and the route's status, when it answered at all. */
+interface SearchProblem {
+  message: string;
+  status?: number;
+}
+
 export default function DiscoverScreen() {
   const { state, trip, items, hydrated } = useTripView();
   const [destination, setDestination] = useState("");
   const [draftInterests, setDraftInterests] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<SearchProblem>();
   const [fresh, setFresh] = useState<AdviceResult>();
+  // The calendar countries whose fetch has finished, joined. If they are
+  // still not in after that, the device is offline with the chunk not cached
+  // yet, which the calendar note says rather than waiting without a word.
+  const calendarCodes = trip ? calendarCountries(trip, items).sort().join(",") : "";
+  const [settledCodes, setSettledCodes] = useState("");
+  useEffect(() => {
+    if (!calendarCodes) return;
+    let live = true;
+    // The trip view asks for these already, and the two share one fetch.
+    void loadHolidays(calendarCodes.split(",")).then(() => {
+      if (live) setSettledCodes(calendarCodes);
+    });
+    return () => {
+      live = false;
+    };
+  }, [calendarCodes]);
 
   if (!hydrated) return <ScreenSkeleton variant="list" />;
   if (!trip) {
@@ -93,9 +123,19 @@ export default function DiscoverScreen() {
   // every render, which keeps it in step with the dates, and it shows whether
   // or not the search has run or worked.
   const calendar = tripEvents(trip, items);
-  const listed = interests.includes(CALENDAR_INTEREST) ? calendarSection(calendar) : [];
+  const wantsCalendar = interests.includes(CALENDAR_INTEREST);
+  const listed = wantsCalendar ? calendarSection(calendar) : [];
   const fromCalendar = listed.length > 0;
+  // Still to arrive, or could not: there is a calendar to show, but not yet.
+  const calendarPending = wantsCalendar && !trip.datesTbd && calendar.countries.length > 0 && !calendar.ready;
+  const calendarOffline = calendarPending && settledCodes === calendarCodes;
+  // The calendar follows the trip, not the Where field, so a place typed in
+  // that is not the default gets each card's country named.
+  const typed = destination.trim().toLowerCase();
+  const elsewhere = typed !== "" && typed !== defaultDestination(trip, items).toLowerCase();
   const advice = fresh ?? cachedAdvice(state, trip.id, adviceKey(where, interests));
+  // The search found nothing, but the calendar has: a note, not a failure.
+  const searchEmpty = error?.status === 503 && fromCalendar && !advice;
   const filedTitles = new Set(items.map((item) => item.title.trim().toLowerCase()));
 
   if (quiet && !loading && !advice) {
@@ -197,12 +237,15 @@ export default function DiscoverScreen() {
       });
 
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error ?? "That did not work.");
+      if (!response.ok) {
+        setError({ message: payload?.error ?? "That did not work.", status: response.status });
+        return;
+      }
 
       setFresh(payload as AdviceResult);
       cacheAdvice(trip.id, adviceKey(where, picked), payload as AdviceResult);
     } catch (problem) {
-      setError(problem instanceof Error ? problem.message : "That did not work.");
+      setError({ message: problem instanceof Error ? problem.message : "That did not work." });
     } finally {
       setLoading(false);
     }
@@ -239,9 +282,17 @@ export default function DiscoverScreen() {
           </div>
         </div>
 
-        {interests.includes(CALENDAR_INTEREST) && trip.datesTbd && (
+        {wantsCalendar && trip.datesTbd && (
           <p className="mt-3 text-footnote text-ink-soft">
             Manifest&rsquo;s calendar adds the festivals on your dates once they are set.
+          </p>
+        )}
+
+        {calendarPending && (
+          <p role="status" className="mt-3 text-footnote text-ink-soft">
+            {calendarOffline
+              ? "Manifest’s calendar for your dates is not on this device yet. It loads when you are back online."
+              : "Loading Manifest’s calendar for your dates…"}
           </p>
         )}
 
@@ -260,8 +311,14 @@ export default function DiscoverScreen() {
         </ul>
       </Card>
 
-      {error && (
-        <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">{error}</div>
+      {error && !searchEmpty && (
+        <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">{error.message}</div>
+      )}
+
+      {searchEmpty && (
+        <Card className="p-4">
+          <p className="text-subheadline text-ink-soft">{SEARCH_EMPTY_NOTE}</p>
+        </Card>
       )}
 
       {loading && !advice && <LoadingSections count={interests.length} />}
@@ -272,7 +329,7 @@ export default function DiscoverScreen() {
         <Card className="p-5 text-center">
           <p className="text-title-3">Nothing looked up yet</p>
           <p className="mt-2 text-subheadline text-ink-soft">
-            {fromCalendar && "The festivals on your dates are already below, from Manifest’s calendar. "}
+            {fromCalendar && "The festivals and days off on your dates are already below, from Manifest’s calendar. "}
             Tap Find things to do, and I will work down from your own saves to Manifest&rsquo;s own
             list before spending anything on a search.
           </p>
@@ -302,7 +359,7 @@ export default function DiscoverScreen() {
                         <CalendarCard
                           event={event}
                           tripId={trip.id}
-                          showCountry={calendar.countries.length > 1}
+                          showCountry={calendar.countries.length > 1 || elsewhere}
                           alreadyFiled={filedTitles.has(event.name.trim().toLowerCase())}
                         />
                       </li>

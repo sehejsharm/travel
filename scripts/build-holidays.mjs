@@ -6,20 +6,24 @@
  * The base is date-holidays (https://github.com/commenthol/date-holidays):
  * every country it knows, in English, with school holidays dropped. Each
  * country also gets the days its states or regions take off (date-holidays'
- * per-state lists), as "optional" with a note naming where. Three things are
- * corrected on the way through:
+ * per-state lists), as "optional" with a note naming where, and, where the
+ * state lists are reliable for it, a note on a national day off that some
+ * states do not keep (STATE_GAPS). Four things are corrected on the way
+ * through:
  *
  * - a few library rules that disagree with the law (RULE_FIXES below);
  * - the Chinese, Korean and Vietnamese lunisolar calendars, which are
  *   recomputed astronomically: wherever date-holidays' calendar puts a month
  *   on another day, the rules in that month are evaluated again on the right
  *   one (see "The lunisolar calendars");
- * - two names for one holiday on one day (NAME_ALIASES).
+ * - two names for one holiday on one day (NAME_ALIASES);
+ * - names with no English translation, or a wrong one (ENGLISH_NAMES).
  *
  * On top of that go the supplement modules in scripts/holiday-supplements/*.mjs
  * (see the README there): festivals and corrections the library does not
- * carry. A supplement can drop library entries, and a supplement entry naming
- * the same holiday on the same date as a library one replaces it.
+ * carry. A supplement can drop library entries, a supplement entry naming
+ * the same holiday on the same date as a library one replaces it, and a
+ * supplement's `finish` can rework the country's merged calendar.
  *
  * The output is deterministic: the same library version and supplements give
  * byte-identical files, whatever the machine's time zone or locale.
@@ -58,14 +62,189 @@ const KIND_RANK = Object.fromEntries(KINDS.map((kind, index) => [kind, index]));
 const LIBRARY_KINDS = new Set(["public", "bank", "optional", "observance"]);
 const DAY_OFF = new Set(["public", "bank"]);
 
+/**
+ * Countries whose state calendars in date-holidays say where a national day
+ * off is not kept (Malaysia's Nuzul Al-Quran, Easter Monday in Scotland). A
+ * national day off that some regions lack (with no day off that date, and
+ * not the same holiday moved a few days) gets "Not a day off in ..."; one
+ * that more than a third of them lack becomes "optional". Elsewhere the state
+ * lists are not reliable for this (federal days in the United States close
+ * federal offices and banks in every state; Brazil's state lists predate the
+ * national Black Awareness Day), so they are left alone.
+ */
+const STATE_GAPS = new Set(["AU", "CH", "GB", "MY", "SH"]);
+
 const OPTIONS = { languages: ["en"] };
 
 /**
- * Library names with no English translation, which date-holidays falls back
- * to the country's own language for. Anything else non-Latin that turns up
- * after a library upgrade is listed in the coverage summary.
+ * Library names shown as the app shows them, per country: names with no
+ * English translation (date-holidays falls back to the country's own
+ * language for those), and English names the library has wrong (typos,
+ * mistranslations, a sovereign who has changed). A name is looked up without
+ * the library's " (substitute day)" suffix, so its substitute days follow.
+ * Any untranslated library name that turns up after a library upgrade is
+ * listed in the coverage summary. Already-English names the library gives no
+ * "en" key map to themselves.
  */
 const ENGLISH_NAMES = {
+  AI: {
+    "Celebration of the Birthday of Her Majesty the Queen": "Celebration of the Birthday of His Majesty the King",
+  },
+  AL: { "League of Lezhë day": "League of Lezhë Day" },
+  AM: { "St. Vartan the good work and the duty days": "St Vartan's Day" },
+  AT: {
+    Florian: "St Florian's Day",
+    "Leopoldi-Tag": "St Leopold's Day",
+    Martinstag: "St Martin's Day",
+    Rupert: "St Rupert's Day",
+    Staatsfeiertag: "Labour Day",
+    "Tag der Volksabstimmung": "Plebiscite Day",
+  },
+  AU: { "Easter Tuesday": "Easter Tuesday", "King's Birthday": "King's Birthday", "Proclamation Day": "Proclamation Day" },
+  BJ: { "Fête du Vodoun": "Vodun Festival" },
+  BO: { "Andean Amazonic Chacoan New Year": "Andean Amazonian Chaqueño New Year" },
+  BR: {
+    "Adesão do Grão-Pará à independência do Brasil": "Pará's Accession to Independence",
+    "Adesão do Maranhão à independência do Brasil": "Maranhão's Accession to Independence",
+    "Alusivo ao Dia Internacional da Mulher": "International Women's Day",
+    "Assinatura do Tratado de Petrópolis": "Treaty of Petrópolis Day",
+    Carnaval: "Carnival",
+    "Dia do Comércio": "Commerce Day",
+    "Fundação de Brasília": "Founding of Brasília",
+    "Morte de Zumbi dos Palmares": "Black Awareness Day",
+    "Aniversário do estado": "State Anniversary",
+    "Autonomia do Estado": "State Autonomy Day",
+    "Criação do Território Federal": "Creation of the Federal Territory",
+    "Criação do estado": "State Creation Day",
+    "Data magna do estado": "State Day",
+    "Dia da Amazônia": "Amazon Day",
+    "Dia de Nossa Senhora da Penha": "Our Lady of Penha",
+    "Dia de Santa Catarina": "Santa Catarina Day",
+    "Dia de Santa Catarina de Alexandria": "St Catherine of Alexandria",
+    "Dia de São Jorge": "St George's Day",
+    "Dia de São José": "St Joseph's Day",
+    "Dia do Evangélico": "Evangelicals' Day",
+    "Dia do evangélico": "Evangelicals' Day",
+    "Dia do Piauí": "Piauí Day",
+    "Elevação do Amazonas à categoria de província": "Amazonas Province Day",
+    "Emancipação política": "Political Emancipation Day",
+    "Emancipação política de Sergipe": "Sergipe Emancipation Day",
+    "Emancipação política do estado do Paraná": "Paraná Emancipation Day",
+    "Fundação da Cidade de Goiás": "Founding of the City of Goiás",
+    "Homenagem à memória do ex-presidente João Pessoa": "João Pessoa Memorial Day",
+    "Independência da Bahia": "Bahia Independence Day",
+    "Lançamento da pedra fundamental de Goiânia": "Goiânia Foundation Day",
+    "Mártires de Cunhaú e Uruaçu": "Martyrs of Cunhaú and Uruaçu",
+    "Nossa Senhora da Natividade": "Our Lady of the Nativity",
+    "Nossa Senhora das Neves": "Our Lady of the Snows",
+    "Proclamação da República Rio-Grandense": "Gaúcho Day (Riograndense Republic)",
+    "Revolução Constitucionalista": "Constitutionalist Revolution Day",
+    "Revolução Pernambucana de 1817": "Pernambuco Revolution of 1817",
+    "São João": "St John's Day",
+    "São Pedro": "St Peter's Day",
+  },
+  CG: {
+    "Fête de la commémoration de la conférence nationale souveraine": "Sovereign National Conference Day",
+    "Journée nationale de la République": "Republic Day",
+  },
+  CH: {
+    "2 Janvier": "Berchtold's Day",
+    Berchtoldstag: "Berchtold's Day",
+    "Saint-Berthold": "Berchtold's Day",
+    Bundesfeiertag: "Swiss National Day",
+    "Fête des pères": "Father's Day",
+    "Fête nationale": "Swiss National Day",
+    "Giorno festivo federale": "Swiss National Day",
+    Knabenschiessen: "Knabenschiessen (Zurich shooting festival)",
+    "Instauration de la République": "Republic Day",
+    "Jeûne Genevois": "Geneva Fast",
+    Mauritiustag: "St Maurice's Day",
+    "Näfelser Fahrt": "Näfels Pilgrimage",
+    Vätertag: "Father's Day",
+  },
+  CK: { "Queen's Birthday": "King's Birthday" },
+  CL: { "Día adicional": "Additional holiday" },
+  CR: { "Gesta Heroica de Juan Santamaría": "Juan Santamaría Day" },
+  DE: {
+    "1. Advent": "First Sunday of Advent",
+    "2. Advent": "Second Sunday of Advent",
+    "3. Advent": "Third Sunday of Advent",
+    "4. Advent": "Fourth Sunday of Advent",
+    Totensonntag: "Sunday of the Dead",
+  },
+  DK: { Fastelavn: "Shrovetide (Fastelavn)" },
+  ES: {
+    "Dia de Cataluña": "Catalonia Day",
+    "Día Nacional de Galicia": "Galicia Day",
+    "Día de Andalucía": "Andalusia Day",
+    "Día de Aragón": "Aragon Day",
+    "Día de Asturias": "Asturias Day",
+    "Día de Castilla-La Mancha": "Castilla-La Mancha Day",
+    "Día de Ceuta": "Ceuta Day",
+    "Día de Extremadura": "Extremadura Day",
+    "Día de La Rioja": "La Rioja Day",
+    "Día de la Comunidad de Madrid": "Madrid Day",
+    "Día de la Constitución Española": "Constitution Day",
+    "Día de las Instituciones de Cantabria": "Cantabria Institutions Day",
+    "Día de las Letras Gallegas": "Galician Literature Day",
+    "Día de les Illes Balears": "Balearic Islands Day",
+    "Fiesta Nacional de España": "National Day of Spain",
+    "Fiesta de Castilla y León": "Castile and León Day",
+    "La Bien Aparecida": "Our Lady of Bien Aparecida",
+    "Nuestra Señora de África": "Our Lady of Africa",
+    "Nuestra Señora de la Almudena": "Our Lady of la Almudena",
+    "San Isidro Labrador": "St Isidore's Day",
+    "Sant Esteve": "St Stephen's Day",
+    "San Esteban": "St Stephen's Day",
+    "San Juan": "St John's Day",
+    "Santiago Apóstol": "St James's Day",
+  },
+  FO: { "St.Olav's Day": "St Olav's Day", "St.Olav's Eve": "St Olav's Eve" },
+  GI: { "Queen's Birthday": "King's Birthday" },
+  GT: { "Day of Race": "Columbus Day (Día de la Raza)" },
+  GW: { "Pidjiguiti Day": "Pidjiguiti Day" },
+  HN: { "Día de las Américas": "Day of the Americas", "Armed forces Day": "Armed Forces Day" },
+  IC: {
+    "Día de la Constitución Española": "Constitution Day",
+    "Fiesta Nacional de España": "National Day of Spain",
+    "La Bajada de la Virgen del Socorro": "Descent of the Virgin of Socorro",
+    "Nuestra Señora de Guadalupe": "Our Lady of Guadalupe",
+    "Nuestra Señora de la Peña": "Our Lady of la Peña",
+    "Nuestra Señora de las Nieves": "Our Lady of the Snows",
+    "Nuestra Señora de los Dolores": "Our Lady of Sorrows",
+    "Nuestra Señora de los Reyes": "Our Lady of the Kings",
+    "Nuestra Señora del Pino": "Our Lady of the Pine",
+  },
+  IR: {
+    "Holyday for Fetr Eeid": "Eid al-Fitr (second day)",
+    "Birthday of Muhammad Prophet": "Birthday of the Prophet Muhammad",
+    "Mabaas of Muhammad": "Mab'ath (the Prophet's mission)",
+  },
+  IS: { Bolludagur: "Bun Day", Bóndadagur: "Husbands' Day", Sprengidagur: "Shrove Tuesday (Bursting Day)" },
+  LI: { "Feiertagsbrücke": "Bridge day", "Mariä Geburt": "Nativity of Mary", Staatsfeiertag: "National Day" },
+  LR: { "J. J. Robert's Day": "J. J. Roberts' Day" },
+  LV: { "Restoration of Independence day": "Restoration of Independence Day" },
+  ML: { "Jour de l'Afrique": "Africa Day" },
+  MS: { "Queen's Birthday Celebration": "King's Birthday Celebration" },
+  NA: { "Public Holiday": "Public Holiday" },
+  NC: { "Jour de l'an": "New Year's Day" },
+  NO: { "Midsummar Eve": "Midsummer Eve" },
+  PA: { "Primer Grito de Independencia": "First Cry of Independence", "Separation Day (from Columbia)": "Separation Day (from Colombia)" },
+  PL: { "Greater Poland Uprising Remebrence Day": "Greater Poland Uprising Remembrance Day" },
+  PT: { "Implantação da República": "Republic Day", "Restauração da Independência": "Restoration of Independence Day" },
+  SE: { Vasaloppet: "Vasaloppet ski race" },
+  SJ: { "Midsummar Eve": "Midsummer Eve" },
+  SK: { "Day of victory over fascism": "Day of Victory over Fascism" },
+  SM: { "Cerimonia di investitura dei Capitani Reggenti": "Investiture of the Captains Regent" },
+  SN: { "Magal de Touba": "Grand Magal of Touba" },
+  SV: {
+    "Celebración del Divino Salvador del Mundo": "Feast of the Divine Saviour of the World",
+    "Día de la Mujer": "Women's Day",
+    "Día del Maestro": "Teachers' Day",
+    "Fiestas Agostinas": "August Festivals",
+    "Firma de los Acuerdos de Paz": "Peace Accords Day",
+  },
+  TC: { "Queen's Birthday": "King's Birthday" },
   TN: {
     "عيد الثورة و الشباب": "Revolution and Youth Day",
     "عيد الإستقلال": "Independence Day",
@@ -74,7 +253,29 @@ const ENGLISH_NAMES = {
     "عيد المرأة": "Women's Day",
     "عيد الجلاء": "Evacuation Day",
   },
+  TW: { "Journalist' Day": "Journalists' Day" },
+  US: { "Election Day": "Election Day" },
+  VE: {
+    "Día de La Divina Pastora": "Divina Pastora Day",
+    "Día de Maturin": "Maturín Day",
+    "Día de la Virgen de la Chinita": "Virgin of Chiquinquirá (La Chinita)",
+    "Día de la Virgen del Socorro": "Virgin of Socorro Day",
+    "Natalicio de Jacinto Lara": "Birth of Jacinto Lara",
+    "Natalicio de José Antonio Anzoátegui": "Birth of José Antonio Anzoátegui",
+    "Natalicio de Rafael Urdaneta": "Birth of Rafael Urdaneta",
+  },
+  VN: { "Day of liberating the South for national reunification": "Reunification Day" },
+  VU: {
+    "Fête de Famille": "Family Day",
+    "Fête des chefs coutumiers": "Custom Chiefs' Day",
+    "Jour de l'Unité": "Unity Day",
+    "Journée Mondiale des Enfants": "Children's Day",
+    "Mémoire du père de l'indépendance Rév. Dr. W.H. Lini": "Father Lini Day",
+  },
 };
+
+/** The suffix date-holidays gives a substitute day, in its forms. */
+const SUBSTITUTE_SUFFIX = / \((?:substitute day|substitutes)\)$/;
 
 /**
  * One holiday under two library names, which put two entries on one day (a
@@ -90,6 +291,11 @@ export const NAME_ALIASES = {
     "Radonitsa - Day of Remembrance of the Departed": "Day of Remembrance of the Departed (Radonitsa)",
     "Radonitsa - Day of Special Remembrance of the Departed": "Day of Remembrance of the Departed (Radonitsa)",
     "Unified Day of Remembrance of the Departed": "Day of Remembrance of the Departed (Radonitsa)",
+    // Irkutsk's (Единый день поминовения, the common day of remembrance).
+    "Unity Day of Remembrance": "Day of Remembrance of the Departed (Radonitsa)",
+    // Ingushetia's names for the two Eids, against every other republic's.
+    "Eid al-Fitr (Markhash)": "Uraza-Bayram",
+    "Eid al-Adha (Ghurba)": "Kurban-Bayram",
   },
   US: {
     // The federal observance and California's name, against every other state's.
@@ -103,8 +309,14 @@ export const NAME_ALIASES = {
   },
 };
 
-/** Notes for library holidays whose dates are an estimate of a yearly decision. */
+/** Notes added to library holidays: an estimate of a yearly decision, or context a traveller needs. */
 const LIBRARY_NOTES = {
+  RU: {
+    "Day of the Reunification of Crimea with Russia":
+      "Russia's name for the day. The annexation is not recognised by Ukraine or the UN General Assembly (Resolution 68/262)",
+    "Day of Sevastopol's Return to Russia":
+      "Russia's name for the day. The annexation is not recognised by Ukraine or the UN General Assembly (Resolution 68/262)",
+  },
   VN: {
     "Vietnamese New Year":
       "Five days off for Tết. The government sets the exact days each year, so they can move by a day or two",
@@ -127,10 +339,61 @@ export const RULE_FIXES = {
       "05-02 since 2025": { name: { en: "Labour Day", zh: "劳动节" }, type: "public" },
     },
   },
+  KE: {
+    why: "Public Holidays Act (Cap. 110) as amended by the Statute Law (Miscellaneous Amendments) Act 2024: 10 October is Mazingira Day (formerly Moi Day, then Utamaduni Day)",
+    remove: ["10-10 and if sunday then next monday"],
+    add: {
+      "10-10 and if sunday then next monday": {
+        name: { en: "Mazingira Day", sw: "Siku ya Mazingira" },
+        type: "public",
+        substitute: true,
+        note: "Environment day: Kenyans are asked to plant trees and join clean-ups",
+      },
+    },
+  },
   KR: {
     why: "Regulations on Holidays of Government Offices, art. 2: Seollal is the day before, the day and the day after (date-holidays issue #640). The library's span starts on the day itself",
     remove: ["korean 01-0-01 P3D"],
     add: { "1 day before korean 01-0-01 P3D": { from: "korean 01-0-01 P3D" } },
+  },
+  KZ: {
+    why: "Labour Code of Kazakhstan: a day off that falls on a holiday moves to the next working day after the holiday. Nauryz is 21 to 23 March, so a substitute for 21 or 22 March cannot land on 22 or 23 March, as the library's does (2026: 24 and 25 March off; 2027: 24 March)",
+    remove: [
+      "03-21 and if saturday then next monday if sunday then next tuesday",
+      "03-22 and if saturday then next monday if sunday then next tuesday",
+    ],
+    add: {
+      "03-21 and if saturday then next tuesday if sunday then next wednesday": {
+        from: "03-21 and if saturday then next monday if sunday then next tuesday",
+      },
+      "03-22 and if saturday then next monday if sunday then next wednesday": {
+        from: "03-22 and if saturday then next monday if sunday then next tuesday",
+      },
+    },
+  },
+  NG: {
+    why: "Public Holidays Act (Cap. P40) and the Ministry of Interior's yearly notices: Children's Day closes schools only (the library nests its type: school under the name, so it reads as public), National Youth Day (since 2020) is not a work-free day, and 1 Muharram is a day off only in states that declare it",
+    remove: ["05-27", "11-01 since 2020", "1 Muharram"],
+    add: {
+      "05-27": { name: { en: "Children's Day" }, type: "observance", note: "Schools close; offices and shops are open" },
+      "11-01 since 2020": { name: { en: "National Youth Day" }, type: "observance", note: "Not a day off" },
+      "1 Muharram": {
+        name: { en: "Islamic New Year" },
+        type: "optional",
+        note: "A day off only in states that declare it, such as Sokoto, Kano, Katsina, Kebbi, Niger and Borno",
+      },
+    },
+  },
+  SH: {
+    why: "The Queen's Birthday (third Monday of April) ended with Elizabeth II. St Helena now keeps the King's Birthday in November: Friday 15 November 2024, Friday 14 November 2025 and Friday 13 November 2026, the Friday nearest 14 November",
+    remove: ["3rd monday in April"],
+    add: {
+      "friday after 11-10": {
+        name: { en: "King's Birthday" },
+        type: "public",
+        note: "Estimated: the government sets the day each year. 2024 to 2026 were the Friday nearest the King's birthday, 14 November",
+      },
+    },
   },
   TW: {
     why: "紀念日及節日實施條例 as amended in 2025: from 2026 the Lunar New Year holiday is the day before New Year's Eve, the Eve and days 1 to 3. One of those on a Saturday or Sunday is made up on a working day, which the DGPA put after the holiday in 2026 and 2027. The library's 'fourth day' every year, and its weekday rule, are not in the law",
@@ -169,6 +432,11 @@ const NOTE_FIXES = [
   [/\bGoverment\b/g, "Government"],
   [/\bindusty\b/g, "industry"],
   [/\bBirtday\b/g, "Birthday"],
+  [/\bthe the\b/g, "the"],
+  [/\bCalender\b/g, "Calendar"],
+  [/\bby statue\b/g, "by statute"],
+  [/\bDayoff\b/g, "Day off"],
+  [/^Formation\/Liberation day$/g, "The state's formation day"],
 ];
 
 /**
@@ -177,6 +445,15 @@ const NOTE_FIXES = [
  * shops and offices stay open for everyone else.
  */
 const GROUP_ONLY = /^(?:Women|Only for women|Youth from|Children below|Military personnel|For Muslim|For all persons belonging|Orthodox)\b/;
+
+/**
+ * Regions shown under another name. The library names Crimea and Sevastopol
+ * as Russian regions; the UN General Assembly does not recognise the
+ * annexation (Resolution 68/262), so the notes say who controls them.
+ */
+const REGION_NAMES = {
+  RU: { CR: "Crimea (Russian-occupied)", SEV: "Sevastopol (Russian-occupied)" },
+};
 
 /** Prefixes that only make a region's name longer. */
 const REGION_PREFIXES = [/^Département et région d'outre-mer /, /^Département /];
@@ -258,10 +535,22 @@ const ALIAS_KEYS = Object.fromEntries(
   ]),
 );
 
-/** A library name as the app shows it: in English, tidied, aliases resolved. */
+/** A library name without its substitute-day suffix, and whether it had one. */
+function splitSubstitute(name) {
+  const tidy = name.replace(/\s+/g, " ").trim();
+  const base = tidy.replace(SUBSTITUTE_SUFFIX, "");
+  return { base, substitute: base !== tidy };
+}
+
+/**
+ * A library name as the app shows it: in English, tidied, aliases resolved,
+ * and a substitute day always "<name> (substitute day)".
+ */
 export function cleanName(country, name) {
-  const english = (ENGLISH_NAMES[country]?.[name] ?? name).replace(/′/g, "’").replace(/\s+/g, " ").trim();
-  return ALIAS_KEYS[country]?.get(nameKey(english)) ?? english;
+  const { base, substitute } = splitSubstitute(name);
+  const english = (ENGLISH_NAMES[country]?.[base] ?? base).replace(/′/g, "’").replace(/\s+/g, " ").trim();
+  const full = substitute ? `${english} (substitute day)` : english;
+  return ALIAS_KEYS[country]?.get(nameKey(full)) ?? full;
 }
 
 /** Every library name that cleans to this one: itself and its aliases. */
@@ -272,7 +561,9 @@ function libraryNames(country, name) {
   return [name, ...aliases];
 }
 
-function cleanRegion(name, code) {
+function cleanRegion(name, code, country) {
+  const renamed = REGION_NAMES[country]?.[code];
+  if (renamed) return renamed;
   let text = (name ?? "").replace(/\s+/g, " ").trim();
   for (const prefix of REGION_PREFIXES) text = text.replace(prefix, "");
   return text || code;
@@ -698,6 +989,17 @@ function libraryCalendar(country, state) {
   return calendar;
 }
 
+/** Whether a library rule's name has an English translation. */
+function hasEnglishName(name) {
+  return Boolean(name) && typeof name === "object" && Object.keys(name).some((lang) => lang === "en" || lang.startsWith("en-"));
+}
+
+/**
+ * "CC name" for each library holiday the build met that has no English name
+ * and no entry in ENGLISH_NAMES, for the coverage summary.
+ */
+const untranslated = new Set();
+
 /**
  * One date-holidays calendar (a country, or a country and one of its states)
  * as one entry per day. A holiday that runs several days (Songkran, Eid, the
@@ -716,7 +1018,17 @@ function calendarEntries(calendar, country, from, to) {
       // Whole days, allowing for a day that a clock change makes 23 or 25
       // hours long. A holiday that starts in the evening still marks its day.
       const days = Math.max(1, Math.floor((hours + 1.5) / 24));
-      const name = cleanName(country, holiday.name);
+      const options = calendar.holidays[holiday.rule];
+      // A one-off date the library marks as a substitute (Malaysia's and
+      // Singapore's Deepavali on Monday 9 November 2026) carries the plain
+      // name; give it the suffix the rule-made ones have.
+      const oneOff = options?.substitute === true && /^\d{4}-\d{2}-\d{2}$/.test(holiday.rule ?? "");
+      const name = cleanName(country, oneOff && !SUBSTITUTE_SUFFIX.test(holiday.name) ? `${holiday.name} (substitute day)` : holiday.name);
+      const libraryName = options?.name;
+      const { base } = splitSubstitute(holiday.name);
+      if (libraryName !== undefined && !hasEnglishName(libraryName) && !ENGLISH_NAMES[country]?.[base]) {
+        untranslated.add(`${country} ${base}`);
+      }
       const libraryNote = cleanNote(holiday.note);
       const kind = holiday.type === "public" && GROUP_ONLY.test(libraryNote) ? "optional" : holiday.type;
       const note = joinNotes(
@@ -753,26 +1065,61 @@ function dedupe(entries) {
  */
 export function libraryEntries(country, from = FROM, to = TO) {
   const national = dedupe(calendarEntries(libraryCalendar(country), country, from, to));
+
+  const states = new Holidays().getStates(country, "en") ?? {};
+  /** region → its days off, and their date|name|substitute keys. */
+  const regionDays = new Map();
+  for (const code of Object.keys(states).sort()) {
+    const region = cleanRegion(states[code], code, country);
+    const list = [...dedupe(calendarEntries(libraryCalendar(country, code), country, from, to)).values()].filter((entry) =>
+      DAY_OFF.has(entry.kind),
+    );
+    const named = new Set(
+      list.map((entry) => {
+        const { base, substitute } = splitSubstitute(entry.name);
+        return `${entry.date}|${nameKey(base)}|${substitute}`;
+      }),
+    );
+    regionDays.set(region, { list, daysOff: new Set(list.map((entry) => entry.date)), named });
+  }
+
+  // A national day off some regions do not keep (STATE_GAPS) gets a note,
+  // and becomes optional when more than a third of them do not.
+  for (const [key, entry] of national) {
+    if (!STATE_GAPS.has(country) || !DAY_OFF.has(entry.kind)) continue;
+    const { base, substitute } = splitSubstitute(entry.name);
+    // A region keeps the day if it has a day off then, or has the same
+    // holiday moved a few days (a weekend holiday made up on the Monday; a
+    // substitute day only by its own substitute day).
+    const kinds = substitute ? [true] : [false, true];
+    const keeps = ({ daysOff, named }) =>
+      daysOff.has(entry.date) ||
+      [-3, -2, -1, 1, 2, 3].some((d) => kinds.some((sub) => named.has(`${addDays(entry.date, d)}|${nameKey(base)}|${sub}`)));
+    const missing = [...regionDays].filter(([, days]) => !keeps(days)).map(([region]) => region);
+    if (missing.length > 0 && missing.length < regionDays.size) {
+      national.set(key, {
+        ...entry,
+        kind: missing.length * 3 > regionDays.size ? "optional" : entry.kind,
+        note: joinNotes(`Not a day off in ${listOf(missing)}`, entry.note),
+      });
+    }
+  }
+
   const nationalDaysOff = new Set(
     [...national.values()].filter((entry) => DAY_OFF.has(entry.kind)).map((entry) => entry.date),
   );
-
-  const states = new Holidays().getStates(country, "en") ?? {};
   /** key → { entry, regions } for days off that are not national ones. */
   const regional = new Map();
   /** key → regions, for a national observance some regions take off. */
   const regionsOff = new Map();
 
-  for (const code of Object.keys(states).sort()) {
-    const region = cleanRegion(states[code], code);
-    const calendar = libraryCalendar(country, code);
-    for (const entry of dedupe(calendarEntries(calendar, country, from, to)).values()) {
-      if (!DAY_OFF.has(entry.kind)) continue;
+  for (const [region, { list }] of regionDays) {
+    for (const entry of list) {
       const key = entryKey(entry);
       const nationally = national.get(key);
 
       if (nationally) {
-        if (DAY_OFF.has(nationally.kind)) continue;
+        if (DAY_OFF.has(nationally.kind) || /^Not a day off in /.test(nationally.note)) continue;
         regionsOff.set(key, [...(regionsOff.get(key) ?? []), region]);
       } else if (nationalDaysOff.has(entry.date)) {
         continue;
@@ -979,6 +1326,9 @@ export function supplementEntries(supplements, file, from = FROM, to = TO) {
     if (typeof supplement.entries !== "function") {
       throw new Error(`${where}: entries must be a function of the year`);
     }
+    if (supplement.finish !== undefined && typeof supplement.finish !== "function") {
+      throw new Error(`${where}: finish must be a function of the merged entries`);
+    }
     const drop = dropRules(supplement.drop, where);
 
     const entries = [];
@@ -987,32 +1337,59 @@ export function supplementEntries(supplements, file, from = FROM, to = TO) {
       if (!Array.isArray(listed)) {
         throw new Error(`${where}: entries(${year}) must return an array`);
       }
-      for (const entry of listed) {
-        if (typeof entry?.date !== "string" || !validDate(entry.date)) {
-          throw new Error(`${where}: entries(${year}) has a bad date ${JSON.stringify(entry?.date)}`);
-        }
-        if (!(entry.kind in KIND_RANK)) {
-          throw new Error(`${where}: ${entry.date} has an unknown kind ${JSON.stringify(entry.kind)}`);
-        }
-        if (typeof entry.name !== "string" || entry.name.trim() === "") {
-          throw new Error(`${where}: ${entry.date} has no name`);
-        }
-        if (entry.note !== undefined && typeof entry.note !== "string") {
-          throw new Error(`${where}: ${entry.date} ${entry.name} has a note that is not text`);
-        }
-        if (!inRange(entry.date, from, to)) continue;
-        entries.push({
-          date: entry.date,
-          kind: entry.kind,
-          name: entry.name.replace(/\s+/g, " ").trim(),
-          note: (entry.note ?? "").replace(/\s+/g, " ").trim(),
-        });
-      }
+      entries.push(...checkedEntries(listed, `${where}: entries(${year})`, from, to));
     }
 
+    const finish = supplement.finish
+      ? (merged) => {
+          const listed = supplement.finish(merged.map((entry) => ({ ...entry })));
+          if (!Array.isArray(listed)) throw new Error(`${where}: finish must return an array`);
+          return [...dedupe(checkedEntries(listed, `${where}: finish`, from, to)).values()].sort(compareEntries);
+        }
+      : undefined;
+
     // `dropped` is how many library entries `drop` removed, set by applyDrops().
-    return { country: supplement.country, source: supplement.source.trim(), file, drop, entries, dropped: 0 };
+    return { country: supplement.country, source: supplement.source.trim(), file, drop, entries, finish, dropped: 0 };
   });
+}
+
+/** A supplement's entries, checked and tidied; throws naming `where` on anything malformed. */
+function checkedEntries(listed, where, from, to) {
+  const entries = [];
+  for (const entry of listed) {
+    if (typeof entry?.date !== "string" || !validDate(entry.date)) {
+      throw new Error(`${where} has a bad date ${JSON.stringify(entry?.date)}`);
+    }
+    if (!KINDS.includes(entry.kind)) {
+      throw new Error(`${where}: ${entry.date} has an unknown kind ${JSON.stringify(entry.kind)}`);
+    }
+    if (typeof entry.name !== "string" || entry.name.trim() === "") {
+      throw new Error(`${where}: ${entry.date} has no name`);
+    }
+    if (entry.note !== undefined && typeof entry.note !== "string") {
+      throw new Error(`${where}: ${entry.date} ${entry.name} has a note that is not text`);
+    }
+    if (!inRange(entry.date, from, to)) continue;
+    entries.push({
+      date: entry.date,
+      kind: entry.kind,
+      name: entry.name.replace(/\s+/g, " ").trim(),
+      note: (entry.note ?? "").replace(/\s+/g, " ").trim(),
+    });
+  }
+  return entries;
+}
+
+/**
+ * The last step for a country: each of its supplements' `finish`, in file
+ * order, given the merged entries (library and every supplement) and
+ * returning the whole list again. For rules that need the finished calendar,
+ * such as a substitute day for every holiday that falls on a Sunday.
+ */
+export function finishEntries(entries, supplements) {
+  let list = entries;
+  for (const supplement of supplements) if (supplement.finish) list = supplement.finish(list);
+  return list;
 }
 
 /**
@@ -1127,7 +1504,8 @@ export async function build({
     .filter((country) => !only || only.includes(country))
     .sort();
   const files = new Map();
-  const stats = { countries: [], supplements: [], nonLatin: [], lunisolar: [] };
+  const stats = { countries: [], supplements: [], nonLatin: [], untranslated: [], lunisolar: [] };
+  untranslated.clear();
 
   for (const country of countries) {
     const own = supplements.filter((supplement) => supplement.country === country);
@@ -1151,9 +1529,12 @@ export async function build({
       });
     }
 
-    const entries = mergeEntries(
-      library,
-      own.flatMap((supplement) => supplement.entries),
+    const entries = finishEntries(
+      mergeEntries(
+        library,
+        own.flatMap((supplement) => supplement.entries),
+      ),
+      own,
     );
     const json = countryJson(entries, from, to);
     files.set(`${country}.json`, json);
@@ -1178,6 +1559,7 @@ export async function build({
     });
   }
 
+  stats.untranslated = [...untranslated].sort();
   files.set("index.ts", indexSource(countries));
   files.set("sources.ts", sourcesSource(supplements.filter((s) => countries.includes(s.country))));
   return { files, stats, supplements };
@@ -1253,7 +1635,12 @@ function summary({ files, stats }, from, to) {
           .join(", ")}`,
   );
   if (stats.nonLatin.length > 0) {
-    lines.push(`Names not in English (${stats.nonLatin.length}): ${[...new Set(stats.nonLatin)].join("; ")}`);
+    lines.push(`Names not in Latin script (${stats.nonLatin.length}): ${[...new Set(stats.nonLatin)].join("; ")}`);
+  }
+  if (stats.untranslated.length > 0) {
+    lines.push(
+      `Library names with no English translation, to add to ENGLISH_NAMES (${stats.untranslated.length}): ${stats.untranslated.join("; ")}`,
+    );
   }
   return lines.join("\n");
 }

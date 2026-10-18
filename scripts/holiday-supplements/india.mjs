@@ -560,13 +560,6 @@ function janmashtamiSmarta(span) {
   return night ? night.iso : janmashtamiVaishnava(span);
 }
 
-/** Navami of Durga Puja: the first day on which Navami has begun two muhurtas before sunset. */
-function mahaNavami(span) {
-  const days = candidates(span, KOLKATA);
-  const cut = (d) => d.rise + ((d.set - d.rise) * 13) / 15;
-  return days.find((d) => span.start < cut(d) && d.nextRise > span.start).iso;
-}
-
 // ---------------------------------------------------------------------------
 // Solar months and nakshatra festivals.
 
@@ -747,9 +740,13 @@ const LUNAR = [
   ["Navratri begins", "festival", "Ashvin", 1, udaya, "Nine nights of Durga worship, with garba dancing in Gujarat"],
   ["Durga Puja: Maha Saptami", "festival", "Ashvin", 7, (span) => udaya(span, KOLKATA), "Durga Puja days are days off in West Bengal and other eastern states"],
   ["Durga Puja: Maha Ashtami", "festival", "Ashvin", 8, (span) => udaya(span, KOLKATA), "Durga Puja days are days off in West Bengal and other eastern states"],
-  ["Durga Puja: Maha Navami", "festival", "Ashvin", 9, mahaNavami, "Durga Puja days are days off in West Bengal and other eastern states"],
+  // The Bengali almanacs date Durga Puja's days by the tithi at sunrise in
+  // Kolkata, as Bangladesh's do at Dhaka (West Bengal 2026: Navami on
+  // 20 October, Bijoya Dashami on 21 October, when the rest of India keeps
+  // Dussehra on the 20th).
+  ["Durga Puja: Maha Navami", "festival", "Ashvin", 9, (span) => udaya(span, KOLKATA), "Durga Puja days are days off in West Bengal and other eastern states"],
   ["Dussehra", "public", "Ashvin", 10, vijayadashami, "Vijayadashami, the end of Navratri, when effigies of Ravana are burned"],
-  ["Durga Puja: Vijaya Dashami", "festival", "Ashvin", 10, vijayadashami, "The Durga images are immersed. Durga Puja days are days off in West Bengal and other eastern states"],
+  ["Durga Puja: Vijaya Dashami", "festival", "Ashvin", 10, (span) => udaya(span, KOLKATA), "The Durga images are immersed. Durga Puja days are days off in West Bengal and other eastern states"],
   ["Karva Chauth", "festival", "Ashvin", 19, karvaChauth, "Married women fast until moonrise, mainly in northern India"],
   ["Dhanteras", "festival", "Ashvin", 28, most(windows.pradosh), "The first day of Diwali, and a lucky day to buy gold and kitchenware"],
   ["Naraka Chaturdashi", "festival", "Ashvin", 29, narakaChaturdashi, "Choti Diwali in the north, and Deepavali itself in much of the south"],
@@ -810,7 +807,7 @@ function lunarEntries(year) {
       }
       if (rule === vijayadashami) {
         const aparahna = ladder(windows.aparahna)(span);
-        if (aparahna !== date) extra = `The Shravana nakshatra moves it to this day; some almanacs keep ${longDate(aparahna)}`;
+        if (aparahna !== date) extra = `By the Hindu almanac it falls on this day; some almanacs keep ${longDate(aparahna)}`;
       }
       entries.push({ date, name, kind, note: note(text, extra, closeCall(alternative !== date && alternative), LUNAR_NOTE) });
     }

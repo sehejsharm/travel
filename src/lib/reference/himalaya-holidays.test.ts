@@ -416,7 +416,9 @@ describe("Russia's regional days", () => {
     const merged = mergeEntries(kept, ru.entries) as Entry[];
     const radonitsa2027 = merged.filter((entry) => entry.date === "2027-05-11" && /Radonitsa/.test(entry.name));
     expect(radonitsa2027).toHaveLength(1);
-    expect(radonitsa2027[0].note).toMatch(/Krasnodar Krai.*Republic of Dagestan.*Stavropol Krai/);
+    expect(radonitsa2027[0].note).toMatch(/Bryansk Oblast, Irkutsk Oblast, .*Krasnodar Krai.*Republic of Dagestan.*Stavropol Krai/);
+    // Irkutsk's name for the day is an alias now, not a second entry.
+    expect(merged.some((entry) => entry.name === "Unity Day of Remembrance")).toBe(false);
     expect(merged.some((entry) => entry.date === "2026-04-21" && /Radonitsa/.test(entry.name))).toBe(true);
   }, SLOW);
 });

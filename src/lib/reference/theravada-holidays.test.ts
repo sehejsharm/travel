@@ -229,6 +229,38 @@ describe("Thailand", () => {
   });
 });
 
+describe("Thailand's substitute days for its fixed holidays", () => {
+  const subs = (year: number) => thai(year).filter((entry) => entry.name.endsWith("(substitute day)"));
+
+  it("makes up the library's fixed holidays on the next working day", () => {
+    const all = [2026, 2027, 2028, 2029].flatMap((year) => subs(year).map((entry) => `${entry.date} ${entry.name}`));
+    // The embassies' 2026 lists: Monday 7 December for King Bhumibol's Birthday on Saturday 5 December.
+    expect(all).toContain("2026-12-07 King Bhumibol Adulyadej's Birthday (substitute day)");
+    expect(all).toContain("2027-10-25 King Chulalongkorn Day (substitute day)");
+    expect(all).toContain("2027-12-06 King Bhumibol Adulyadej's Birthday (substitute day)");
+    expect(all).toContain("2028-01-03 New Year's Day (substitute day)");
+    // 31 December 2028 is a Sunday and 1 January a holiday, so Tuesday 2 January.
+    expect(all).toContain("2029-01-02 New Year's Eve (substitute day)");
+  });
+
+  it("gives Songkran one substitute day, after the span, however many of its days fall on a weekend", () => {
+    const songkran = (year: number) => subs(year).filter((entry) => entry.name === "Songkran Festival (substitute day)").map((entry) => entry.date);
+    expect(songkran(2026)).toEqual([]);
+    expect(songkran(2028)).toEqual(["2028-04-17"]);
+    expect(songkran(2029)).toEqual(["2029-04-16"]);
+    expect(songkran(2030)).toEqual(["2030-04-16"]);
+  });
+
+  it("puts every substitute on its own weekday", () => {
+    for (let year = FROM; year <= TO; year++) {
+      const dates = subs(year).map((entry) => entry.date);
+      for (const date of dates) expect([1, 2, 3, 4, 5], date).toContain(weekday(date));
+      // Asalha Bucha's substitute may share Buddhist Lent's day, but not another substitute's.
+      expect(new Set(dates).size, `${year}`).toBe(dates.length);
+    }
+  });
+});
+
 describe("Laos", () => {
   it("matches the published holidays and festivals", () => {
     expect(mismatches(lao, LAO_PUBLISHED)).toEqual([]);

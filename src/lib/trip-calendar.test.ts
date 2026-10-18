@@ -210,10 +210,40 @@ describe("the trip's calendar, for the timeline", () => {
     expect(daysOf(tripCalendar(trip(), [early]))["2026-05-20"]).toEqual(["XA Late Day"]);
   });
 
-  it("leaves the home country out of a trip abroad", () => {
-    const home = trip({ homeCountry: "XA", destinationCountries: ["XA", "XB"] });
-    expect(tripCalendar(home, []).countries).toEqual(["XB"]);
-    expect(daysOf(tripCalendar(home, []))["2026-05-01"]).toBeUndefined();
+  it("leaves the home country out of a trip abroad that only sets off from there", () => {
+    const abroad = trip({ homeCountry: "XA", destinationCountries: ["XB"] });
+    const outbound = [
+      item({
+        startsAt: "2026-05-01T08:00:00+02:00",
+        place: { name: "XA airport", countryCode: "XA" },
+        arrivalPlace: { name: "XB airport", countryCode: "XB" },
+      }),
+    ];
+    expect(tripCalendar(abroad, outbound).countries).toEqual(["XB"]);
+    expect(daysOf(tripCalendar(abroad, outbound))["2026-05-01"]).toBeUndefined();
+  });
+
+  it("adds the home country beside the trip abroad when the trip names it, on its own leg", () => {
+    const both = trip({
+      homeCountry: "XA",
+      destinationCountries: ["XA", "XB"],
+      legs: [
+        { id: "a", countryCode: "XA", startDate: "2026-05-01", endDate: "2026-05-04" },
+        { id: "b", countryCode: "XB", startDate: "2026-05-05", endDate: "2026-05-10" },
+      ],
+    });
+    const atHome = [item({ startsAt: "2026-05-03T10:00:00+02:00", place: { name: "Fair", countryCode: "XA" } })];
+    const calendar = tripCalendar(both, atHome);
+    const days = daysOf(calendar);
+
+    expect(calendar.countries).toEqual(["XB", "XA"]);
+    expect(days["2026-05-01"]).toEqual(["XA Labour Day"]);
+    // A day planned at home gets the home calendar.
+    expect(days["2026-05-03"]).toEqual(["XA Lantern Fair", "XA Mothers' Day"]);
+    expect(days["2026-05-08"]).toEqual(["XB Liberation Day"]);
+    // XB's Founding Day falls in the home leg, and XA's Bank Day in XB's.
+    expect(days["2026-05-02"]).toBeUndefined();
+    expect(days["2026-05-09"]).toBeUndefined();
   });
 
   it("gives a trip at home the home country's calendar", () => {
@@ -240,9 +270,25 @@ describe("the trip's calendar, for the timeline", () => {
 });
 
 describe("which countries' calendars apply", () => {
-  it("uses the destinations when there are any", () => {
+  it("uses the destinations when there are any, with the home country beside them when the trip names it", () => {
     expect(calendarCountries(trip({ destinationCountries: ["XA", "XB"] }), [])).toEqual(["XA", "XB"]);
-    expect(calendarCountries(trip({ homeCountry: "XA", destinationCountries: ["XA", "XB"] }), [])).toEqual(["XB"]);
+    expect(calendarCountries(trip({ homeCountry: "XA", destinationCountries: ["xa", "XB"] }), [])).toEqual(["XB", "XA"]);
+    expect(
+      calendarCountries(
+        trip({
+          homeCountry: "XA",
+          destinationCountries: ["XB"],
+          legs: [{ id: "l", countryCode: "XA", startDate: "2026-05-01", endDate: "2026-05-03" }],
+        }),
+        [],
+      ),
+    ).toEqual(["XB", "XA"]);
+    // A place at home, such as the flight out, does not make a trip abroad a trip at home too.
+    expect(
+      calendarCountries(trip({ homeCountry: "XA", destinationCountries: ["XB"] }), [
+        item({ place: { name: "XA airport", countryCode: "XA" } }),
+      ]),
+    ).toEqual(["XB"]);
   });
 
   it("uses the home country for a trip at home, from its destinations, legs or places", () => {
@@ -345,9 +391,14 @@ describe("what Discover lists from the calendar", () => {
     ]);
   });
 
-  it("lists nothing while no festival is on, the dates are a placeholder or a calendar is to come", () => {
-    // Days off alone, or an observance alone, are not festivals.
-    expect(calendarSection(tripEvents(trip({ destinationCountries: ["XB"] }), []))).toEqual([]);
+  it("lists days off with no festival on, since many festivals are days off", () => {
+    expect(calendarSection(tripEvents(trip({ destinationCountries: ["XB"] }), [])).map((event) => event.name)).toEqual([
+      "Founding Day",
+      "Liberation Day",
+    ]);
+  });
+
+  it("lists nothing with only an observance on, the dates a placeholder or a calendar to come", () => {
     expect(calendarSection(tripEvents(trip({ destinationCountries: ["XC"] }), []))).toEqual([]);
     expect(calendarSection(tripEvents(trip({ datesTbd: true }), []))).toEqual([]);
     expect(calendarSection(tripEvents(trip({ destinationCountries: ["KR"] }), []))).toEqual([]);
@@ -421,6 +472,21 @@ describe("with the generated calendar", () => {
     expect(named.Dhanteras?.kind).toBe("festival");
     expect(named["Bhai Dooj"]?.kind).toBe("festival");
     expect(listed.every((event) => ["festival", "public", "bank"].includes(event.kind))).toBe(true);
+  });
+
+  it("lists the festivals that are days off, such as Songkran and Chinese New Year", async () => {
+    await loadHolidays(["TH", "SG"]);
+    const songkran = trip({ homeCountry: "GB", destinationCountries: ["TH"], startDate: "2027-04-10", endDate: "2027-04-17" });
+    const newYear = trip({ homeCountry: "GB", destinationCountries: ["SG"], startDate: "2027-02-04", endDate: "2027-02-10" });
+
+    expect(calendarSection(tripEvents(songkran, []))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "Songkran Festival", startDate: "2027-04-13", endDate: "2027-04-15" }),
+      ]),
+    );
+    expect(calendarSection(tripEvents(newYear, [])).map((event) => event.name)).toEqual(
+      expect.arrayContaining(["Chinese New Year"]),
+    );
   });
 
   it("has Diwali, Holi and both Eids in every year to 2050", async () => {

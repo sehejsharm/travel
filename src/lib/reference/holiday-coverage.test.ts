@@ -105,6 +105,11 @@ const COMES_AND_GOES: { country: string; name: RegExp; reason: string }[] = [
   },
   { country: "MP", name: /^Election Day$/, reason: "the Northern Mariana Islands vote every two years" },
   {
+    country: "ID",
+    name: /^Collective leave \(cuti bersama\)$/,
+    reason: "the joint decree sets each year's collective leave in September, so only published years are listed",
+  },
+  {
     country: "MM",
     name: /^Kayin New Year$/,
     reason: "the 1st of Pyatho falls in late December or in January, so some years have it twice and some none",
@@ -125,8 +130,8 @@ function comesAndGoes(country: string, name: string): boolean {
  * region's name is not listed apart that year.
  */
 const ON_A_NATIONAL_DAY: { country: string; name: string; years: number[]; reason: string }[] = [
-  { country: "BR", name: "Dia de Nossa Senhora da Penha", years: [2031, 2036], reason: "the Monday after Easter week is 21 April, Tiradentes" },
-  { country: "ES", name: "Fiesta de Castilla y León", years: [2038], reason: "23 April is Good Friday" },
+  { country: "BR", name: "Our Lady of Penha", years: [2031, 2036], reason: "the Monday after Easter week is 21 April, Tiradentes" },
+  { country: "ES", name: "Castile and León Day", years: [2038], reason: "23 April is Good Friday" },
   { country: "IT", name: "Whit Monday", years: [2031, 2036], reason: "it is 2 June, Republic Day" },
   { country: "MY", name: "Sultan of Kedah's Birthday", years: [2032], reason: "the third Sunday of June is the Prophet's Birthday" },
   { country: "MY", name: "Penang State Governor's Birthday", years: [2030], reason: "the second Saturday of July is the Prophet's Birthday" },
@@ -208,6 +213,7 @@ const LUNAR = new RegExp(
     "\\bKorean New Year\\b", "\\bVietnamese New Year\\b", "\\bKorean Thanksgiving\\b",
     "\\bLhosar\\b", "\\bShagaa\\b", "\\bSagaalgan\\b", "\\bTsagan Sar\\b", "\\bZul\\b", "\\bTshechu\\b",
     "\\bJanai Purnima\\b", "\\bLaxmi Puja\\b", "\\bBhai Tika\\b", "\\bChhath\\b",
+    "\\bValmiki\\b", "\\bBasava\\b", "\\bAgrasen\\b", "\\bKanakadasa\\b",
   ].join("|"),
   "i",
 );

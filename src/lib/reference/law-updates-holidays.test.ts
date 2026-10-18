@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyDrops, libraryEntries, mergeEntries, supplementEntries } from "../../../scripts/build-holidays.mjs";
+import { applyDrops, finishEntries, libraryEntries, mergeEntries, supplementEntries } from "../../../scripts/build-holidays.mjs";
 import supplements, {
   chinaSubstitutes,
   citizensHoliday,
@@ -30,7 +30,7 @@ function merged(country: string): Entry[] {
   if (!list) {
     const own = loaded.filter((supplement: { country: string }) => supplement.country === country);
     const kept = applyDrops(country, libraryEntries(country), own);
-    list = mergeEntries(kept, own.flatMap((supplement: { entries: Entry[] }) => supplement.entries)) as Entry[];
+    list = finishEntries(mergeEntries(kept, own.flatMap((supplement: { entries: Entry[] }) => supplement.entries)), own) as Entry[];
     mergedCache.set(country, list);
   }
   return list;
@@ -60,7 +60,7 @@ function datesOf(country: string, name: string, prefix = ""): string[] {
 describe("law-updates supplement", () => {
   it("loads, and every drop rule removes a library entry", () => {
     const countries = [...new Set(loaded.map((supplement: { country: string }) => supplement.country))].sort();
-    expect(countries).toEqual(["AU", "CA", "CN", "CY", "EG", "ES", "ET", "GB", "GR", "HK", "JP", "KR", "MA", "MX", "TW", "VN"]);
+    expect(countries).toEqual(["AU", "CA", "CN", "CY", "EG", "ES", "ET", "GB", "GR", "HK", "IL", "JP", "KR", "MA", "MX", "TW", "VN", "ZA"]);
     // applyDrops throws when a rule matches nothing.
     for (const country of countries) expect(merged(country).length).toBeGreaterThan(0);
   }, SLOW);
@@ -79,9 +79,8 @@ describe("law-updates supplement", () => {
 
 describe("China", () => {
   it("matches the State Council's 2026 schedule (notice of 4 November 2025)", () => {
-    // Weekdays off from February on. January is left out: the notice's
-    // New Year bridge was not checked.
-    expect(weekdaysOff("CN", "2026").filter((date) => date >= "2026-02")).toEqual([
+    expect(weekdaysOff("CN", "2026")).toEqual([
+      "2026-01-01", "2026-01-02",
       "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23",
       "2026-04-06",
       "2026-05-01", "2026-05-04", "2026-05-05",
@@ -93,7 +92,7 @@ describe("China", () => {
     expect(datesOf("CN", "Spring Festival", "2026")).toEqual(["2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19"]);
     expect(datesOf("CN", "Spring Festival (extra day off)")).toEqual(["2026-02-20", "2026-02-23"]);
     expect(datesOf("CN", "Labour Day", "2026")).toEqual(["2026-05-01", "2026-05-02"]);
-    for (const date of ["2026-02-14", "2026-02-28", "2026-05-09", "2026-09-20", "2026-10-10"]) {
+    for (const date of ["2026-01-04", "2026-02-14", "2026-02-28", "2026-05-09", "2026-09-20", "2026-10-10"]) {
       expect(on("CN", date, "Make-up working day")?.kind).toBe("observance");
     }
   }, SLOW);
@@ -199,11 +198,20 @@ describe("Hong Kong", () => {
 
 describe("kinds that hide closures", () => {
   it("GB, CA, AU and ES", () => {
-    expect(on("GB", "2026-08-31", "Summer bank holiday")).toMatchObject({ kind: "bank", note: "Not in Scotland, which has the first Monday of August" });
+    expect(on("GB", "2026-08-31", "Summer bank holiday")).toMatchObject({ kind: "public", note: "Not in Scotland, which has the first Monday of August" });
+    // The generator notes a national day off a region does not keep.
+    expect(on("GB", "2026-04-06", "Easter Monday")).toMatchObject({ kind: "public", note: "Not a day off in Scotland" });
+    // Scotland, 1 January on a Saturday: Monday 3 makes up New Year's Day, Tuesday 4 makes up 2 January.
+    expect(on("GB", "2028-01-03", "New Year's Day (substitute day)")?.kind).toBe("public");
+    expect(on("GB", "2028-01-04", "January 2nd (substitute day)")).toMatchObject({ kind: "optional", note: "Day off in Scotland" });
+    expect(on("GB", "2028-01-04", "New Year's Day (substitute day)")).toBeUndefined();
+    expect(on("GB", "2034-01-03", "New Year's Day (substitute day)")?.note).toBe("Day off in Scotland");
     expect(on("GB", "2026-08-03", "Summer bank holiday")?.kind).toBe("optional");
     expect(on("CA", "2026-05-18", "Victoria Day")?.kind).toBe("public");
     expect(on("CA", "2026-10-12", "Thanksgiving")?.kind).toBe("public");
-    expect(on("CA", "2026-09-30", "National Day for Truth and Reconciliation")?.kind).toBe("optional");
+    expect(on("CA", "2026-09-30", "National Day for Truth and Reconciliation")).toMatchObject({ kind: "optional", note: expect.stringMatching(/British Columbia, Manitoba, Prince Edward Island/) });
+    expect(on("CA", "2026-04-06", "Easter Monday")).toMatchObject({ kind: "optional", note: expect.stringMatching(/^Day off for federal government workers. In Quebec/) });
+    expect(on("CA", "2026-04-06", "Easter Monday")?.note).not.toMatch(/Ontario/);
     expect(on("CA", "2026-11-11", "Remembrance Day")?.note).toMatch(/Newfoundland and Labrador.*Not in Manitoba, Ontario or Quebec/);
     expect(datesOf("CA", "Armistice Day")).toEqual([]);
     expect(on("AU", "2026-06-08", "King's Birthday")).toMatchObject({ kind: "public" });
@@ -237,6 +245,16 @@ describe("Ethiopia", () => {
     expect(datesOf("ET", "New Year's Day", "2027")).toEqual(["2027-09-12"]);
     expect(on("ET", "2026-05-05", "Patriots' Victory Day")?.kind).toBe("public");
   }, SLOW);
+
+  it("keeps only the 12 closure days of Proclamation 1334/2024 as days off", () => {
+    expect(on("ET", "2026-02-18", "First day of Ramadan")?.kind).toBe("observance");
+    expect(on("ET", "2026-05-28", "Derg Downfall Day")?.kind).toBe("observance");
+    expect(datesOf("ET", "Day of Lament")).toEqual([]);
+    for (let year = 2026; year <= 2050; year++) {
+      const names = new Set(merged("ET").filter((e) => e.kind === "public" && e.date.startsWith(`${year}-`)).map((e) => e.name));
+      expect(names.size, `${year}: ${[...names].join(", ")}`).toBeLessThanOrEqual(12);
+    }
+  }, SLOW);
 });
 
 describe("the sweep", () => {
@@ -257,6 +275,23 @@ describe("the sweep", () => {
     expect(on("KR", "2028-04-12", "National Assembly Election Day")?.kind).toBe("public");
   }, SLOW);
 
+  it("Korea: Labour Day on a weekend or another holiday gets the next working day", () => {
+    expect(on("KR", "2027-05-03", "Labour Day (substitute day)")?.kind).toBe("public");
+    // 2039: 1 May is a Sunday and Monday 2 May makes up for Buddha's Birthday.
+    expect(on("KR", "2039-05-02", "Buddha's Birthday (substitute day)")?.kind).toBe("public");
+    expect(on("KR", "2039-05-03", "Labour Day (substitute day)")?.kind).toBe("public");
+    for (let year = 2026; year <= 2050; year++) {
+      const subs = datesOf("KR", "Labour Day (substitute day)", String(year));
+      expect(subs.length, `${year}`).toBe(isWeekend(`${year}-05-01`) ? 1 : 0);
+      for (const date of subs) expect(isWeekend(date), date).toBe(false);
+    }
+  }, SLOW);
+
+  it("South Africa and Israel: the declared 2026 election days are days off", () => {
+    expect(on("ZA", "2026-11-04", "Local Government Elections")?.kind).toBe("public");
+    expect(on("IL", "2026-10-27", "Knesset Election Day")?.kind).toBe("public");
+  }, SLOW);
+
   it("Vietnam: Culture Day, the second National Day and weekend make-up days", () => {
     // The government's picks, 2021 to 2026.
     expect([2021, 2022, 2023, 2024, 2025, 2026].map(vietnamSecondNationalDay)).toEqual([
@@ -268,6 +303,8 @@ describe("the sweep", () => {
     expect(on("VN", "2026-04-27", "Hung Kings Commemorations (substitute day)")?.kind).toBe("public");
     expect(on("VN", "2026-09-01", "National Day")?.kind).toBe("public");
     expect(on("VN", "2026-11-24", "Vietnamese Culture Day")?.kind).toBe("public");
+    // Notice 11483/TB-BNV sets 2027's: Thursday 2 and Friday 3 September.
+    expect(on("VN", "2027-09-03", "National Day")?.note).toBe("The second National Day off");
   }, SLOW);
 
   it("Morocco: Amazigh New Year, Unity Day and two-day Eids", () => {

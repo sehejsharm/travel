@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { INTERESTS, MAX_INTERESTS, togglePick } from "@/lib/advisor/interests";
 
 /**
@@ -24,24 +25,31 @@ export function InterestPicker({
   const count = INTERESTS.filter((interest) => chosen.has(interest.id)).length;
   // At the limit the rest wait, rather than be picked and then quietly dropped.
   const full = count >= MAX_INTERESTS;
+  const captionId = useId();
 
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {INTERESTS.map((interest) => {
           const active = chosen.has(interest.id);
+          // Unavailable, not disabled, so the tile stays in the Tab order and
+          // a screen reader can still reach it, hear what it is and why it waits.
+          const waiting = full && !active;
 
           return (
             <button
               key={interest.id}
               type="button"
-              onClick={() => onChange(togglePick(selected, interest.id))}
+              onClick={() => {
+                if (!waiting) onChange(togglePick(selected, interest.id));
+              }}
               aria-pressed={active}
-              disabled={full && !active}
-              className={`press flex flex-col items-start gap-1 rounded-card border p-3 text-left disabled:opacity-40 ${
+              aria-disabled={waiting || undefined}
+              aria-describedby={waiting ? captionId : undefined}
+              className={`press flex flex-col items-start gap-1 rounded-card border p-3 text-left aria-disabled:opacity-40 ${
                 active
                   ? "border-accent bg-accent-soft"
-                  : "border-line bg-surface enabled:hover:border-line-strong"
+                  : "border-line bg-surface hover:border-line-strong aria-disabled:hover:border-line"
               }`}
             >
               <span className="flex w-full items-center justify-between gap-2">
@@ -74,7 +82,7 @@ export function InterestPicker({
       </div>
 
       {/* Polite, so reaching the limit is said out loud, not only shown by the dimmed rest. */}
-      <p aria-live="polite" className="text-caption text-ink-soft tabular">
+      <p id={captionId} aria-live="polite" className="text-caption text-ink-soft tabular">
         {pickedCaption(count, min)}
       </p>
     </div>

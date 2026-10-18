@@ -11,8 +11,14 @@
  *   March equinox (scripts/holiday-supplements/_solar-hijri.mjs). The
  *   library's own Solar Hijri dates turn out to agree on every day from 2026
  *   to 2050; the entries add notes and no longer depend on its calendar code.
- * - Azerbaijan: Novruz is five days off by law, 20 to 24 March, with weekend
- *   days made up after; the library has one day ("Spring Festival").
+ * - Azerbaijan: the library's list is replaced: Novruz is five days off by
+ *   law, 20 to 24 March (the library has one day, "Spring Festival"), Victory
+ *   Day (8 November) is added, and every holiday on a weekend or on another
+ *   holiday is made up on the next working day (Labour Code, art. 105).
+ * - Bahrain: three days of Eid al-Fitr and two of Ashura, with weekend days
+ *   made up; the library has one of each.
+ * - Iran: the Islamic days of the published 1405 calendar where they differ.
+ * - Uzbekistan: the presidential decree's extra days off for 2026.
  * - No data at all in the library: Qatar, Oman, Kuwait, Jordan, Iraq, Lebanon,
  *   Palestine, Syria, Yemen, Afghanistan, Kyrgyzstan, Tajikistan and
  *   Turkmenistan. Each gets its current official list.
@@ -237,8 +243,8 @@ const AE_SOURCE =
   "and the Ministry of Human Resources and Emiratisation, https://www.mohre.gov.ae/; Hijri dates from date-holidays";
 
 const AE_DECEMBER =
-  "Commemoration Day and National Day give two or three days off from 1 to 3 December. The government names them " +
-  "each year: 2 and 3 December in 2024, 1 and 2 December in 2025";
+  "The government adds 1 or 3 December to National Day, sometimes both, and names the days each year: " +
+  "2 and 3 December in 2024, 1 and 2 December in 2025";
 
 export function uaeEntries(year) {
   return [
@@ -256,9 +262,9 @@ export function uaeEntries(year) {
       },
       { rule: "9 Dhu al-Hijjah", name: ARAFAT, kind: "public", text: "The day before Eid al-Adha, a day off with it" },
     ]),
-    fixed(year, "12-01", "Commemoration Day", "public", `Honours Emiratis who died in service. ${AE_DECEMBER}`),
+    fixed(year, "12-01", "Commemoration Day", "optional", `Honours Emiratis who died in service. ${AE_DECEMBER}`),
     fixed(year, "12-02", "National Day", "public", `Marks the union of the emirates in 1971. ${AE_DECEMBER}`),
-    fixed(year, "12-03", "National Day", "public", `The second National Day. ${AE_DECEMBER}`),
+    fixed(year, "12-03", "National Day", "optional", `The second National Day. ${AE_DECEMBER}`),
   ].sort(SORT);
 }
 
@@ -306,14 +312,54 @@ function closeStart(shYear, longitudes = [TEHRAN]) {
   return starts.some((start) => Math.abs(start.margin) < 30) || new Set(starts.map((start) => start.date)).size > 1;
 }
 
+/**
+ * Islamic holidays of Iran's official calendar where it differs from the
+ * library's Hijri dates: [name, the library's date, the official date]. The
+ * 1405 calendar (21 March 2026 to 20 March 2027), set by the University of
+ * Tehran's calendar council, starts Shawwal 1447 a day after Umm al-Qura
+ * (Eid al-Fitr on 1 and 2 Farvardin) and Safar and Rajab 1448 a day later
+ * too (the Prophet's death on 21 Mordad, 13 Rajab on 2 Dey, Mab'ath on
+ * 16 Dey), and puts 1 Shawwal 1448 on 19 Esfand, after 30 days of Ramadan.
+ * The next year's calendar comes out each winter; add it here.
+ */
+const IR_PUBLISHED = [
+  ["End of Ramadan (Eid al-Fitr)", "2026-03-20", "2026-03-21"],
+  ["Eid al-Fitr (second day)", "2026-03-21", "2026-03-22"],
+  ["Martyrdom of Imam Jafar", "2026-04-13", "2026-04-14"],
+  ["Arbaeen-e Hosseini", "2026-08-03", "2026-08-04"],
+  ["Demise of Prophet Muhammad and Imam Hassan (Mujtaba)", "2026-08-11", "2026-08-12"],
+  ["Birthday of Imam Ali", "2026-12-22", "2026-12-23"],
+  ["Mab'ath (the Prophet's mission)", "2027-01-05", "2027-01-06"],
+  ["End of Ramadan (Eid al-Fitr)", "2027-03-09", "2027-03-10"],
+  ["Eid al-Fitr (second day)", "2027-03-10", "2027-03-11"],
+];
+
+const IR_PUBLISHED_NOTE =
+  "The date in Iran's official calendar for 1405. The Leader's office can still move it a day after the moon is sighted";
+
 export function iranEntries(year) {
-  return IR_SOLAR.map(([month, day, name, text]) => {
-    const { date, shYear } = inGregorianYear(year, month, day);
-    return { date, name, kind: "public", note: note(text, closeStart(shYear) ? SOLAR : "") };
-  }).sort(SORT);
+  const published = IR_PUBLISHED.filter(([, , date]) => date.startsWith(`${year}-`)).map(([name, , date]) => ({
+    date,
+    name,
+    kind: "public",
+    note: note(IR_PUBLISHED_NOTE),
+  }));
+  return [
+    ...IR_SOLAR.map(([month, day, name, text]) => {
+      const { date, shYear } = inGregorianYear(year, month, day);
+      return { date, name, kind: "public", note: note(text, closeStart(shYear) ? SOLAR : "") };
+    }),
+    ...published,
+  ].sort(SORT);
 }
 
 const IR_DROP = [
+  ...IR_PUBLISHED.map(([name, library]) => ({
+    name,
+    from: Number(library.slice(0, 4)),
+    to: Number(library.slice(0, 4)),
+    dates: [library.slice(5)],
+  })),
   { name: "Nowruz" },
   { name: "Islamic Republic Day" },
   { name: "Sizdah Bedar" },
@@ -324,7 +370,7 @@ const IR_DROP = [
 ];
 
 // ---------------------------------------------------------------------------
-// Azerbaijan (library fixes): Novruz.
+// Azerbaijan (library fixes): the whole list.
 
 const AZ_SOURCE =
   "Labour Code of the Republic of Azerbaijan, art. 105, and the Cabinet of Ministers' non-working days, as published " +
@@ -332,33 +378,145 @@ const AZ_SOURCE =
 
 const NOVRUZ_AZ =
   "The spring new year: five days off by law, 20 to 24 March. Families light bonfires and share pastries and sprouted wheat";
+const AZ_MOVED =
+  "Makes up for the holiday falling on a weekend or on another holiday (Labour Code, art. 105). The Cabinet of Ministers confirms the days each year";
 
-export function azerbaijanEntries(year) {
-  const novruz = [20, 21, 22, 23, 24].map((day) => fixed(year, `03-${day}`, "Novruz Holiday", "public", NOVRUZ_AZ));
-  const entries = [
-    ...novruz,
-    ...substitutes(novruz, [SAT, SUN], "Makes up for a Novruz day on a weekend"),
+/**
+ * The library's Azerbaijani list is out of date: it lacks Victory Day
+ * (8 November), keeps 18 October, 12 November and 17 November as days off
+ * (they are working days; the Cabinet's 2026 list leaves them out), has
+ * 20 January as an observance (a non-working day) and names 28 May
+ * "Republic Day" (Independence Day since 2021). Its weekend substitutes do not chain either. So every library day
+ * is replaced by this list.
+ */
+function azerbaijanHolidays(year) {
+  return [
+    fixed(year, "01-01", "New Year's Day", "public", "Two days off, 1 and 2 January"),
+    fixed(year, "01-02", "New Year's Day", "public", "Two days off, 1 and 2 January"),
+    fixed(year, "03-08", "International Women's Day", "public"),
+    ...[20, 21, 22, 23, 24].map((day) => fixed(year, `03-${day}`, "Novruz Holiday", "public", NOVRUZ_AZ)),
+    fixed(year, "05-09", "Day of Victory over Fascism", "public"),
+    fixed(year, "05-28", "Independence Day", "public", "Marks the first republic's declaration of independence in 1918"),
+    fixed(year, "06-15", "National Salvation Day", "public"),
+    fixed(year, "06-26", "Armed Forces Day", "public"),
+    fixed(year, "11-08", "Victory Day", "public", "Marks the end of the 2020 war over Karabakh"),
+    fixed(year, "11-09", "Flag Day", "public"),
+    fixed(year, "12-31", "International Solidarity Day of Azerbaijanis", "public"),
   ];
-  if (year === 2026) {
-    // Ramazan Bayram (20 and 21 March) fell inside Novruz: the Cabinet made 27
-    // and 30 March days off for it.
-    for (const date of ["2026-03-27", "2026-03-30"]) {
-      entries.push({
+}
+
+function azerbaijanBayrams(year) {
+  return islamic(year, [
+    { rule: "1 Shawwal", name: EID_FITR, kind: "public", from: 0, to: 1, text: "Ramazan Bayram, the end of Ramadan: two days off" },
+    { rule: "10 Dhu al-Hijjah", name: EID_ADHA, kind: "public", from: 0, to: 1, text: "Gurban Bayram, the feast of the sacrifice: two days off" },
+  ]);
+}
+
+/**
+ * Article 105: a holiday on a Saturday or Sunday, or on the same day as
+ * another holiday, moves its day off to the next working day. Each one gets
+ * the first weekday after it that is not a holiday or another moved day; a
+ * Bayram day that falls on another holiday is the one that moves (2026:
+ * Ramazan Bayram on 20 and 21 March, in Novruz, moved to 27 and 30 March;
+ * Gurban Bayram's second day on Independence Day moved to 29 May). Computed
+ * once for every year, as a day can move into the next year.
+ */
+let azMoved;
+function azerbaijanMoved() {
+  if (azMoved) return azMoved;
+  azMoved = [];
+  const all = [];
+  for (let year = 2025; year <= 2051; year++) all.push(...azerbaijanHolidays(year), ...azerbaijanBayrams(year));
+  const off = new Set(all.map((entry) => entry.date));
+  const taken = new Set();
+  for (let year = 2025; year <= 2050; year++) {
+    const seen = new Set();
+    const earning = [];
+    for (const islamicDay of [false, true]) {
+      const list = islamicDay ? azerbaijanBayrams(year) : azerbaijanHolidays(year);
+      for (const entry of list.sort(SORT)) {
+        const clash = seen.has(entry.date);
+        seen.add(entry.date);
+        if (clash || [SAT, SUN].includes(weekday(entry.date))) earning.push(entry);
+      }
+    }
+    for (const entry of earning) {
+      let date = addDays(entry.date, 1);
+      while ([SAT, SUN].includes(weekday(date)) || off.has(date) || taken.has(date)) date = addDays(date, 1);
+      taken.add(date);
+      azMoved.push({
         date,
-        name: `${EID_FITR} (substitute day)`,
+        name: `${entry.name} (substitute day)`,
         kind: "public",
-        note: note("Makes up for Ramazan Bayram falling during Novruz", ISLAMIC),
+        note: note(AZ_MOVED, entry.name === EID_FITR || entry.name === EID_ADHA ? ISLAMIC : ""),
       });
     }
   }
-  return entries.sort(SORT);
+  return azMoved;
 }
 
-const AZ_DROP = [
-  { name: "Spring Festival" },
-  // The library's make-up day for 2026's Ramazan Bayram lands inside Novruz.
-  { name: `${EID_FITR} (substitute day)`, from: 2026, to: 2026, dates: ["03-23"] },
-];
+export function azerbaijanEntries(year) {
+  return [
+    ...azerbaijanHolidays(year),
+    ...azerbaijanBayrams(year),
+    ...azerbaijanMoved().filter((entry) => entry.date.startsWith(`${year}-`)),
+    fixed(
+      year,
+      "01-20",
+      "Day of National Mourning",
+      "public",
+      "Remembers those killed in Baku on 20 January 1990. A non-working day, not moved when it falls on a weekend",
+    ),
+    fixed(year, "10-18", "Day of Restoration of Independence", "observance", "Marks independence from the Soviet Union in 1991. Not a day off"),
+    fixed(year, "11-12", "Constitution Day", "observance", "Not a day off"),
+    fixed(year, "11-17", "National Revival Day", "observance", "Not a day off"),
+  ].sort(SORT);
+}
+
+// Every library entry: the list above replaces them all.
+const AZ_DROP = [{ name: /./ }];
+
+// ---------------------------------------------------------------------------
+// Bahrain (library fixes): the Eid al-Fitr and Ashura breaks.
+
+const BH_SOURCE =
+  "Crown Prince and Prime Minister's holiday circulars, https://www.pmo.gov.bh/, and Central Bank of Bahrain holiday " +
+  "notices, https://www.cbb.gov.bh/; Hijri dates from date-holidays";
+
+const BH_FITR = "The end of Ramadan: Eid day and the two days after are off";
+const BH_ASHURA =
+  "Two days off: the official calendar's Ashura and the day after, as Bahrain's Shia community counts Muharram by the " +
+  "Jaafari calendar (25 and 26 June in 2026)";
+
+/**
+ * The library has one day for Eid al-Fitr and one for Ashura. The
+ * government gives Eid day and the two after it, and two days for Ashura,
+ * and a day of either break on the Friday and Saturday weekend is made up on
+ * the next working day (2026: Eid on 20 to 22 March, made up on 23 and
+ * 24 March; Ashura on 25 and 26 June, made up on Sunday 28 June).
+ */
+export function bahrainEntries(year) {
+  const breaks = islamic(year, [
+    { rule: "1 Shawwal", name: EID_FITR, kind: "public", from: 0, to: 2, text: BH_FITR },
+    { rule: "10 Muharram", name: "Day of Ashura", kind: "public", from: 0, to: 1, text: BH_ASHURA },
+  ]);
+  const others = islamic(year, [
+    { rule: "9 Dhu al-Hijjah", name: ARAFAT, kind: "public" },
+    { rule: "10 Dhu al-Hijjah", name: EID_ADHA, kind: "public", from: 0, to: 2 },
+    { rule: "1 Muharram", name: NEW_YEAR_HIJRI, kind: "public" },
+    { rule: "12 Rabi al-awwal", name: MAWLID, kind: "public" },
+  ]);
+  const fixedDays = ["01-01", "05-01", "12-16", "12-17"].map((day) => fixed(year, day, "Fixed holiday", "public"));
+  return [
+    ...breaks,
+    ...substitutes(
+      breaks,
+      [FRI, SAT],
+      "Makes up for a day of the break falling on the Friday and Saturday weekend. The government confirms it each year",
+      [...others, ...fixedDays],
+    ).map((entry) => ({ ...entry, note: note(entry.note, ISLAMIC) })),
+  ].sort(SORT);
+}
 
 // ---------------------------------------------------------------------------
 // Qatar.
@@ -695,11 +853,11 @@ const AF_SOURCE =
 
 /** [month, day, name, note] on the Solar Hijri calendar (Hamal, Sawr, ... Dalw, Hut). */
 const AF_SOLAR = [
-  [11, 26, "Liberation Day", "public", "Marks the Soviet withdrawal in 1989 (26 Dalw)"],
-  [2, 8, "Mujahideen Victory Day", "public", "Marks the mujahideen's entry into Kabul in 1992 (8 Sawr)"],
-  [5, 24, "Victory Day", "public", "Marks the Taliban's return to power in Kabul on 15 August 2021 (24 Asad)"],
-  [5, 28, "Independence Day", "public", "Marks independence from British control in 1919 (28 Asad)"],
-  [6, 9, "Withdrawal Day", "public", "Marks the departure of the last foreign troops on 31 August 2021 (9 Sonbola)"],
+  [11, 26, "Liberation Day", "public", "Marks the Soviet withdrawal in 1989 (26 Dalw on the Afghan solar calendar)"],
+  [2, 8, "Mujahideen Victory Day", "public", "Marks the mujahideen's entry into Kabul in 1992 (8 Sawr on the Afghan solar calendar)"],
+  [5, 24, "Victory Day", "public", "Marks the Taliban's return to power in Kabul on 15 August 2021 (24 Asad on the Afghan solar calendar)"],
+  [5, 28, "Independence Day", "public", "Marks independence from British control in 1919 (28 Asad on the Afghan solar calendar)"],
+  [6, 9, "Withdrawal Day", "public", "Marks the departure of the last foreign troops on 31 August 2021 (9 Sonbola on the Afghan solar calendar)"],
   [1, 1, "Nowruz", "observance", "The Afghan new year (1 Hamal). Not an official holiday under the current authorities; many families still mark it"],
 ];
 
@@ -792,41 +950,97 @@ const TM_SOURCE =
   "Ministry of Labour and Social Protection holiday schedule, as reported by Beyan.tm, https://beyan.tm/en/, " +
   "and timeanddate.com; Hijri dates from date-holidays";
 
+const TM_MOVED =
+  "Makes up for the holiday falling on a Sunday: the day off moves to the next working day (Labour Code, art. 81). " +
+  "Estimated: the president's decree sets the day each year";
+
+/**
+ * A holiday on a Sunday moves its day off to the next working day, by a
+ * presidential decree under the Labour Code (2020: Independence Day on
+ * Sunday 27 September, off on Monday 28 September; 2021: Novruz on Sunday
+ * 21 March, off on Tuesday 23 March). In 2026 the decree made Monday
+ * 28 September an extra day off for the 35th anniversary of independence and
+ * moved the Sunday's day off to Tuesday 29 September. The 2026 list is the
+ * published one; the rule is applied from 2027.
+ */
 export function turkmenistanEntries(year) {
-  return [
+  const single = [
     fixed(year, "01-01", "New Year's Day", "public"),
     fixed(year, "03-08", "International Women's Day", "public"),
     fixed(year, "03-21", "Novruz Bayramy", "public", "The spring new year: two days off, 21 and 22 March"),
     fixed(year, "03-22", "Novruz Bayramy", "public", "The spring new year: two days off, 21 and 22 March"),
+    fixed(year, "05-09", "Victory Day", "public"),
+    fixed(year, "05-18", "Constitution and State Flag Day", "public"),
+    fixed(year, "09-27", "Independence Day", "public", "Marks independence in 1991. Parades in Ashgabat"),
+    fixed(year, "10-06", "Day of Remembrance", "public", "Remembers the victims of the 1948 Ashgabat earthquake"),
+    fixed(year, "12-12", "International Neutrality Day", "public", "Marks the UN's recognition of Turkmenistan's neutrality in 1995"),
+  ];
+  const eid = islamic(year, [
+    { rule: "1 Shawwal", name: "Oraza Bayramy (Eid al-Fitr)", kind: "public", text: "The end of Ramadan" },
+    {
+      rule: "10 Dhu al-Hijjah",
+      name: "Gurban Bayramy (Eid al-Adha)",
+      kind: "public",
+      from: 0,
+      to: 2,
+      text: "The feast of the sacrifice: three days off in 2026; the president's decree sets the days each year",
+    },
+  ]);
+  const moved =
+    year === 2026
+      ? [
+          fixed(2026, "09-28", "Independence Day (extra day off)", "public", "An extra day off for the 35th anniversary of independence, by presidential decree"),
+          fixed(2026, "09-29", "Independence Day (substitute day)", "public", "Independence Day fell on a Sunday, so the presidential decree moved its day off here"),
+        ]
+      : substitutes(single, [SUN], TM_MOVED, eid);
+  return [
+    ...single,
+    ...eid,
+    ...moved,
     {
       date: nthWeekday(year, 4, SUN, -1),
       name: "Turkmen Horse Day",
       kind: "festival",
       note: note("The last Sunday of April. Races and shows of Akhal-Teke horses, above all near Ashgabat"),
     },
-    fixed(year, "05-09", "Victory Day", "public"),
-    fixed(year, "05-18", "Constitution and State Flag Day", "public"),
     {
       date: nthWeekday(year, 8, SUN, 2),
       name: "Melon Day",
       kind: "festival",
       note: note("The second Sunday of August. Melon fairs and tastings across the country"),
     },
-    fixed(year, "09-27", "Independence Day", "public", "Marks independence in 1991. Parades in Ashgabat"),
-    fixed(year, "10-06", "Day of Remembrance", "public", "Remembers the victims of the 1948 Ashgabat earthquake"),
-    fixed(year, "12-12", "International Neutrality Day", "public", "Marks the UN's recognition of Turkmenistan's neutrality in 1995"),
-    ...islamic(year, [
-      { rule: "1 Shawwal", name: "Oraza Bayramy (Eid al-Fitr)", kind: "public", text: "The end of Ramadan" },
-      {
-        rule: "10 Dhu al-Hijjah",
-        name: "Gurban Bayramy (Eid al-Adha)",
-        kind: "public",
-        from: 0,
-        to: 2,
-        text: "The feast of the sacrifice: three days off in 2026; the president's decree sets the days each year",
-      },
-    ]),
   ].sort(SORT);
+}
+
+// ---------------------------------------------------------------------------
+// Uzbekistan (library additions): the yearly decree's extra days off.
+
+const UZ_SOURCE =
+  "Presidential decree of 24 December 2025 on additional non-working days and weekend shifts in 2026, as reported by " +
+  "yep.uz, https://yep.uz/en, and EY Uzbekistan's payroll update for December 2025 to January 2026";
+
+const UZ_DECREE = "An extra day off set by the presidential decree for 2026";
+const UZ_SIX_DAY = "A day off for six-day-week employees only, by the presidential decree for 2026";
+
+/**
+ * Each December the president decrees the next year's extra days off, joined
+ * to the holidays. The library has the holidays; this adds the decree's days.
+ * Later years are added as each decree is published.
+ */
+const UZ_DECREES = {
+  2026: [
+    ["2026-01-02", "New Year's Day (extra day off)", "public", UZ_DECREE],
+    ["2026-01-03", "New Year's Day (extra day off)", "optional", UZ_SIX_DAY],
+    ["2026-05-28", "Eid al-Adha (extra day off)", "public", UZ_DECREE],
+    ["2026-05-29", "Eid al-Adha (extra day off)", "public", UZ_DECREE],
+    ["2026-05-30", "Eid al-Adha (extra day off)", "optional", UZ_SIX_DAY],
+    ["2026-08-31", "Independence Day (extra day off)", "public", UZ_DECREE],
+    ["2026-12-31", "New Year's Eve (extra day off)", "optional", UZ_SIX_DAY],
+  ],
+};
+
+export function uzbekistanEntries(year) {
+  return (UZ_DECREES[year] ?? []).map(([date, name, kind, text]) => ({ date, name, kind, note: note(text) }));
 }
 
 // ---------------------------------------------------------------------------
@@ -854,6 +1068,7 @@ const supplements = [
   { country: "AE", source: AE_SOURCE, entries: uaeEntries },
   { country: "IR", source: IR_SOURCE, drop: IR_DROP, entries: iranEntries },
   { country: "AZ", source: AZ_SOURCE, drop: AZ_DROP, entries: azerbaijanEntries },
+  { country: "BH", source: BH_SOURCE, entries: bahrainEntries },
   { country: "QA", source: QA_SOURCE, entries: qatarEntries },
   { country: "OM", source: OM_SOURCE, entries: omanEntries },
   { country: "KW", source: KW_SOURCE, entries: kuwaitEntries },
@@ -867,6 +1082,7 @@ const supplements = [
   { country: "KG", source: KG_SOURCE, entries: kyrgyzstanEntries },
   { country: "TJ", source: TJ_SOURCE, entries: tajikistanEntries },
   { country: "TM", source: TM_SOURCE, entries: turkmenistanEntries },
+  { country: "UZ", source: UZ_SOURCE, entries: uzbekistanEntries },
 ];
 
 export default supplements;

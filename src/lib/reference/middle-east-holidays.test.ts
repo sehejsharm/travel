@@ -96,8 +96,9 @@ describe("every country", () => {
     for (const [country, entriesOf] of Object.entries(ENTRIES)) {
       for (const year of [2026, 2035, 2050]) {
         for (const entry of (entriesOf as EntriesOf)(year)) {
-          // Oman's 2026 days are the announced ones, not estimates.
+          // Oman's 2026 days and Iran's 1405 ones are the announced ones, not estimates.
           if (!islamicName.test(entry.name) || (country === "OM" && /2026/.test(entry.note) && !entry.note.endsWith(ISLAMIC))) continue;
+          if (country === "IR" && entry.note.startsWith("The date in Iran's official calendar for 1405")) continue;
           expect(entry.note.endsWith(ISLAMIC), `${country} ${entry.date} ${entry.name}`).toBe(true);
         }
       }
@@ -130,7 +131,9 @@ describe("Solar Hijri calendar", () => {
   it("agrees with date-holidays (jalaali-js) on every Solar Hijri holiday from 2026 to 2050", () => {
     const solar = /^(Nowruz|Islamic Republic Day|Sizdah Bedar|Imam Khomeini's Demise|Revolt of Khordad 15|Anniversary of Islamic Revolution|Nationalization of the Iranian oil industry)$/;
     const library = (libraryEntries("IR") as Entry[]).filter((entry) => solar.test(entry.name)).map((entry) => `${entry.date} ${entry.name}`);
-    const mine = years.flatMap((year) => (iranEntries as EntriesOf)(year).map((entry) => `${entry.date} ${entry.name}`));
+    const mine = years.flatMap((year) =>
+      (iranEntries as EntriesOf)(year).filter((entry) => solar.test(entry.name)).map((entry) => `${entry.date} ${entry.name}`),
+    );
     expect(mine.sort()).toEqual(library.sort());
     expect(mine).toHaveLength(250);
   });
@@ -187,6 +190,8 @@ describe("United Arab Emirates", () => {
   it("lists 1 to 3 December, which hold the days off given in 2024 (2, 3) and 2025 (1, 2)", () => {
     for (const year of years) {
       expect(datesOf(ae, /^(Commemoration Day|National Day)$/, year)).toEqual(on(year, "12-01", "12-02", "12-03"));
+      // Only 2 December is certain; the government adds 1 or 3 December, or both.
+      expect(datesOf(ae, /^(Commemoration Day|National Day)$/, year, new Set(["public"]))).toEqual(on(year, "12-02"));
     }
   });
 
@@ -224,6 +229,24 @@ describe("Azerbaijan", () => {
       on(2026, "03-20", "03-21", "03-22", "03-23", "03-24", "03-25", "03-26", "03-27", "03-30"),
     );
     expect(datesOf(az, "Spring Festival", 2026)).toEqual([]);
+  });
+
+  it("matches the Cabinet's whole 2026 list, with Victory Day and the art. 105 transfers", () => {
+    expect(daysOff(az, "2026-01-01", "2026-12-31")).toEqual(
+      on(
+        2026,
+        "01-01", "01-02", "01-20", "03-08", "03-09",
+        "03-20", "03-21", "03-22", "03-23", "03-24", "03-25", "03-26", "03-27", "03-30",
+        "05-09", "05-11", "05-27", "05-28", "05-29", "06-15", "06-26",
+        "11-08", "11-09", "11-10", "12-31",
+      ),
+    );
+    // Working days since 2021, marked but not off.
+    for (const [date, name] of [["2026-10-18", "Day of Restoration of Independence"], ["2026-11-12", "Constitution Day"], ["2026-11-17", "National Revival Day"]]) {
+      expect(az(2026).find((entry) => entry.date === date && entry.name === name)?.kind).toBe("observance");
+    }
+    expect(datesOf(az, "Independence Day", 2026)).toEqual(["2026-05-28"]);
+    expect(datesOf(az, "Victory Day", 2030)).toEqual(["2030-11-08"]);
   });
 
   it("gives Novruz five days, 20 to 24 March, every year, and makes up its weekend days", () => {
@@ -434,10 +457,55 @@ describe("Tajikistan", () => {
 });
 
 describe("Turkmenistan", () => {
-  it("matches the Ministry of Labour's 2026 schedule", () => {
+  it("matches the Ministry of Labour's 2026 schedule and the September decree", () => {
     const tm = turkmenistanEntries as EntriesOf;
+    // The decree for the 35th anniversary: 28 September an extra day off, and
+    // Sunday 27 September's day off moved to 29 September.
     expect(daysOff(tm, "2026-01-01", "2026-12-31")).toEqual(
-      on(2026, "01-01", "03-08", "03-20", "03-21", "03-22", "05-09", "05-18", "05-27", "05-28", "05-29", "09-27", "10-06", "12-12"),
+      on(2026, "01-01", "03-08", "03-20", "03-21", "03-22", "05-09", "05-18", "05-27", "05-28", "05-29", "09-27", "09-28", "09-29", "10-06", "12-12"),
     );
+  });
+
+  it("moves a Sunday holiday's day off to the next working day from 2027", () => {
+    const tm = turkmenistanEntries as EntriesOf;
+    // As in 2021: Novruz on Sunday 21 March, off on Tuesday 23 March.
+    expect(datesOf(tm, "Novruz Bayramy (substitute day)", 2027)).toEqual(["2027-03-23"]);
+    expect(datesOf(tm, "International Neutrality Day (substitute day)", 2027)).toEqual(["2027-12-13"]);
+    for (const year of years.filter((y) => y > 2026)) {
+      for (const entry of tm(year).filter((e) => e.name.endsWith("(substitute day)"))) {
+        expect([1, 2, 3, 4, 5]).toContain(new Date(`${entry.date}T00:00:00Z`).getUTCDay());
+      }
+    }
+  });
+});
+
+describe("Uzbekistan (decree days)", () => {
+  it("adds the presidential decree's extra days off for 2026", () => {
+    const uz = built("UZ");
+    expect(datesOf(uz, /\(extra day off\)$/, 2026, new Set(["public"]))).toEqual(on(2026, "01-02", "05-28", "05-29", "08-31"));
+    expect(datesOf(uz, /\(extra day off\)$/, 2026, new Set(["optional"]))).toEqual(on(2026, "01-03", "05-30", "12-31"));
+    expect(datesOf(uz, /\(extra day off\)$/, 2027)).toEqual([]);
+  });
+});
+
+describe("Bahrain", () => {
+  it("gives Eid al-Fitr three days and Ashura two, with weekend days made up (2026 circulars)", () => {
+    const bh = built("BH");
+    expect(daysOff(bh, "2026-03-15", "2026-03-31")).toEqual(on(2026, "03-20", "03-21", "03-22", "03-23", "03-24"));
+    expect(daysOff(bh, "2026-06-20", "2026-06-30")).toEqual(on(2026, "06-25", "06-26", "06-28"));
+  });
+});
+
+describe("Iran's 1405 calendar", () => {
+  it("uses the published Islamic dates where they differ from the library's", () => {
+    const ir = built("IR");
+    expect(datesOf(ir, EID_FITR, 2026)).toEqual(["2026-03-21"]);
+    expect(datesOf(ir, "Eid al-Fitr (second day)", 2026)).toEqual(["2026-03-22"]);
+    expect(datesOf(ir, "Demise of Prophet Muhammad and Imam Hassan (Mujtaba)", 2026)).toEqual(["2026-08-12"]);
+    expect(datesOf(ir, "Birthday of Imam Ali", 2026)).toEqual(["2026-01-02", "2026-12-23"]);
+    expect(datesOf(ir, "Mab'ath (the Prophet's mission)", 2027)).toEqual(["2027-01-06", "2027-12-25"]);
+    expect(datesOf(ir, EID_FITR, 2027)).toEqual(["2027-03-10"]);
+    // Days where the library already agrees stay: Tasua and Ashura on 3 and 4 Tir.
+    expect(datesOf(ir, "Ashoura", 2026)).toEqual(["2026-06-25"]);
   });
 });

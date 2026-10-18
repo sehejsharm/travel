@@ -224,6 +224,7 @@ describe("Papua New Guinea", () => {
       ["2026-01-01", "New Year's Day"],
       ["2026-02-26", "Grand Chief Sir Michael Somare Remembrance Day"],
       ["2026-04-03", "Good Friday"],
+      ["2026-04-04", "Easter Saturday"],
       ["2026-04-06", "Easter Monday"],
       ["2026-06-17", "King's Birthday"],
       ["2026-07-23", "National Remembrance Day"],

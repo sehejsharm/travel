@@ -48,6 +48,8 @@ export default [
       { name: /Full Moon Day$/, from: 2027, to: 2050 },
       { name: "Regional Day", note: /Kerala/ },
     ],
+    // Optional: the last step, given the country's merged entries (see below).
+    // finish(entries) { return entries; },
     entries(year) {
       // Called once for every year from 2026 to 2050.
       return [
@@ -113,6 +115,17 @@ To move a library holiday to another day, drop it and add an entry on the
 right day. To change its kind or note, repeat its exact date and name: the
 entry replaces the library's (see below).
 
+### Finishing
+
+`finish(entries)` is for a rule that needs the whole calendar, such as a
+substitute day for every holiday that falls on a Sunday (Malaysia), which
+has to see the library's days, every supplement's and their moved dates. It
+gets the country's entries once everything is merged (all years, as
+`{ date, kind, name, note }`, a copy) and returns the whole list again; the
+build checks it as it checks `entries`. A country's supplements finish in
+file order. `finishEntries()` in `build-holidays.mjs` does the same for the
+tests.
+
 ## How entries merge
 
 - Two entries are the same holiday when their dates match and their names
@@ -138,10 +151,27 @@ library's own data, so a supplement does not need to:
 
 - `RULE_FIXES`: library rules that disagree with the law (Korean New Year
   starts the day before, China's and Taiwan's New Year spans, China's second
-  Labour Day).
+  Labour Day, Kazakhstan's Nauryz substitutes, Kenya's Mazingira Day,
+  Nigeria's Children's Day, Youth Day and Islamic New Year, St Helena's
+  King's Birthday).
 - `NAME_ALIASES`: one holiday under two library names on one day, merged under
   one name (the US "Day after Thanksgiving Day", Vietnam's "Vietnamese New Year
-  Holidays").
+  Holidays", Russia's regional names for Radonitsa and the two Eids).
+- `ENGLISH_NAMES`: names the library has no English for, or has wrong
+  (typos, mistranslations, the Queen's Birthday under a king). A name is
+  looked up without its " (substitute day)" suffix, so its substitutes
+  follow, and the build summary lists any untranslated library name left.
+- `STATE_GAPS`: in countries whose state calendars say so (Australia,
+  Switzerland, the United Kingdom, Malaysia, St Helena), a national day off
+  that some regions do not keep gets "Not a day off in ...", and becomes
+  `optional` when more than a third of them do not.
+- `REGION_NAMES`: regions named otherwise in "Day off in ..." notes.
+- `LIBRARY_NOTES`: a note added to a library holiday, by country and cleaned
+  name, where a traveller needs one (Vietnam's Tết days, which the
+  government sets each year; Russia's names for its Crimea days).
+  `NOTE_FIXES` corrects typos in the library's own notes.
+- A library `public` day whose note gives it to one group only (women,
+  Muslims, the armed forces) becomes `optional`.
 - The Chinese, Korean and Vietnamese lunisolar calendars, which it recomputes
   astronomically: date-holidays puts 2033's leap month in the wrong place and
   lets its day count slip a day in some months, and every library rule on an

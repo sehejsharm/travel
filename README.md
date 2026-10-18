@@ -175,23 +175,26 @@ authoritative.
 `npm run holidays:build` (`scripts/build-holidays.mjs`) takes every country
 [date-holidays](https://github.com/commenthol/date-holidays) knows, 2026 to
 2050, with each state's own days off as "optional", corrects it (laws newer
-than its rules, and the Chinese, Korean and Vietnamese calendars recomputed
-from astronomy), and merges the supplements in `scripts/holiday-supplements/`
-on top: India's Hindu, Jain, Sikh, Buddhist and Islamic calendar; Sri Lanka,
-Bangladesh and the Maldives; Nepal, Bhutan and Mongolia on their own
-calendars; Thailand, Laos, Cambodia and Myanmar; Hindu and Buddhist days in
-the diaspora; the Middle East and Central Asia; the Pacific, Macau and North
-Korea; newer holiday laws in 16 countries; and 112 festivals in 41 countries.
-A supplement can also drop library entries that are wrong. Each entry is
+than its rules, English names it lacks or has wrong, national days off some
+regions do not keep, and the Chinese, Korean and Vietnamese calendars
+recomputed from astronomy), and merges the supplements in
+`scripts/holiday-supplements/` on top: India's Hindu, Jain, Sikh, Buddhist and
+Islamic calendar; Sri Lanka, Bangladesh and the Maldives; Nepal, Bhutan and
+Mongolia on their own calendars; Thailand, Laos, Cambodia and Myanmar; Hindu
+and Buddhist days in the diaspora; the Middle East and Central Asia; the
+Pacific, Macau and North Korea; newer holiday laws in 18 countries; library
+faults in 9 more; and 112 festivals in 41 countries. A supplement can also
+drop library entries that are wrong, and rework a country's merged calendar
+for rules that need all of it (substitute days). Each entry is
 `public` or `bank` (a day off), `optional` (a day off in some regions or for
 some people), `observance` or `festival`. `npm run holidays:check` fails when
 the committed files are stale, for CI. How each supplement's dates are worked
 out, and what they were checked against, is in `docs/holiday-dates.md`.
 
 Coverage as last built: 244 countries and territories (every sovereign state
-and inhabited territory, 37 of them from supplements alone), 128,313 entries
-(84,417 public, 1,616 bank, 13,176 optional, 16,200 observance, 12,904
-festival), 10.8 MB of JSON, every country with a day off in every year
+and inhabited territory, 37 of them from supplements alone), 128,431 entries
+(84,465 public, 1,641 bank, 13,119 optional, 16,302 observance, 12,904
+festival), 11.0 MB of JSON, every country with a day off in every year
 (`src/lib/reference/holiday-coverage.test.ts`). Each country is its own chunk, fetched the first time
 a trip goes there (`loadHolidays`, called from `useTripView`) and then cached
 by the service worker; the reads are synchronous and the checks, the timeline
@@ -207,10 +210,11 @@ day marks and Discover's events.
   lunar and Islamic dates after the last published year are calculated, so the
   official day can differ by one (the note on each says so), and governments
   add or move days at short notice. Spans a government sets each year (China's
-  bridged breaks, Vietnam's Tết after 2027, Indonesia's collective leave, the
-  Gulf's Eid breaks) are given as their usual core. Each year's new decrees
-  need adding by hand; `docs/holiday-dates.md` lists when each comes out and
-  which supplement it goes in.
+  bridged breaks, Vietnam's Tết after 2027, the Gulf's Eid breaks) are given as
+  their usual core, and Indonesia's collective leave only for the years decreed
+  (2026 and 2027). Each year's new decrees need adding by hand;
+  `docs/holiday-dates.md` lists when each comes out and which supplement it
+  goes in.
 - Instagram and TikTok gate oEmbed behind an app token, so for those the
   server reads the page's Open Graph tags, which they serve only some of the
   time; when they do not, the pasted caption carries the extraction. YouTube

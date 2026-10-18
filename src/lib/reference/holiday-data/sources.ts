@@ -52,6 +52,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Gentse Feesten: Stad Gent, https://stad.gent/"
   },
   {
+    "country": "BH",
+    "source": "Crown Prince and Prime Minister's holiday circulars, https://www.pmo.gov.bh/, and Central Bank of Bahrain holiday notices, https://www.cbb.gov.bh/; Hijri dates from date-holidays"
+  },
+  {
     "country": "BO",
     "source": "Oruro Carnival: Los Tiempos, https://www.lostiempos.com/"
   },
@@ -152,6 +156,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Oktoberfest: City of Munich, https://www.muenchen.de/int/en/events/oktoberfest.html"
   },
   {
+    "country": "DK",
+    "source": "Danish closing-hours act (lukkeloven) and the banks' holiday calendar, https://www.retsinformation.dk/"
+  },
+  {
     "country": "EG",
     "source": "Abu Simbel Sun Festival: Egyptian Ministry of Tourism and Antiquities, https://egymonuments.gov.eg/"
   },
@@ -206,6 +214,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "FM",
     "source": "FSM Code title 1 chapter 6 and the state codes, FSM Legal Information System, http://www.fsmlaw.org/"
+  },
+  {
+    "country": "FO",
+    "source": "Faroese collective agreements, as summarised by date-holidays, https://github.com/commenthol/date-holidays"
   },
   {
     "country": "FR",
@@ -309,7 +321,11 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "ID",
-    "source": "Joint decree of the Ministers of Religious Affairs, Manpower and Administrative Reform on national holidays in 2027 (SKB 1205, 3 and 2 of 2026), https://setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+    "source": "Joint decrees of the Ministers of Religious Affairs, Manpower and Administrative Reform on national holidays and collective leave (cuti bersama) in 2026, https://setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2026, and 2027 (SKB 1205, 3 and 2 of 2026), https://setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "country": "ID",
+    "source": "Joint decrees of the Ministers of Religious Affairs, Manpower and Administrative Reform on national holidays in 2026 (Kepmenag 1497/2025, Menaker 2/2025, MenPANRB 5/2025), https://setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2026, and in 2027 (SKB 1205, 3 and 2 of 2026), https://setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
   },
   {
     "country": "ID",
@@ -322,6 +338,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "IE",
     "source": "Puck Fair: Puck Fair, https://www.puckfair.ie/"
+  },
+  {
+    "country": "IL",
+    "source": "Knesset Elections Law 5729-1969, s.10 (election day is a day of rest); date set when the Knesset dissolved on 17 July 2026 (Times of Israel), https://www.timesofisrael.com/knesset-election-set-for-october-27-with-government-set-to-complete-full-term/"
   },
   {
     "country": "IN",
@@ -537,6 +557,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "MY",
+    "source": "Holidays Act 1951 (Act 369), s.3, https://lom.agc.gov.my/act-detail.php?act=369"
+  },
+  {
+    "country": "MY",
     "source": "Malaysia's federal and state public holidays for 2027, as published by CutiSekolah.com.my, https://cutisekolah.com.my/en/public-holidays-2027/"
   },
   {
@@ -550,6 +574,10 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "NL",
     "source": "Keukenhof tulip season: Keukenhof, https://keukenhof.nl/"
+  },
+  {
+    "country": "NL",
+    "source": "Rijksoverheid, Bevrijdingsdag (5 mei) vrije dag, https://www.rijksoverheid.nl/onderwerpen/bevrijdingsdag/vraag-en-antwoord/bevrijdingsdag-5-mei-vrije-dag"
   },
   {
     "country": "NP",
@@ -593,7 +621,15 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   },
   {
     "country": "PH",
+    "source": "Office of the President, yearly proclamations of regular holidays and special days, https://www.officialgazette.gov.ph/"
+  },
+  {
+    "country": "PH",
     "source": "Sinulog: SunStar Cebu, https://www.sunstar.com.ph/"
+  },
+  {
+    "country": "PL",
+    "source": "Act of 20 February 2004 establishing Flag Day, https://isap.sejm.gov.pl/"
   },
   {
     "country": "PN",
@@ -744,6 +780,18 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
     "source": "Rose Parade: Tournament of Roses, https://tournamentofroses.com/"
   },
   {
+    "country": "US",
+    "source": "State holiday laws: Nevada (NRS 236.015, Family Day), West Virginia (Code §2-2-1), Indiana (IC 1-1-9-1), Maryland and Georgia, https://www.leg.state.nv.us/nrs/nrs-236.html"
+  },
+  {
+    "country": "UZ",
+    "source": "Presidential decree of 24 December 2025 on additional non-working days and weekend shifts in 2026, as reported by yep.uz, https://yep.uz/en, and EY Uzbekistan's payroll update for December 2025 to January 2026"
+  },
+  {
+    "country": "VA",
+    "source": "Holy See, holidays of Vatican City State, https://www.vatican.va/"
+  },
+  {
     "country": "VN",
     "source": "Labour Code 2019 (articles 111 and 112), National Assembly Resolution 28/2026/QH16 and Ministry of Home Affairs notice 11483/TB-BNV (Tết 2027), https://thuvienphapluat.vn/phap-luat/chu-de/lich-nghi-le"
   },
@@ -754,5 +802,9 @@ export const HOLIDAY_SOURCES: { country: string; source: string }[] = [
   {
     "country": "YE",
     "source": "Holidays of the Republic of Yemen as listed by timeanddate.com, https://www.timeanddate.com/holidays/yemen/, and calendarific.com (the government in Aden and the authorities in Sanaa keep these days); Hijri dates from date-holidays"
+  },
+  {
+    "country": "ZA",
+    "source": "Public Holidays Act 1994, s2A: the President's declaration of 4 November 2026 as a public holiday (SAnews), https://www.sanews.gov.za/node/84344"
   }
 ];

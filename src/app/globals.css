@@ -608,11 +608,11 @@ body {
     box-shadow var(--dur-move) var(--ease-spring);
 }
 @media (hover: hover) {
-  .press:hover:not(:disabled) {
+  .press:hover:not(:disabled, [aria-disabled="true"]) {
     transform: scale(1.015);
   }
 }
-.press:active:not(:disabled) {
+.press:active:not(:disabled, [aria-disabled="true"]) {
   transform: scale(0.96);
   opacity: 0.8;
   transition-duration: var(--dur-micro);

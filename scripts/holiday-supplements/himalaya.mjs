@@ -174,7 +174,7 @@ function npFixedEntries(year) {
       const date = bsToIso(bsYear, month, day);
       if (!inYear(year)(date)) continue;
       const close = date > NP_PUBLISHED_TO && bsMonthCloseCall(bsYear, month);
-      entries.push({ date, name, kind, note: note(text, close && "A close call: the Sun changes sign near the hour that decides when the month starts", close && SOLAR) });
+      entries.push({ date, name, kind, note: note(text, close && "A close call: the month may start a day either side", close && SOLAR) });
     }
   }
   return entries;
@@ -371,12 +371,13 @@ const RU_FROM = 2027;
  * every year for four republics, but for 2026 only in the regions below,
  * whose laws make it a day off every year (it was in 2025 too). From 2027
  * the library's own entries are dropped and one entry names every region, as
- * the generator merges 2026's. Irkutsk Oblast calls it the Unity Day of
- * Remembrance, which the generator keeps apart.
+ * the generator merges 2026's. Irkutsk Oblast calls it the common day of
+ * remembrance (Единый день поминовения), which the generator aliases to the
+ * same day.
  */
 const RADONITSA = "Day of Remembrance of the Departed (Radonitsa)";
 const RADONITSA_REGIONS = [
-  "Bryansk Oblast", "Kabardino-Balkar Republic", "Karachay-Cherkess Republic", "Krasnodar Krai", "Omsk Oblast",
+  "Bryansk Oblast", "Irkutsk Oblast", "Kabardino-Balkar Republic", "Karachay-Cherkess Republic", "Krasnodar Krai", "Omsk Oblast",
   "Penza Oblast", "Republic of Adygea", "Republic of Dagestan", "Saratov Oblast", "Stavropol Krai",
 ];
 const RADONITSA_NOTE = `Day off in ${RADONITSA_REGIONS.slice(0, -1).join(", ")} and ${RADONITSA_REGIONS.at(-1)}`;
@@ -401,7 +402,6 @@ export function russiaEntries(year) {
     regional(newYear("mongolian", year), "White Month Festival (Sagaalgan)", BURYATIA, "The Buryat New Year, on the Mongolian calendar", LUNAR),
     regional(newYear("mongolian", year), "Shagaa", TUVA, "The Tuvan New Year, on the Mongolian calendar", LUNAR),
     regional(radonitsa, RADONITSA, RADONITSA_NOTE),
-    regional(radonitsa, "Unity Day of Remembrance", "Day off in Irkutsk Oblast"),
     regional(`${year}-05-06`, "Constitution Day of the Republic of Tuva", TUVA),
     // Set by the Tuvan government each year: a Friday in the second half of
     // July (19 July 2024, 18 July 2025, 24 July 2026).

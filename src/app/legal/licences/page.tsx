@@ -183,12 +183,14 @@ export default function Licences() {
         <p>
           Changes made for Manifest: the data is turned into one English-language list per country
           for 2026 to 2050, school holidays are left out, and a holiday lasting several days is
-          listed once for each day. A day off in only some states or regions is marked as regional,
-          with where it applies. A day the data gives to one group only (women, say, or the armed
-          forces) is not counted as a day off for everyone, and Islamic holidays carry a note that
-          their dates are estimates. Chinese, Korean and Vietnamese lunar dates are recomputed from
-          astronomy where the data has them on the wrong day, and some entries the sources below
-          show to be wrong are removed.
+          listed once for each day. Names the data gives in another language, or gets wrong, are
+          given in English. A day off in only some states or regions is marked as regional, with
+          where it applies, and a national day off that some regions do not keep says so. A day the
+          data gives to one group only (women, say, or the armed forces) is not counted as a day off
+          for everyone, and Islamic holidays carry a note that their dates are estimates. Chinese,
+          Korean and Vietnamese lunar dates are recomputed from astronomy where the data has them on
+          the wrong day, a few rules are changed where a newer law differs, some notes are added or
+          corrected, and some entries the sources below show to be wrong are removed or changed.
           {HOLIDAY_SOURCES.length > 0 &&
             " Festivals, corrections and the countries the data does not cover come from the" +
               " sources below, added on top."}{" "}

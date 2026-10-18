@@ -14,15 +14,19 @@
  * - Hong Kong: an extra general holiday when Ching Ming falls on an Easter
  *   holiday, as in 2015, 2021 and 2026.
  * - Kinds that hide closures: the late-August bank holiday (GB), Victoria Day,
- *   Thanksgiving, Remembrance Day and Truth and Reconciliation Day (CA), the
- *   King's Birthday in June (AU), Maundy Thursday (ES).
+ *   Thanksgiving, Remembrance Day, Truth and Reconciliation Day and Easter
+ *   Monday (CA), the King's Birthday in June (AU), Maundy Thursday (ES).
  * - Ethiopia: the four feasts the library pins to one day (Genna, Timkat,
- *   Enkutatash, Meskel), and the two national days it lacks (Proclamation
- *   No. 1334/2024).
+ *   Enkutatash, Meskel), the two national days it lacks, and three library
+ *   days off that are not among the 12 closure days of Proclamation
+ *   No. 1334/2024 (the first day of Ramadan, the Day of Lament and Derg
+ *   Downfall Day).
  * - The sweep of the most-visited countries for newer laws: Mexico's
  *   inauguration day (1 October every six years since 2024), Japan's
  *   Citizens' Holiday in 2032 and 2049, Korea's Labour Day (a public holiday
- *   since 2026) and election days, Vietnam's Culture Day (2026), second
+ *   since 2026, with substitute days) and election days, South Africa's 2026
+ *   local election day and Israel's 2026 Knesset election day (both declared
+ *   days off), Vietnam's Culture Day (2026), second
  *   National Day and weekend make-up days, Morocco's Amazigh New Year (2024)
  *   and Unity Day (2026) and its two-day Eids, Egypt's Arafat Day, and the
  *   Orthodox Clean Monday in Greece and Cyprus.
@@ -164,6 +168,7 @@ export function chinaSubstitutes(year) {
 const CN_SCHEDULES = {
   2026: {
     bridges: [
+      ["2026-01-02", "New Year's Day"],
       ["2026-02-20", "Spring Festival"],
       ["2026-02-23", "Spring Festival"],
       ["2026-05-05", "Labour Day"],
@@ -171,6 +176,7 @@ const CN_SCHEDULES = {
       ["2026-10-07", "National Day"],
     ],
     workdays: [
+      ["2026-01-04", "New Year's Day"],
       ["2026-02-14", "the Spring Festival"],
       ["2026-02-28", "the Spring Festival"],
       ["2026-05-09", "Labour Day"],
@@ -362,6 +368,12 @@ export function ethiopianFeasts(year) {
 function ethiopiaEntries(year) {
   const feasts = ethiopianFeasts(year);
   return [
+    // Proclamation 1334/2024 lists 12 closure days; these two library days
+    // are not among them, so they stay as days marked, not days off.
+    entry(ymd(year, 5, 28), "Derg Downfall Day", "observance", "Ginbot 20. Not a day off under Proclamation 1334/2024"),
+    ...islamic("1 Ramadan", year).map((date) =>
+      entry(date, "First day of Ramadan", "observance", `Not a day off under Proclamation 1334/2024. ${MOON_NOTE}`),
+    ),
     entry(feasts.genna, "Christmas Day", "public", "Genna, Ethiopian Christmas"),
     entry(feasts.timkat, "Epiphany", "public", "Timkat"),
     entry(feasts.enkutatash, "New Year's Day", "public", "Enkutatash, the Ethiopian New Year"),
@@ -373,7 +385,8 @@ function ethiopiaEntries(year) {
 
 /** Each year the library has a feast on the wrong day: drop it there. */
 function ethiopiaDrops() {
-  const drops = [{ name: "Christmas Day", dates: ["01-06"] }];
+  // Day of Lament (28 March) is not one of the proclamation's 12 closure days.
+  const drops = [{ name: "Christmas Day", dates: ["01-06"] }, { name: "Day of Lament" }];
   for (let year = FROM; year <= TO; year++) {
     const library = {
       // date-holidays: 19 January always, 11 or 12 September by the Gregorian leap year.
@@ -414,8 +427,9 @@ const VN_SUBSTITUTE_NOTE =
 /**
  * The second National Day off (Labour Code 2019, article 112): 1 or 3
  * September, whichever the government picks to join a weekend. It picked
- * 3 September in 2021 (Thursday the 2nd) and 2024 (Monday), and 1 September
- * in 2022 (Friday), 2023 (Saturday), 2025 (Tuesday) and 2026 (Wednesday).
+ * 3 September in 2021 (Thursday the 2nd), 2024 (Monday) and 2027 (Thursday,
+ * notice 11483/TB-BNV), and 1 September in 2022 (Friday), 2023 (Saturday),
+ * 2025 (Tuesday) and 2026 (Wednesday).
  * With 2 September a Sunday it is taken to be the Monday after.
  */
 export function vietnamSecondNationalDay(year) {
@@ -428,7 +442,7 @@ function vietnamHolidays(year) {
   return [
     ["New Year's Day", ymd(year, 1, 1)],
     ["Hung Kings Commemorations", vietnamese(year, 3, 10)],
-    ["Day of liberating the South for national reunification", ymd(year, 4, 30)],
+    ["Reunification Day", ymd(year, 4, 30)],
     ["Labour Day", ymd(year, 5, 1)],
     ["National Day", ymd(year, 9, 2)],
     ["National Day", vietnamSecondNationalDay(year)],
@@ -460,7 +474,7 @@ function vietnamEntries(year) {
       vietnamSecondNationalDay(year),
       "National Day",
       "public",
-      year === 2026
+      year <= 2027
         ? "The second National Day off"
         : "The second National Day off. Estimated: the government picks 1 or 3 September each year",
     ),
@@ -481,6 +495,7 @@ function vietnamEntries(year) {
     // Ministry of Home Affairs notice 11483/TB-BNV (9 October 2026): the five
     // days of Tết set by law, two before New Year's Day and three after, plus
     // two make-up days for the weekend, Thursday 4 to Wednesday 10 February.
+    // The same notice sets National Day: Thursday 2 and Friday 3 September.
     for (let day = 4; day <= 10; day++) {
       out.push(
         entry(
@@ -491,6 +506,35 @@ function vietnamEntries(year) {
         ),
       );
     }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Korea.
+
+const KR_LABOUR_SUBSTITUTE =
+  "Labour Day falls on a weekend or another holiday, so the next working day is off, as the 2026 amendment provides";
+
+/**
+ * The April 2026 amendment gives Labour Day (and Constitution Day, which the
+ * library has) a substitute holiday: when 1 May falls on a Saturday, a Sunday
+ * or another holiday, the first following day that is none of those, nor
+ * another substitute day, is off (2027: Monday 3 May; 2039: Tuesday 3 May,
+ * as Monday 2 May makes up for Buddha's Birthday). It needs the finished
+ * calendar, so it runs on the merged entries.
+ */
+export function koreaLabourDaySubstitutes(entries) {
+  const daysOff = new Set(entries.filter((e) => e.kind === "public").map((e) => e.date));
+  const out = [...entries];
+  for (let year = FROM; year <= TO; year++) {
+    const labourDay = ymd(year, 5, 1);
+    const clash = entries.some((e) => e.date === labourDay && e.kind === "public" && e.name !== "Labour Day");
+    if (!isWeekend(labourDay) && !clash) continue;
+    let day = addDays(labourDay, 1);
+    while (isWeekend(day) || daysOff.has(day)) day = addDays(day, 1);
+    daysOff.add(day);
+    out.push(entry(day, "Labour Day (substitute day)", "public", KR_LABOUR_SUBSTITUTE));
   }
   return out;
 }
@@ -525,13 +569,20 @@ const LAW_UPDATES = [
   {
     country: "GB",
     source: "GOV.UK, UK bank holidays, https://www.gov.uk/bank-holidays",
+    // In Scotland, when 1 January is a Saturday, Monday 3 January makes up
+    // for New Year's Day and Tuesday 4 January for 2 January; the library
+    // names both after New Year's Day.
+    drop: [{ name: "New Year's Day (substitute day)", dates: ["01-04"], note: /Scotland/ }],
     entries: (year) => [
       entry(
         nthWeekday(year, 8, MON, -1),
         "Summer bank holiday",
-        "bank",
+        "public",
         "Not in Scotland, which has the first Monday of August",
       ),
+      ...(weekday(ymd(year, 1, 1)) === SAT
+        ? [entry(ymd(year, 1, 4), "January 2nd (substitute day)", "optional", "Day off in Scotland")]
+        : []),
     ],
   },
   {
@@ -549,7 +600,13 @@ const LAW_UPDATES = [
         ymd(year, 9, 30),
         "National Day for Truth and Reconciliation",
         "optional",
-        "Day off for federal government workers and in British Columbia, Prince Edward Island, the Northwest Territories, Nunavut and Yukon. Most businesses elsewhere stay open",
+        "Day off for federal government workers and in British Columbia, Manitoba, Prince Edward Island, the Northwest Territories, Nunavut and Yukon. Most businesses elsewhere stay open",
+      ),
+      entry(
+        addDays(easter(year), 1),
+        "Easter Monday",
+        "optional",
+        "Day off for federal government workers. In Quebec, employers give it or Good Friday; most businesses elsewhere stay open",
       ),
       entry(
         nthWeekday(year, 10, MON, 2),
@@ -627,6 +684,7 @@ const LAW_UPDATES = [
     country: "KR",
     source:
       "Regulations on Holidays of Government Offices as amended in April 2026, reported by Money Today, https://www.mt.co.kr/policy/2026/04/28/2026042808250174216",
+    finish: koreaLabourDaySubstitutes,
     entries: (year) => [
       entry(ymd(year, 5, 1), "Labour Day", "public", "A public holiday for everyone since 2026. Before, only private-sector workers had it off"),
       // Public Official Election Act, art. 34: local elections on the first
@@ -638,6 +696,40 @@ const LAW_UPDATES = [
         ? [entry("2028-04-12", "National Assembly Election Day", "public", "Election day: a day off by law")]
         : []),
     ],
+  },
+  {
+    country: "ZA",
+    source:
+      "Public Holidays Act 1994, s2A: the President's declaration of 4 November 2026 as a public holiday (SAnews), https://www.sanews.gov.za/node/84344",
+    // Election days are declared one at a time, so only declared ones are listed.
+    entries: (year) =>
+      year === 2026
+        ? [
+            entry(
+              "2026-11-04",
+              "Local Government Elections",
+              "public",
+              "Election day: declared a public holiday nationwide under the Public Holidays Act",
+            ),
+          ]
+        : [],
+  },
+  {
+    country: "IL",
+    source:
+      "Knesset Elections Law 5729-1969, s.10 (election day is a day of rest); date set when the Knesset dissolved on 17 July 2026 (Times of Israel), https://www.timesofisrael.com/knesset-election-set-for-october-27-with-government-set-to-complete-full-term/",
+    // Knesset elections often come early, so later ones are left out until set.
+    entries: (year) =>
+      year === 2026
+        ? [
+            entry(
+              "2026-10-27",
+              "Knesset Election Day",
+              "public",
+              "Election day: a paid day off by law, so offices, banks and schools close. Intercity buses and trains are free",
+            ),
+          ]
+        : [],
   },
   {
     country: "VN",

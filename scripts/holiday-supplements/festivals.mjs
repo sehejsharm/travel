@@ -917,7 +917,7 @@ export const FESTIVALS = [
     country: "TR",
     name: "Şeb-i Arus",
     source: "Ministry of Culture and Tourism, https://sebiarus.ktb.gov.tr/",
-    note: "Konya: whirling dervish ceremonies for Rumi's death anniversary, ending on 17 December. Book early",
+    note: "Konya: whirling dervish ceremonies for Rumi's death anniversary, which falls on the last night. Book early",
     editions: (year) => [span(ymd(year, 12, 7), ymd(year, 12, 17))],
   },
 

@@ -3,7 +3,8 @@
  *
  * - Thailand: date-holidays has Makha Bucha, Visakha Bucha, Asalha Bucha and
  *   Buddhist Lent (Khao Phansa) for 2026 only. They are computed here for
- *   every later year, with their substitute days.
+ *   every later year, and every public holiday on a weekend, the library's
+ *   fixed ones included, gets its substitute day.
  * - Laos, Cambodia and Myanmar: date-holidays has no data at all, so each
  *   gets its whole official list of public holidays here, plus its biggest
  *   festivals.
@@ -145,34 +146,70 @@ export function thaiBuddhistDays(year) {
 }
 
 const thaiLibrary = new Holidays("TH");
+const SONGKRAN = "Songkran Festival";
 
-export function thaiEntries(year) {
+function thaiBuddhist(year) {
   const estimated = TH_PUBLISHED.has(year) ? "" : LUNAR;
-  const buddhist = thaiBuddhistDays(year).map(({ date, name }) => ({
+  return thaiBuddhistDays(year).map(({ date, name }) => ({
     date,
     name,
     kind: "public",
     note: note(TH_NOTES[name], TH_ALCOHOL, TH_CABINET, estimated),
   }));
+}
 
-  // Thai practice: a holiday on a Saturday or Sunday gives the next working
-  // day off. date-holidays has no Thai substitute days, so the other public
-  // holidays only count as days a substitute cannot go on. Buddhist Lent, a
-  // day off for government offices only, gets no substitute (2024: Asalha
-  // Bucha on Saturday 20 July and Buddhist Lent on Sunday 21 July gave only
-  // Monday 22 July), and a substitute can share its day (2027: Asalha Bucha
-  // on Sunday 18 July, substitute Monday 19 July, Buddhist Lent).
-  const daysOff = new Set();
+/** A year's Buddhist days and substitute days; a substitute for late December can fall in January. */
+export function thaiEntries(year) {
+  const inYear = (entry) => entry.date.startsWith(`${year}-`);
+  return [...thaiBuddhist(year), ...thaiSubstitutes(year - 1).filter(inYear), ...thaiSubstitutes(year).filter(inYear)];
+}
+
+function thaiSubstitutes(year) {
+  const buddhist = thaiBuddhist(year);
+
+  // Thai practice: a public holiday on a Saturday or Sunday gives the next
+  // working day off (Monday 7 December 2026 for King Bhumibol's Birthday on
+  // Saturday 5 December). date-holidays has no Thai substitute days, so they
+  // are made here for the library's fixed holidays and the computed Buddhist
+  // ones together, each on the first weekday that is not already off.
+  //
+  // - Buddhist Lent, a day off for government offices only, gets no
+  //   substitute (2024: Asalha Bucha on Saturday 20 July and Buddhist Lent on
+  //   Sunday 21 July gave only Monday 22 July), and a substitute can share its
+  //   day (2027: Asalha Bucha on Sunday 18 July, substitute Monday 19 July,
+  //   Buddhist Lent).
+  // - Songkran, 13 to 15 April, gets one substitute however many of its days
+  //   fall on a weekend: the first working day after it (2024: Saturday 13
+  //   and Sunday 14 April gave Tuesday 16 April).
+  // - 31 December on a Sunday is made up after New Year's Day (2029: Tuesday
+  //   2 January).
+  const library = [];
   for (const holiday of thaiLibrary.getHolidays(year) ?? []) {
     // The library's own copies of the four (to 2026) are left to the computation.
-    if (holiday.type === "public" && !(holiday.name in TH_NOTES)) daysOff.add(holiday.date.slice(0, 10));
+    if (holiday.type === "public" && !(holiday.name in TH_NOTES)) {
+      library.push({ date: holiday.date.slice(0, 10), name: holiday.name, kind: "public" });
+    }
   }
   const earning = buddhist.filter((entry) => entry.name !== "Buddhist Lent");
-  for (const entry of earning) daysOff.add(entry.date);
-  const extra = substitutes(earning, daysOff, (holiday) =>
-    note(`${holiday.name} falls on a weekend, so the next working day is off`, TH_SUBSTITUTE),
+  const daysOff = new Set([...library, ...earning].map((entry) => entry.date));
+  daysOff.add(ymd(year + 1, 1, 1));
+  // Last year's 31 December on a weekend took the first working day of January.
+  if (isWeekend(ymd(year - 1, 12, 31))) daysOff.add(ymd(year, 1, 2));
+
+  const songkran = library.filter((entry) => entry.name === SONGKRAN);
+  const weekendSongkran = songkran.find((entry) => isWeekend(entry.date));
+  const holidays = [
+    ...earning,
+    ...library.filter((entry) => entry.name !== SONGKRAN),
+    // One stand-in for the whole span: its substitute goes after the span.
+    ...(weekendSongkran ? [{ ...weekendSongkran }] : []),
+  ];
+  const extra = substitutes(holidays, daysOff, (holiday) =>
+    holiday.name === SONGKRAN
+      ? note("Part of Songkran falls on a weekend, so the next working day after it is off", TH_SUBSTITUTE)
+      : note(`${holiday.name} falls on a weekend, so the next working day is off`, TH_SUBSTITUTE),
   );
-  return [...buddhist, ...extra];
+  return extra;
 }
 
 // ---------------------------------------------------------------------------

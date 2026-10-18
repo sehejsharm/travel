@@ -1,0 +1,275 @@
+/**
+ * Corrections to date-holidays' own data that are not newer laws (those are
+ * in law-updates.mjs): days the library lacks, kinds that say a day off
+ * where there is none (or hide one there is), and rules that need the
+ * finished calendar.
+ *
+ * - Indonesia: Easter Sunday, a national holiday in every year's joint
+ *   decree, and the decrees' collective-leave days (cuti bersama) for the
+ *   years published, 2026 and 2027.
+ * - Malaysia: a federal holiday on a Sunday gives the next working day off
+ *   (Holidays Act 1951, s.3). The library does this for its fixed days but
+ *   not its Islamic ones, and lets a substitute land on another holiday, so
+ *   every substitute is worked out again on the finished calendar.
+ * - The United States: the day after Thanksgiving is one day off under six
+ *   state names; they are merged into one entry naming each state's name.
+ *   Nevada's Family Day and West Virginia's Lincoln's Day follow Thanksgiving
+ *   by law, not the library's fourth Friday of November.
+ * - The Netherlands: Liberation Day (5 May), which the library files as a
+ *   school holiday, so it was dropped.
+ * - Kinds: Easter Sunday in the Philippines (not in the yearly proclamation),
+ *   Denmark's Constitution Day and Christmas Eve (banks close and shops close
+ *   early by law), St Olav's Day in the Faroe Islands (off for most workers),
+ *   Poland's Flag Day (a working day).
+ * - Notes: the Vatican's days for the reigning pope.
+ *
+ * Every date is computed with UTC dates, so the output never depends on the
+ * machine's time zone.
+ */
+import { addDays, easter, nthWeekday, ymd } from "./festivals.mjs";
+
+const FROM = 2026;
+const TO = 2050;
+const SUN = 0;
+const SAT = 6;
+const THU = 4;
+
+function weekday(iso) {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+const entry = (date, name, kind, note = "") => ({ date, name, kind, note });
+
+const SUBSTITUTE = " (substitute day)";
+const MOON_NOTE = "Islamic lunar date, estimated: the official date can differ by a day";
+const LUNAR_NOTE = "Lunar date, estimated: the official date can differ by a day.";
+
+/** "Day off in A, B and C. More" → ["A", "B", "C"]. */
+function regionsIn(note) {
+  const match = /^Day off in ([^.]+)/.exec(note ?? "");
+  return match ? match[1].split(/, | and /) : [];
+}
+
+function listOf(names) {
+  const sorted = [...new Set(names)].sort();
+  return sorted.length <= 1 ? sorted.join("") : `${sorted.slice(0, -1).join(", ")} and ${sorted[sorted.length - 1]}`;
+}
+
+// ---------------------------------------------------------------------------
+// Indonesia.
+
+const ID_SOURCE =
+  "Joint decrees of the Ministers of Religious Affairs, Manpower and Administrative Reform on national holidays and " +
+  "collective leave (cuti bersama) in 2026, https://setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2026, " +
+  "and 2027 (SKB 1205, 3 and 2 of 2026), https://setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027";
+
+const CUTI_BERSAMA_NOTE =
+  "Collective leave: government offices close; private employers choose whether to close, and it counts against annual leave";
+
+/** The decrees' collective-leave days still to come or in 2027; each year's is published in September. */
+const CUTI_BERSAMA = {
+  2026: ["2026-12-24"],
+  2027: ["2027-02-05", "2027-03-09", "2027-03-12", "2027-03-15", "2027-03-25", "2027-05-18", "2027-05-19", "2027-12-24"],
+};
+
+const LAST_DECREE = 2027;
+
+function indonesiaEntries(year) {
+  return [
+    entry(easter(year), "Easter Sunday", "public", "Kebangkitan Yesus Kristus, a national holiday"),
+    ...(CUTI_BERSAMA[year] ?? []).map((date) => entry(date, "Collective leave (cuti bersama)", "optional", CUTI_BERSAMA_NOTE)),
+  ];
+}
+
+/** After the last published decree, Eid al-Fitr's note says collective leave is usually added. */
+function indonesiaFinish(entries) {
+  return entries.map((e) =>
+    e.name === "End of Ramadan (Eid al-Fitr)" && Number(e.date.slice(0, 4)) > LAST_DECREE
+      ? {
+          ...e,
+          note: `The government usually adds collective-leave days (cuti bersama) around it, set each September. ${e.note}`,
+        }
+      : e,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Malaysia.
+
+const MY_SUBSTITUTE = "Kedah, Kelantan and Terengganu, whose weekend is Friday and Saturday, can differ";
+
+/**
+ * Holidays Act 1951, s.3: a public holiday on a Sunday makes the next day
+ * that is not a holiday a public holiday (2026: Hari Raya Aidilfitri's second
+ * day on Sunday 22 March, off on Monday 23 March; 2027: Awal Muharram on
+ * Sunday 6 June, with the Agong's Birthday on Monday 7 June, off on Tuesday
+ * 8 June). Every public substitute day is worked out again here, so one never
+ * lands on another holiday. A national day off that some states do not keep
+ * ("Not a day off in ...") gets its substitute in the same states.
+ */
+export function malaysiaSundaySubstitutes(entries) {
+  const isSubstitute = (e) => e.name.endsWith(SUBSTITUTE) && e.kind === "public";
+  const kept = entries.filter((e) => !isSubstitute(e));
+  const previous = new Map(entries.filter(isSubstitute).map((e) => [`${e.date}|${e.name}`, e]));
+  const daysOff = new Set(kept.filter((e) => e.kind === "public").map((e) => e.date));
+  const earning = kept.filter(
+    (e) => weekday(e.date) === SUN && (e.kind === "public" || (e.kind === "optional" && /^Not a day off in /.test(e.note))),
+  );
+
+  const out = [...kept];
+  const taken = new Set();
+  const seen = new Set();
+  for (const holiday of earning) {
+    const key = `${holiday.date}|${holiday.name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    let date = addDays(holiday.date, 1);
+    while (weekday(date) === SAT || weekday(date) === SUN || daysOff.has(date) || taken.has(date)) date = addDays(date, 1);
+    taken.add(date);
+    const name = `${holiday.name}${SUBSTITUTE}`;
+    const before = previous.get(`${date}|${name}`);
+    if (before && holiday.kind === "public") {
+      out.push(before);
+      continue;
+    }
+    const regions = /^Not a day off in [^.]+/.exec(holiday.note)?.[0];
+    const estimate = holiday.note.includes(MOON_NOTE) ? MOON_NOTE : holiday.note.includes(LUNAR_NOTE) ? LUNAR_NOTE : "";
+    const text = [regions, `${holiday.name} falls on a Sunday, so the next working day is off`, MY_SUBSTITUTE, estimate]
+      .filter(Boolean)
+      .map((part) => (/[.]$/.test(part) || part === MOON_NOTE ? part : `${part}.`))
+      .join(" ");
+    out.push(entry(date, name, holiday.kind, text));
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// The United States.
+
+/** State names for the day after Thanksgiving: [name, state]. */
+const US_AFTER_THANKSGIVING = [
+  ["Family Day", "Nevada"],
+  ["Lincoln's Birthday", "Indiana"],
+  ["Lincoln's Day", "West Virginia"],
+  ["Native American Heritage Day", "Maryland"],
+  ["State Holiday", "Georgia"],
+];
+
+/**
+ * The day after Thanksgiving: one row naming every state that takes it off,
+ * and what each one calls it, instead of six rows on one day.
+ */
+export function usDayAfterThanksgiving(entries) {
+  const out = [...entries];
+  for (let year = FROM; year <= TO; year++) {
+    const day = addDays(nthWeekday(year, 11, THU, 4), 1);
+    const main = out.findIndex((e) => e.date === day && e.name === "Day After Thanksgiving");
+    if (main === -1) continue;
+    const regions = regionsIn(out[main].note);
+    const called = [];
+    for (const [name, state] of US_AFTER_THANKSGIVING) {
+      // Nevada's and West Virginia's are in the library as the fourth Friday of November.
+      const index = out.findIndex(
+        (e) => e.name === name && e.kind === "optional" && e.date.startsWith(`${year}-11-`) && regionsIn(e.note).includes(state),
+      );
+      if (index === -1) continue;
+      out.splice(index, 1);
+      regions.push(state);
+      called.push(`${name} in ${state}`);
+    }
+    const at = out.findIndex((e) => e.date === day && e.name === "Day After Thanksgiving");
+    out[at] = {
+      ...out[at],
+      note: `Day off in ${listOf(regions)}${called.length ? `. Called ${listOf(called)}` : ""}`,
+    };
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// The list.
+
+const LIBRARY_FIXES = [
+  {
+    country: "ID",
+    source: ID_SOURCE,
+    finish: indonesiaFinish,
+    entries: indonesiaEntries,
+  },
+  {
+    country: "MY",
+    source: "Holidays Act 1951 (Act 369), s.3, https://lom.agc.gov.my/act-detail.php?act=369",
+    finish: malaysiaSundaySubstitutes,
+    entries: () => [],
+  },
+  {
+    country: "US",
+    source:
+      "State holiday laws: Nevada (NRS 236.015, Family Day), West Virginia (Code §2-2-1), Indiana (IC 1-1-9-1), Maryland and Georgia, https://www.leg.state.nv.us/nrs/nrs-236.html",
+    finish: usDayAfterThanksgiving,
+    entries: () => [],
+  },
+  {
+    country: "NL",
+    source: "Rijksoverheid, Bevrijdingsdag (5 mei) vrije dag, https://www.rijksoverheid.nl/onderwerpen/bevrijdingsdag/vraag-en-antwoord/bevrijdingsdag-5-mei-vrije-dag",
+    entries: (year) => [
+      entry(
+        ymd(year, 5, 5),
+        "Liberation Day",
+        "optional",
+        "Day off for many government and education workers; for others only if their collective agreement grants it, often only every fifth year. Liberation festivals with free music in about 14 cities",
+      ),
+    ],
+  },
+  {
+    country: "PH",
+    source: "Office of the President, yearly proclamations of regular holidays and special days, https://www.officialgazette.gov.ph/",
+    entries: (year) => [
+      entry(easter(year), "Easter Sunday", "observance", "Not in the year's holiday proclamation. A Sunday, so no working day is lost"),
+    ],
+  },
+  {
+    country: "DK",
+    source: "Danish closing-hours act (lukkeloven) and the banks' holiday calendar, https://www.retsinformation.dk/",
+    entries: (year) => [
+      entry(ymd(year, 6, 5), "Constitution Day", "bank", "Not a public holiday, but banks close and shops must close early by law. Many workplaces give the afternoon off"),
+      entry(ymd(year, 12, 24), "Christmas Eve", "bank", "Not a public holiday, but banks and most offices close, and shops must close early by law"),
+    ],
+  },
+  {
+    country: "FO",
+    source: "Faroese collective agreements, as summarised by date-holidays, https://github.com/commenthol/date-holidays",
+    entries: (year) => [
+      entry(ymd(year, 7, 28), "St Olav's Eve", "optional", "An afternoon off for many workers under union agreements. Ólavsøka, the national festival, starts in Tórshavn"),
+      entry(ymd(year, 7, 29), "St Olav's Day", "optional", "A day off for most workers under union agreements. The height of the Ólavsøka festival in Tórshavn"),
+    ],
+  },
+  {
+    country: "PL",
+    source: "Act of 20 February 2004 establishing Flag Day, https://isap.sejm.gov.pl/",
+    entries: (year) => [
+      entry(ymd(year, 5, 2), "Flag Day", "observance", "Not a day off. Many people take leave to bridge 1 and 3 May"),
+    ],
+  },
+  {
+    country: "VA",
+    source: "Holy See, holidays of Vatican City State, https://www.vatican.va/",
+    entries: (year) => [
+      entry(
+        ymd(year, 5, 8),
+        "Anniversary of the election of Pope Leo XIV",
+        "public",
+        "For the current pope, Leo XIV, elected on 8 May 2025. A new pope brings his own day",
+      ),
+      entry(
+        ymd(year, 9, 17),
+        "Saint Robert Bellarmine - Name day of the Holy Father",
+        "public",
+        "Name day of the current pope, Leo XIV (Robert Francis Prevost). A new pope brings his own day",
+      ),
+    ],
+  },
+];
+
+export default LIBRARY_FIXES;

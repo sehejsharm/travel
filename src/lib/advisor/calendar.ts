@@ -24,10 +24,12 @@ const LISTED: ReadonlySet<HolidayKind> = new Set<HolidayKind>(["festival", "publ
 /**
  * The events for the "From Manifest's calendar" section, in date order. Empty,
  * so no section, until the dates are settled and every destination's calendar
- * is in, and while no festival is on: a day off alone does not make one.
+ * is in. A day off alone is enough for one: many of the biggest festivals
+ * (Songkran, Chinese New Year, Thingyan, Carnival) are stored as days off, not
+ * as festivals, since that is what they are too.
  */
 export function calendarSection(answer: CalendarAnswer): CalendarEvent[] {
-  if (!answer.ready || !answer.events.some((event) => event.kind === "festival")) return [];
+  if (!answer.ready) return [];
   return answer.events.filter((event) => LISTED.has(event.kind));
 }
 
@@ -48,8 +50,9 @@ export type ShownSection =
 /**
  * The sections in the order the interests are picked in. Festivals & shows has
  * the search's section, when it found anything, then the calendar's, when it
- * has a festival on, whether or not the search ran or worked. A section the
- * answer holds for an interest no longer picked still shows, after the rest.
+ * has a festival or a day off on, whether or not the search ran or worked. A
+ * section the answer holds for an interest no longer picked still shows,
+ * after the rest.
  */
 export function shownSections(
   interests: string[],

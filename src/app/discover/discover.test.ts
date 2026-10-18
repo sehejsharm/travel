@@ -86,8 +86,23 @@ describe("Discover's Festivals & shows", () => {
     expect(html).not.toContain("Teachers&#x27; Day");
   });
 
-  it("has no calendar section without a festival on, without dates, or without the interest", () => {
-    expect(sections(show(trip({ destinationCountries: ["XG"] })))).toEqual([]);
+  it("lists days off with no festival on, since many festivals are days off", () => {
+    const html = show(trip({ destinationCountries: ["XG"] }));
+    expect(sections(html)).toEqual(["From Manifest&#x27;s calendar"]);
+    expect(html).toContain("Flag Day");
+    expect(html).toContain("The festivals and days off on your dates are already below");
+  });
+
+  it("says the calendar is on its way while a destination's has not loaded", () => {
+    // KR has data that these tests never load.
+    const html = show(trip({ destinationCountries: ["KR"] }));
+    expect(sections(html)).toEqual([]);
+    expect(html).toContain("Loading Manifest’s calendar for your dates…");
+    expect(show(trip())).not.toContain("Loading Manifest’s calendar");
+    expect(show(trip({ destinationCountries: ["KR"], interests: ["food"] }))).not.toContain("Loading Manifest’s calendar");
+  });
+
+  it("has no calendar section without dates or without the interest", () => {
     expect(sections(show(trip({ datesTbd: true })))).toEqual([]);
     expect(show(trip({ datesTbd: true }))).toContain("adds the festivals on your dates once they are set");
     expect(sections(show(trip({ interests: ["food"] })))).toEqual([]);

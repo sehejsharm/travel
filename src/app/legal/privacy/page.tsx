@@ -279,8 +279,8 @@ export default function PrivacyPolicy() {
           any other part of the app, and the offline worker keeps it. The request carries nothing
           about you or your trip, but the file it asks for belongs to one country, so Vercel&rsquo;s
           request logs could show that your IP address loaded, say, Japan&rsquo;s calendar. From
-          then on the calendar, and the timeline marks and the festivals Discover lists from it,
-          work on this device and contact no one.
+          then on the calendar, and the timeline marks and the festivals and days off Discover
+          lists from it, work on this device and contact no one.
         </p>
       </Section>
 

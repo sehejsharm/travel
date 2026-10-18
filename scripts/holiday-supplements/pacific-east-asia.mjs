@@ -331,6 +331,12 @@ function pngBase(year) {
       "Declared by gazette each year. On a weekend, a weekday may be given instead.",
     ),
     day(fromEaster(year, -2), "Good Friday"),
+    day(
+      fromEaster(year, -1),
+      "Easter Saturday",
+      "public",
+      "In the Public Holidays Act and the 2026 gazette; the yearly gazette has left it out in some years (2024).",
+    ),
     day(fromEaster(year, 1), "Easter Monday"),
     day(ymd(year, 6, 17), "King's Birthday", "public", "Set by gazette each year: 17 June since 2023.", { sub: "us" }),
     day(ymd(year, 7, 23), "National Remembrance Day", "public", "", { sub: "sunday" }),
@@ -521,7 +527,7 @@ function nauruBase(year) {
     day(fromEaster(year, 1), "Easter Monday"),
     day(fromEaster(year, 2), "Easter Tuesday"),
     day(ymd(year, 5, 17), "Constitution Day", "public", "", { sub: "next" }),
-    day(ymd(year, 7, 1), "RONPHOS Handover Day", "public", "", { sub: "next" }),
+    day(ymd(year, 7, 1), "RONPHOS Handover Day", "public", "Marks the handover of the phosphate industry to Nauru in 1970, now run by the state company RONPHOS", { sub: "next" }),
     day(ymd(year, 8, 19), "Ibumin Earoeni Day", "public", "Day of the tribes.", { sub: "next" }),
     day(ymd(year, 9, 25), "Sir Hammer DeRoburt Day", "public", "", { sub: "next" }),
     day(ymd(year, 10, 26), "Angam Day", "public", "", { sub: "next" }),
@@ -724,7 +730,7 @@ export const marianasEntries = yearly(marianasBase, {
 function niueBase(year) {
   return [
     day(ymd(year, 1, 1), "New Year's Day", "public", "", { sub: "next" }),
-    day(ymd(year, 1, 2), "Takai Commission Holiday", "public", "", { sub: "next" }),
+    day(ymd(year, 1, 2), "Takai Commission Holiday", "public", "The day after New Year's Day", { sub: "next" }),
     day(fromEaster(year, -2), "Good Friday"),
     day(fromEaster(year, 1), "Easter Monday"),
     day(ymd(year, 4, 25), "ANZAC Day", "public", "", { sub: "next" }),
@@ -743,7 +749,7 @@ export const niueEntries = yearly(niueBase);
 // Tokelau.
 
 const TK_SUNDAY =
-  "A public holiday in Tokelau's rules, kept on a Sunday as in Samoa. The date is an estimate.";
+  "Listed in Tokelau's holiday rules, but kept on a Sunday as in Samoa, so no working day is lost. The date is an estimate.";
 
 /** Interpretation Rules 2003. Villages can declare their own days too. */
 function tokelauBase(year) {
@@ -908,7 +914,7 @@ function northKoreaBase(year) {
     day(ymd(year, 6, 6), "Korean Children's Union Day", "observance"),
     day(ymd(year, 7, 27), "Victory Day", "public", "Marks the 1953 Korean War armistice."),
     day(ymd(year, 8, 15), "Liberation Day", "public", "Marks the end of Japanese rule in 1945."),
-    day(ymd(year, 8, 25), "Day of Songun", "observance"),
+    day(ymd(year, 8, 25), "Day of Songun", "observance", "Military-first politics day: marks the start of Kim Jong Il's military-first (Songun) leadership in 1960"),
     day(ymd(year, 8, 28), "Youth Day", "observance"),
     day(korean(year, 8, 15), "Chuseok", "public", note("Harvest festival: families visit ancestral graves", LUNAR)),
     day(ymd(year, 9, 9), "Foundation Day of the Republic", "public", "Marks the founding of the state in 1948."),

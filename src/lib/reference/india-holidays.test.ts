@@ -65,7 +65,14 @@ const RESTRICTED: Table = [
   ["Rath Yatra", "2027-07-05"],
   ["Guru Gobind Singh Jayanti", "2027-01-15"],
   ["Durga Puja: Maha Ashtami", "2027-10-07"],
-  ["Durga Puja: Maha Navami", "2027-10-08"],
+];
+
+// West Bengal's notified Durga Puja days, on the Bengali almanacs' sunrise
+// rule at Kolkata. DoPT's "Mahanavami" (8 October 2027) is the central
+// government's restricted holiday, not Bengal's day.
+const WEST_BENGAL: Table = [
+  ["Durga Puja: Maha Navami", "2026-10-20"],
+  ["Durga Puja: Vijaya Dashami", "2026-10-21"],
 ];
 
 // Dates the almanacs (Drik Panchang and others) and Kerala publish, where
@@ -119,6 +126,17 @@ describe("India's computed festival dates", () => {
   it("match the restricted-holiday lists and the almanacs where they agree", { timeout: SLOW }, () => {
     expect(mismatches(RESTRICTED)).toEqual([]);
     expect(mismatches(ALMANACS)).toEqual([]);
+  });
+
+  it("dates the Bengal Durga Puja days by sunrise in Kolkata, apart from India's Dussehra", { timeout: SLOW }, () => {
+    expect(mismatches(WEST_BENGAL)).toEqual([]);
+    // 2026: Dussehra elsewhere on the 20th, Bengal's Bijoya Dashami on the 21st.
+    expect(entries(2026).find((entry) => entry.name === "Dussehra")?.date).toBe("2026-10-20");
+    for (let year = 2026; year <= 2050; year++) {
+      const day = (name: string) => entries(year).find((entry) => entry.name === name)!.date;
+      expect(day("Durga Puja: Maha Navami") > day("Durga Puja: Maha Ashtami"), `${year}`).toBe(true);
+      expect(day("Durga Puja: Vijaya Dashami") > day("Durga Puja: Maha Navami"), `${year}`).toBe(true);
+    }
   });
 
   it("match India's moon-sighted Islamic dates in nearly every month", { timeout: SLOW }, () => {

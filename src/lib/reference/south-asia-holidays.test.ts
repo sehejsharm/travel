@@ -387,6 +387,24 @@ describe("India's state days", () => {
     ]);
   });
 
+  it("moves the state Jayantis the library pins to their 2025 dates onto their lunar days", () => {
+    // Karnataka's 2026 list has Basava Jayanti on 20 April.
+    expect(datesOf(india, "Basava Jayanti", 2026)).toEqual(["2026-04-20"]);
+    expect(datesOf(india, "Maharishi Valmiki Jayanti", 2026)).toEqual(["2026-10-26"]);
+    expect(datesOf(india, "Maharaja Agrasen Jayanti", 2026)).toEqual(["2026-10-11"]);
+    expect(datesOf(india, "Kanakadasa Jayanti", 2026)).toEqual(["2026-11-27"]);
+    for (const name of ["Basava Jayanti", "Maharishi Valmiki Jayanti", "Maharaja Agrasen Jayanti", "Kanakadasa Jayanti"]) {
+      const monthDays = new Set([2026, 2027, 2028].flatMap((year) => datesOf(india, name, year).map((date) => date.slice(5))));
+      expect(monthDays.size, name).toBeGreaterThan(1);
+    }
+  });
+
+  it("gives Bhanu Jayanti to Sikkim and YMA Day to Mizoram", () => {
+    const [bhanu] = (india(2026) as Entry[]).filter((entry) => entry.name === "Bhanu Jayanti");
+    expect(bhanu).toMatchObject({ date: "2026-07-13", kind: "optional", note: expect.stringMatching(/^Day off in Sikkim\./) });
+    expect((india(2026) as Entry[]).find((entry) => entry.name === "YMA Day")?.note).toMatch(/^Day off in Mizoram\./);
+  });
+
   it("keeps India's 2026 Bakrid on 28 May, the day the central government moved it to", { timeout: SLOW }, () => {
     const bakrid = (indiaEntries(2026) as Entry[]).filter((entry) => entry.name === "Eid al-Adha");
     expect(bakrid.map((entry) => entry.date)).toEqual(["2026-05-28"]);

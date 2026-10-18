@@ -455,10 +455,43 @@ export function poilaBaishakh(year) {
   return { date: addDays(dateOfJd(jd), 1), close: hour > 21 || hour < 0.5 };
 }
 
+/**
+ * State days off on a lunar date that the library pins to their 2025 dates:
+ * [name, lunar month, tithi, note]. Each is on the tithi at sunrise, as the
+ * states' lists give them (Karnataka's Basava Jayanti on 20 April 2026).
+ */
+const IN_STATE_LUNAR = [
+  ["Basava Jayanti", "Vaishakha", 3, "Day off in Karnataka. Birth anniversary of Basavanna"],
+  ["Maharaja Agrasen Jayanti", "Ashvin", 1, "Day off in Haryana. Birth anniversary of Maharaja Agrasen"],
+  ["Maharishi Valmiki Jayanti", "Ashvin", 15, "Day off in Himachal Pradesh. Birth anniversary of Maharishi Valmiki"],
+  ["Kanakadasa Jayanti", "Kartika", 18, "Day off in Karnataka. Birth anniversary of Kanakadasa"],
+];
+
 export function indiaFixes(year) {
   const kerala = vishu(year);
   const bengal = poilaBaishakh(year);
+  const stateLunar = IN_STATE_LUNAR.flatMap(([name, month, tithi, text]) =>
+    udayaDays(year, month, tithi).map(({ date, alternative }) => ({
+      date,
+      name,
+      kind: "optional",
+      note: note(text, alternative && `A close call: some almanacs give ${longDate(alternative)}`, LUNAR),
+    })),
+  );
   return [
+    ...stateLunar,
+    {
+      date: `${year}-07-13`,
+      name: "Bhanu Jayanti",
+      kind: "optional",
+      note: note("Day off in Sikkim. Birth anniversary of the Nepali poet Bhanubhakta Acharya"),
+    },
+    {
+      date: `${year}-06-15`,
+      name: "YMA Day",
+      kind: "optional",
+      note: note("Day off in Mizoram. Young Mizo Association Day"),
+    },
     {
       date: kerala.date,
       name: "Vishu",
@@ -481,6 +514,14 @@ const IN_DROP = [
   { name: "Vaisakhi", note: /Kerala/ },
   // Fixed on 15 April; it follows the Mesha sankranti.
   { name: "Bengali New Year" },
+  // Lunar state days the library pins to their 2025 dates.
+  ...IN_STATE_LUNAR.map(([name]) => ({ name })),
+  // The library repeats Jammu and Kashmir's 13 July under Meghalaya and
+  // leaves out Sikkim, whose day it is. Jammu and Kashmir dropped its
+  // Martyrs' Day from 2020.
+  { name: "Bhanu Jayanti / Martyrs' Day" },
+  // Mizoram's day (the Young Mizo Association's), filed under Meghalaya.
+  { name: "YMA Day" },
 ];
 
 // ---------------------------------------------------------------------------

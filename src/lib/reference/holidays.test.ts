@@ -10,6 +10,7 @@ import {
   build,
   cleanName,
   entryKey,
+  finishEntries,
   isSupplementFile,
   libraryEntries,
   loadSupplements,
@@ -259,6 +260,40 @@ describe("holiday generator", () => {
     expect(() =>
       supplementEntries([{ ...valid, entries: () => [{ date: "2026-02-01", kind: "holiday", name: "X" }] }], "bad.mjs"),
     ).toThrow(/unknown kind/);
+    // A name every object inherits is not a kind either.
+    for (const kind of ["constructor", "toString", "__proto__"]) {
+      expect(() =>
+        supplementEntries([{ ...valid, entries: () => [{ date: "2026-02-01", kind, name: "X" }] }], "bad.mjs"),
+      ).toThrow(/unknown kind/);
+    }
+    expect(() => supplementEntries([{ ...valid, finish: "later" }], "bad.mjs")).toThrow(/finish/);
+  });
+
+  it("finishes a country on its merged entries, checking what comes back", () => {
+    const [supplement] = supplementEntries(
+      [
+        {
+          country: "IN",
+          source: "Somewhere, https://example.org",
+          entries: (year: number) => (year === 2026 ? [{ date: "2026-03-01", kind: "public", name: "Sunday Day" }] : []),
+          finish: (entries: Entry[]) => [
+            ...entries,
+            ...entries.filter((e) => e.name === "Sunday Day").map((e) => ({ ...e, date: "2026-03-02", name: "Sunday Day (substitute day)" })),
+          ],
+        },
+      ],
+      "fin.mjs",
+    );
+    const merged = mergeEntries([], supplement.entries);
+    expect(finishEntries(merged, [supplement]).map((e: Entry) => `${e.date} ${e.name}`)).toEqual([
+      "2026-03-01 Sunday Day",
+      "2026-03-02 Sunday Day (substitute day)",
+    ]);
+    const [bad] = supplementEntries(
+      [{ country: "IN", source: "Somewhere, https://example.org", entries: () => [], finish: () => [{ date: "2026-13-01", kind: "public", name: "X" }] }],
+      "fin.mjs",
+    );
+    expect(() => finishEntries([], [bad])).toThrow(/fin\.mjs \[0\]: finish has a bad date/);
   });
 
   it("rejects a malformed drop rule with the file named", () => {
@@ -468,11 +503,18 @@ describe("holiday generator", () => {
     });
   });
 
-  it("matches the committed data for a country, byte for byte", async () => {
+  it("matches the committed data, byte for byte, for a country of every supplement", async () => {
     // Loading every supplement takes several seconds (the Indian and diaspora
     // almanacs compute every year at import), so this gets a long timeout.
-    const { files } = await build({ countries: ["JP"] });
-    expect(files.get("JP.json")).toBe(readFileSync(path.join(DATA_DIR, "JP.json"), "utf8"));
+    // One country for each supplement file at least, so a supplement changed
+    // without regenerating the data fails here, not only in holidays:check.
+    const countries = ["AE", "FJ", "ID", "IN", "JP", "LK", "MU", "NP", "TH", "WS"];
+    const { files, supplements } = await build({ countries });
+    const covered = new Set(supplements.filter((s: { country: string }) => countries.includes(s.country)).map((s: { file: string }) => s.file));
+    expect([...new Set(supplements.map((s: { file: string }) => s.file))].filter((file) => !covered.has(file))).toEqual([]);
+    for (const country of countries) {
+      expect(files.get(`${country}.json`), country).toBe(readFileSync(path.join(DATA_DIR, `${country}.json`), "utf8"));
+    }
   }, 120_000);
 
   it("marks a state's own day off as optional, saying where", () => {
@@ -494,6 +536,10 @@ describe("holiday generator corrections", () => {
     expect(cleanName("VN", "Vietnamese New Year Holidays")).toBe("Vietnamese New Year");
     expect(cleanName("GB", "Day after Thanksgiving Day")).toBe("Day after Thanksgiving Day");
     expect(Object.keys(NAME_ALIASES).sort()).toEqual(["RU", "US", "VN"]);
+    // Ingushetia's names for the Eids, and Irkutsk's for Radonitsa.
+    expect(cleanName("RU", "Eid al-Fitr (Markhash)")).toBe("Uraza-Bayram");
+    expect(cleanName("RU", "Eid al-Adha (Ghurba)")).toBe("Kurban-Bayram");
+    expect(cleanName("RU", "Unity Day of Remembrance")).toBe("Day of Remembrance of the Departed (Radonitsa)");
 
     const us = libraryEntries("US", 2026, 2026).filter((entry: Entry) => entry.date === "2026-11-27");
     const after = us.filter((entry: Entry) => /Thanksgiving/.test(entry.name));
@@ -509,6 +555,67 @@ describe("holiday generator corrections", () => {
       ["2026-02-19", "Vietnamese New Year"],
       ["2026-02-20", "Vietnamese New Year"],
     ]);
+  });
+
+  it("gives the library's untranslated and wrong names in English, substitutes included", () => {
+    expect(cleanName("CH", "Bundesfeiertag")).toBe("Swiss National Day");
+    expect(cleanName("AT", "Staatsfeiertag")).toBe("Labour Day");
+    expect(cleanName("LI", "Staatsfeiertag")).toBe("National Day");
+    expect(cleanName("PT", "Implantação da República")).toBe("Republic Day");
+    expect(cleanName("PA", "Separation Day (from Columbia) (substitute day)")).toBe("Separation Day (from Colombia) (substitute day)");
+    expect(cleanName("BO", "Andean Amazonic Chacoan New Year (substitutes)")).toBe("Andean Amazonian Chaqueño New Year (substitute day)");
+    expect(cleanName("GI", "Queen's Birthday")).toBe("King's Birthday");
+    expect(cleanName("IR", "Holyday for Fetr Eeid")).toBe("Eid al-Fitr (second day)");
+    // Other countries keep their own names.
+    expect(cleanName("GB", "Staatsfeiertag")).toBe("Staatsfeiertag");
+  });
+
+  it("notes a national day off that some states do not keep", { timeout: SLOW }, () => {
+    const my = libraryEntries("MY", 2026, 2026) as Entry[];
+    expect(my.find((e) => e.name === "Day of Nuzul Al-Quran")).toMatchObject({
+      kind: "optional",
+      note: expect.stringMatching(/^Not a day off in Johor, Kedah, Malacca, Negeri Sembilan, Sabah and Sarawak\. Islamic/),
+    });
+    expect(my.find((e) => e.date === "2026-01-01" && e.name === "New Year's Day")).toMatchObject({
+      kind: "public",
+      note: "Not a day off in Johor, Kedah, Kelantan, Perlis and Terengganu",
+    });
+    // A one-off substitute date in the library gets the suffix.
+    expect(my.find((e) => e.date === "2026-11-09")?.name).toBe("Deepavali (substitute day)");
+    const gb = libraryEntries("GB", 2026, 2026) as Entry[];
+    expect(gb.find((e) => e.name === "Easter Monday")?.note).toBe("Not a day off in Scotland");
+    // A region that moves a weekend holiday to the Monday still keeps it.
+    const au = libraryEntries("AU", 2027, 2027) as Entry[];
+    expect(au.find((e) => e.date === "2027-12-25")?.note).toBe("");
+  });
+
+  it("names Crimea's regions as occupied, and its 18 March days as Russia's", { timeout: SLOW }, () => {
+    const ru = libraryEntries("RU", 2026, 2026) as Entry[];
+    expect(ru.find((e) => e.name === "Day of the Reunification of Crimea with Russia")?.note).toMatch(
+      /^Day off in Crimea \(Russian-occupied\)\. Russia's name for the day\. The annexation is not recognised/,
+    );
+    expect(ru.filter((e) => e.date === "2026-03-20").map((e) => e.name)).toEqual(["Uraza-Bayram"]);
+    expect(ru.filter((e) => e.date === "2026-04-21").map((e) => e.name)).toEqual(["Day of Remembrance of the Departed (Radonitsa)"]);
+  });
+
+  it("fixes Kazakhstan's Nauryz substitutes, Kenya's Mazingira Day, Nigeria's kinds and St Helena's King's Birthday", () => {
+    const kz = libraryEntries("KZ", 2026, 2027) as Entry[];
+    const nauryz = (year: number) => [...new Set(kz.filter((e) => /^Nauryz/.test(e.name) && e.date.startsWith(`${year}-`)).map((e) => e.date))];
+    expect(nauryz(2026)).toEqual(["2026-03-21", "2026-03-22", "2026-03-23", "2026-03-24", "2026-03-25"]);
+    expect(nauryz(2027)).toEqual(["2027-03-21", "2027-03-22", "2027-03-23", "2027-03-24"]);
+    const ke = libraryEntries("KE", 2027, 2027) as Entry[];
+    expect(ke.filter((e) => /Mazingira/.test(e.name)).map((e) => `${e.date} ${e.name}`)).toEqual([
+      "2027-10-10 Mazingira Day",
+      "2027-10-11 Mazingira Day (substitute day)",
+    ]);
+    expect(ke.some((e) => /Moi Day/.test(e.name))).toBe(false);
+    const ng = libraryEntries("NG", 2026, 2026) as Entry[];
+    expect(ng.find((e) => e.name === "Children's Day")?.kind).toBe("observance");
+    expect(ng.find((e) => e.name === "National Youth Day")?.kind).toBe("observance");
+    expect(ng.find((e) => e.name === "Islamic New Year")?.kind).toBe("optional");
+    const sh = libraryEntries("SH", 2026, 2026) as Entry[];
+    expect(sh.filter((e) => /Birthday/.test(e.name)).map((e) => `${e.date} ${e.name}`)).toEqual(["2026-11-13 King's Birthday"]);
+    expect(Object.keys(RULE_FIXES).sort()).toEqual(["CN", "KE", "KR", "KZ", "NG", "SH", "TW"]);
   });
 
   it("starts Korean New Year the day before Seollal, keeping the substitute days", { timeout: SLOW }, () => {
