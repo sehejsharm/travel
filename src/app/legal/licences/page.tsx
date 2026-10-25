@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage, Section } from "@/components/legal";
+import { getCountry } from "@/lib/reference/countries";
+import { HOLIDAY_SOURCES } from "@/lib/reference/holiday-data/sources";
 
 export const metadata: Metadata = {
   title: "Licences and attribution",
@@ -13,6 +15,26 @@ const SOFTWARE: [string, string, string][] = [
   ["Tailwind CSS", "MIT", "https://github.com/tailwindlabs/tailwindcss"],
   ["Zod", "MIT", "https://github.com/colinhacks/zod"],
   ["Anthropic TypeScript SDK", "MIT", "https://github.com/anthropics/anthropic-sdk-typescript"],
+  [
+    "date-holidays",
+    "ISC (code), CC BY-SA 3.0 (data)",
+    "https://github.com/commenthol/date-holidays",
+  ],
+  [
+    "astronomia (Sun and Moon positions for the lunar calendars)",
+    "MIT, © 2013 Sonia Keys, © 2016 commenthol",
+    "https://github.com/commenthol/astronomia",
+  ],
+  [
+    "pythaidate (Thai lunar calendar, ported in scripts/holiday-supplements/festivals.mjs)",
+    "MIT, © 2023 Mark Hollow",
+    "https://github.com/hmmbug/pythaidate",
+  ],
+  [
+    "mmcal (Myanmar calendar, ported in scripts/holiday-supplements/theravada.mjs)",
+    "MIT, © 2018 Yan Naing Aye",
+    "https://github.com/yan9a/mmcal",
+  ],
   ["TypeScript", "Apache-2.0", "https://github.com/microsoft/TypeScript"],
   ["ESLint", "MIT", "https://github.com/eslint/eslint"],
   ["Vitest", "MIT", "https://github.com/vitest-dev/vitest"],
@@ -24,6 +46,44 @@ const SERVICES: [string, string][] = [
   ["Google Places API", "https://cloud.google.com/maps-platform/terms"],
   ["Anthropic API", "https://www.anthropic.com/legal/commercial-terms"],
 ];
+
+const HOLIDAYS_REPO = "https://github.com/commenthol/date-holidays";
+const CC_BY_SA_3 = "https://creativecommons.org/licenses/by-sa/3.0/";
+
+function countryName(code: string): string {
+  const known = getCountry(code)?.name;
+  if (known) return known;
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/** A source as written, with its web address made a link. */
+function SourceText({ text }: { text: string }) {
+  // The address stops before a comma, bracket or closing full stop.
+  const parts = text.split(/(https?:\/\/[^\s,;)]*[^\s,;).])/);
+  return (
+    <>
+      {parts.map((part, index) =>
+        index % 2 === 1 ? (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noreferrer"
+            className="break-all text-accent-strong underline"
+          >
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
 
 function Table({ rows, note }: { rows: [string, string, string][]; note?: string }) {
   return (
@@ -87,14 +147,69 @@ export default function Licences() {
       <Section heading="Reference data">
         <p>
           Country facts (currencies, plug types, voltages, emergency numbers, standard-time
-          offsets), climate normals, city and airport coordinates, public holidays, duty-free
-          allowances and indicative exchange rates were compiled by hand from public sources for
-          this app, and carry the verification date shown on the Checks screen. They are
-          informational, as the{" "}
+          offsets), climate normals, city and airport coordinates, duty-free allowances and
+          indicative exchange rates were compiled by hand from public sources for this app, and
+          carry the verification date shown on the Checks screen. They are informational, as the{" "}
           <Link href="/legal/terms" className="text-accent-strong underline">
             terms
           </Link>{" "}
           set out, and no claim is made to any underlying government publication.
+        </p>
+      </Section>
+
+      <Section heading="Holidays and festivals">
+        <p>
+          The holiday calendar is adapted from the data in{" "}
+          <a
+            href={HOLIDAYS_REPO}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent-strong underline"
+          >
+            date-holidays
+          </a>
+          , © commenthol and the date-holidays contributors, licensed under{" "}
+          <a
+            href={CC_BY_SA_3}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent-strong underline"
+          >
+            CC BY-SA 3.0
+          </a>
+          . Much of it is drawn from Wikipedia, and each country&rsquo;s file in that project lists
+          the articles it relies on.
+        </p>
+        <p>
+          Changes made for Manifest: the data is turned into one English-language list per country
+          for 2026 to 2050, school holidays are left out, and a holiday lasting several days is
+          listed once for each day. Names the data gives in another language, or gets wrong, are
+          given in English. A day off in only some states or regions is marked as regional, with
+          where it applies, and a national day off that some regions do not keep says so. A day the
+          data gives to one group only (women, say, or the armed forces) is not counted as a day off
+          for everyone, and Islamic holidays carry a note that their dates are estimates. Chinese,
+          Korean and Vietnamese lunar dates are recomputed from astronomy where the data has them on
+          the wrong day, a few rules are changed where a newer law differs, some notes are added or
+          corrected, and some entries the sources below show to be wrong are removed or changed.
+          {HOLIDAY_SOURCES.length > 0 &&
+            " Festivals, corrections and the countries the data does not cover come from the" +
+              " sources below, added on top."}{" "}
+          The adapted calendar ships inside the app and is shared under the same licence, CC BY-SA
+          3.0.
+        </p>
+        {HOLIDAY_SOURCES.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {HOLIDAY_SOURCES.map(({ country, source }) => (
+              <li key={`${country} ${source}`} className="text-subheadline">
+                <span className="text-ink">{countryName(country)}</span>:{" "}
+                <SourceText text={source} />
+              </li>
+            ))}
+          </ul>
+        )}
+        <p>
+          Dates are informational. Governments move holidays and announce some only a year or so
+          ahead, so check a date that matters with an official source.
         </p>
       </Section>
 

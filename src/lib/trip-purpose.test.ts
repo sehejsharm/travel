@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_INTERESTS, getInterest } from "./advisor/interests";
 import type { Trip } from "./domain/types";
 import { purposeTasks } from "./checklists";
 import { PURPOSES, getPurpose } from "./trip-purpose";
@@ -44,6 +45,27 @@ describe("trip purpose", () => {
 
   it("surfaces the with-kids section for a family trip", () => {
     expect(getPurpose("family")?.interests).toContain("family");
+  });
+
+  it("pre-selects only real interests, once each, and no more than Discover looks up", () => {
+    for (const purpose of PURPOSES) {
+      const interests = purpose.interests ?? [];
+      expect(interests.every((id) => getInterest(id))).toBe(true);
+      expect(new Set(interests).size).toBe(interests.length);
+      expect(interests.length).toBeLessThanOrEqual(MAX_INTERESTS);
+    }
+  });
+
+  it("leans a backpacking trip toward people, local life and the places off the trail", () => {
+    const interests = getPurpose("backpacking")?.interests;
+    expect(interests).toEqual(["nature", "adventure", "food", "gems", "local", "social"]);
+    expect(getPurpose("backpacking")?.effect).toMatch(/hidden gems, local life and meeting people/);
+  });
+
+  it("leaves the purposes that pre-select nothing to the traveller's own picks", () => {
+    for (const id of ["leisure", "business", "solo", "group"] as const) {
+      expect(getPurpose(id)?.interests).toBeUndefined();
+    }
   });
 
   it("nudges toward more travellers for a group trip", () => {

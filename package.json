@@ -8,8 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "icons:native": "node scripts/build-native-icons.mjs"
+    "typecheck": "next typegen && tsc --noEmit",
+    "icons:native": "node scripts/build-native-icons.mjs",
+    "holidays:build": "node scripts/build-holidays.mjs",
+    "holidays:check": "node scripts/build-holidays.mjs --check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -23,6 +25,8 @@
     "@types/node": "^22.20.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "astronomia": "^4.2.0",
+    "date-holidays": "^3.37.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",

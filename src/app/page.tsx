@@ -26,6 +26,7 @@ import { formatMoney } from "@/lib/reference/fx";
 import { readiness, settledFlagIds } from "@/lib/readiness";
 import { daysBetween, formatDay, formatTime, rollUpBudget } from "@/lib/rules";
 import { useTripView } from "@/lib/store/use-store";
+import { tripCalendar } from "@/lib/trip-calendar";
 
 export default function TripScreen() {
   const { state, trip, items, flags, checklist, hydrated, empty } = useTripView();
@@ -51,6 +52,10 @@ export default function TripScreen() {
   const unscheduled = items.filter((item) => !item.startsAt);
   const nextUp =
     scheduled.find((item) => Date.parse(item.startsAt!) >= now.getTime()) ?? scheduled[0];
+  // With nothing on a day yet, the timeline would hold only the trip's days
+  // off, so they show under the empty state. The view renders again when a
+  // country's calendar arrives, so this is never stale.
+  const daysOff = scheduled.length === 0 ? tripCalendar(trip, items).days.size : 0;
 
   return (
     <div className="flex flex-col gap-7">
@@ -157,17 +162,25 @@ export default function TripScreen() {
       <section>
         <SectionTitle>Timeline</SectionTitle>
         {scheduled.length === 0 ? (
-          <EmptyState
-            title="Nothing scheduled yet"
-            body="File something in the Add tab, then tap it to put it on a day."
-            action={
-              <Link href="/add" className={PRIMARY_BUTTON_CLASSES}>
-                Add something
-              </Link>
-            }
-          />
+          <div className="flex flex-col gap-5">
+            <EmptyState
+              title="Nothing scheduled yet"
+              body="File something in the Add tab, then tap it to put it on a day."
+              action={
+                <Link href="/add" className={PRIMARY_BUTTON_CLASSES}>
+                  Add something
+                </Link>
+              }
+            />
+            {daysOff > 0 && (
+              <div>
+                <p className="section-label mb-3 px-1">Days off on your dates</p>
+                <Timeline items={items} flags={flags} onSelect={setEditing} trip={trip} />
+              </div>
+            )}
+          </div>
         ) : (
-          <Timeline items={items} flags={flags} onSelect={setEditing} />
+          <Timeline items={items} flags={flags} onSelect={setEditing} trip={trip} />
         )}
       </section>
 

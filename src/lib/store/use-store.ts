@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ChecklistEntry } from "../checklists";
 import type { Flag, Trip, TripItem } from "../domain/types";
+import { holidaysVersion, loadHolidays, subscribeHolidays } from "../reference/holidays";
 import { runChecks } from "../rules";
+import { calendarCountries } from "../trip-calendar";
 import {
   activeTrip,
   getServerSnapshot,
@@ -32,6 +34,18 @@ export function useAppState(): AppState {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
+/** Nothing has loaded on the server, nor before hydration. */
+const noHolidaysYet = () => 0;
+
+/**
+ * Goes up each time a country's holiday calendar arrives. Anything that reads
+ * the calendar (the checks, the timeline, Discover) depends on it, so it
+ * renders again once the data is in.
+ */
+export function useHolidaysVersion(): number {
+  return useSyncExternalStore(subscribeHolidays, holidaysVersion, noHolidaysYet);
+}
+
 export interface TripView {
   state: AppState;
   trip?: Trip;
@@ -58,10 +72,26 @@ export function useTripView(): TripView {
     [state.checklist, trip],
   );
 
-  // Checks are pure over the state, so they recompute only when it changes.
-  const flags = useMemo(
-    () => (trip ? runChecks(trip, items, new Date()) : []),
+  // Each country's holiday calendar is its own chunk, fetched once and then
+  // cached: the destinations', or the home country's for a trip at home. The
+  // countries are joined into one string so the effect runs when they change,
+  // not on every new items array.
+  const countries = useMemo(
+    () => (trip ? calendarCountries(trip, items).sort().join(",") : ""),
     [trip, items],
+  );
+  useEffect(() => {
+    if (!countries) return;
+    return keepHolidaysLoaded(countries.split(","), window);
+  }, [countries]);
+  const holidays = useHolidaysVersion();
+
+  // Checks are pure over the state and the holiday calendar, so they recompute
+  // only when one of them changes. The public-holiday check finds nothing for
+  // a country until its calendar is in, then runs again when it arrives.
+  const flags = useMemo(
+    () => (trip ? checksFor(trip, items, holidays) : []),
+    [trip, items, holidays],
   );
 
   return {
@@ -73,4 +103,25 @@ export function useTripView(): TripView {
     hydrated,
     empty: hydrated && state.trips.length === 0,
   };
+}
+
+/**
+ * Loads the countries' calendars now, and again each time the device comes
+ * back online, since a chunk that failed offline stays unloaded until asked
+ * for again. Loading what is already in costs nothing. Returns the cleanup.
+ */
+export function keepHolidaysLoaded(countryCodes: string[], target: EventTarget): () => void {
+  const load = () => void loadHolidays(countryCodes);
+  load();
+  target.addEventListener("online", load);
+  return () => target.removeEventListener("online", load);
+}
+
+/**
+ * The checks, as of one version of the holiday calendar. The rules read the
+ * calendar themselves; the version is passed so a new one is a new question.
+ */
+function checksFor(trip: Trip, items: TripItem[], holidayVersion: number): Flag[] {
+  void holidayVersion;
+  return runChecks(trip, items, new Date());
 }
