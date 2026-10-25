@@ -1,0 +1,3 @@
+# Check out every text file with LF line endings, on Windows too: the holiday data
+# is compared byte for byte, and Windows git otherwise writes CRLF.
+* text=auto eol=lf
