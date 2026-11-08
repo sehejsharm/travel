@@ -50,8 +50,7 @@ function trip(overrides: Partial<Trip> = {}): Trip {
   };
 }
 
-function show(current: Trip, advice: AppState["advice"] = []): string {
-  const items: TripItem[] = [];
+function show(current: Trip, advice: AppState["advice"] = [], items: TripItem[] = []): string {
   const state = { trips: [current], activeTripId: current.id, items, checklist: [], advice } as unknown as AppState;
   view.current = { state, trip: current, items, checklist: [], flags: [], hydrated: true, empty: false };
   return renderToStaticMarkup(createElement(Discover));
@@ -161,5 +160,71 @@ describe("Discover's interest question", () => {
 
   it("has no action bar once interests are picked", () => {
     expect(actionBar(show(trip()))).toBeNull();
+  });
+});
+
+describe("Discover's links out to AllTrails and eBird", () => {
+  const outdoors = { interests: ["nature", "wildlife"] };
+
+  /** A booking filed in a city, as the extractor files one. */
+  function bookedIn(city: string, countryCode: string): TripItem {
+    return {
+      id: `i-${city}`,
+      tripId: "t1",
+      title: `Hotel in ${city}`,
+      category: "booking",
+      bookingKind: "lodging",
+      source: "manual",
+      place: { name: `Hotel in ${city}`, city, countryCode },
+      confidence: 1,
+      extractionMethod: "deterministic",
+      createdAt: "2026-06-01T00:00:00Z",
+    };
+  }
+
+  beforeEach(() => {
+    view.current = undefined;
+  });
+
+  it("frames the whole country when no city is known", () => {
+    const html = show(trip({ destinationCountries: ["PT"], ...outdoors }));
+
+    expect(html).toContain(
+      'href="https://www.alltrails.com/explore?b_tl_lat=42.2000&amp;b_tl_lng=-9.5000&amp;b_br_lat=36.9000&amp;b_br_lng=-6.2000"',
+    );
+    expect(html).toContain("Trails in Portugal, on AllTrails ↗");
+    expect(html).not.toContain("Trails near");
+    expect(html).toContain('href="https://ebird.org/region/PT"');
+    expect(html).toContain("Birds seen in Portugal, on eBird ↗");
+  });
+
+  it("frames the city once one is filed, and not the country as well", () => {
+    const html = show(trip({ destinationCountries: ["PT"], ...outdoors }), [], [bookedIn("Lisbon", "PT")]);
+
+    expect(html).toContain("Trails near Lisbon, on AllTrails ↗");
+    expect(html).not.toContain("Trails in");
+  });
+
+  it("does not mistake a country's name for a city inside another one", () => {
+    // "Malaysia" contains "mal", which is how the place lists spell Malé, in the Maldives.
+    const html = show(trip({ destinationCountries: ["MY"], ...outdoors }));
+
+    expect(html).toContain("Trails in Malaysia, on AllTrails ↗");
+    expect(html).toContain("Birds seen in Malaysia, on eBird ↗");
+    expect(html).not.toContain("Maldives");
+  });
+
+  it("takes the country a city was filed under when the place lists cannot locate it", () => {
+    const html = show(trip({ destinationCountries: ["ES", "PT"], ...outdoors }), [], [bookedIn("Sintra", "PT")]);
+
+    expect(html).toContain("Trails in Portugal, on AllTrails ↗");
+    expect(html).toContain("Birds seen in Portugal, on eBird ↗");
+  });
+
+  it("shows neither link without Outdoors or Wildlife", () => {
+    const html = show(trip({ destinationCountries: ["PT"], interests: ["food"] }));
+
+    expect(html).not.toContain("alltrails.com");
+    expect(html).not.toContain("ebird.org");
   });
 });

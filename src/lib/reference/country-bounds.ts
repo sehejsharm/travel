@@ -13,27 +13,39 @@ export type Bounds = [west: number, south: number, east: number, north: number];
  * overseas regions, the Azores and Madeira, the Canaries, Svalbard, the
  * Galápagos, Alaska and Hawaii, among others.
  *
+ * Where the outlines and the countries differ, the country wins:
  * - Cyprus is the whole island, as ISO 3166 has it. Natural Earth draws the north apart.
+ * - Ukraine includes Crimea, as ISO 3166 has it. Natural Earth draws it inside Russia.
+ * - Finland includes the Åland Islands, which Natural Earth draws apart.
  * - Morocco stops at 27°40′N. Natural Earth draws most of Western Sahara inside
  *   Morocco; ISO 3166 keeps them apart.
- * - Fiji stops at the 180th meridian, short of the Lau islands, so no box has
- *   to wrap round the back of the map.
+ * - Serbia stops short of Kosovo, as Natural Earth draws it.
+ *
+ * Natural Earth leaves out some islands the rule keeps, so these edges were
+ * moved by hand to take them in: Taiwan’s Matsu Islands, Bangladesh’s St
+ * Martin’s Island, Japan’s Hateruma, the Diapontia islands off Corfu,
+ * Bahrain’s Hawar Islands, and Fernando de Noronha, reached by way of Atol das
+ * Rocas.
+ *
+ * Fiji stops at the 180th meridian, so no box has to wrap round the back of
+ * the map. The meridian runs through Taveuni, so most of that island, Vanua
+ * Levu’s eastern tip and the Lau islands fall outside.
  */
 const BOUNDS: Record<string, Bounds> = {
   IN: [68.1, 8, 97.4, 35.5], // India
   PK: [60.8, 23.6, 77.1, 37.1], // Pakistan
-  BD: [88, 20.7, 92.7, 26.7], // Bangladesh
+  BD: [88, 20.5, 92.7, 26.7], // Bangladesh
   LK: [79.6, 5.9, 81.9, 9.9], // Sri Lanka
   NP: [80, 26.3, 88.2, 30.5], // Nepal
   MV: [72.6, -0.7, 73.8, 7.2], // Maldives
   BT: [88.7, 26.6, 92.1, 28.4], // Bhutan
   KZ: [46.4, 40.5, 87.4, 55.5], // Kazakhstan
   UZ: [55.9, 37.1, 73.2, 45.6], // Uzbekistan
-  JP: [122.9, 24.2, 145.9, 45.6], // Japan
+  JP: [122.9, 24, 145.9, 45.6], // Japan
   KR: [124.6, 33.1, 131.9, 38.7], // South Korea
   CN: [73.6, 18.1, 134.8, 53.6], // China
   HK: [113.8, 22.1, 114.5, 22.6], // Hong Kong
-  TW: [118.2, 21.9, 122.1, 25.3], // Taiwan
+  TW: [118.2, 21.9, 122.1, 26.4], // Taiwan
   MO: [113.5, 22.1, 113.6, 22.3], // Macau
   MN: [87.7, 41.5, 120, 52.2], // Mongolia
   TH: [97.3, 5.6, 105.7, 20.5], // Thailand
@@ -50,7 +62,7 @@ const BOUNDS: Record<string, Bounds> = {
   SA: [34.5, 16.3, 55.7, 32.2], // Saudi Arabia
   QA: [50.7, 24.5, 51.7, 26.2], // Qatar
   OM: [51.9, 16.6, 59.9, 26.4], // Oman
-  BH: [50.4, 25.7, 50.7, 26.3], // Bahrain
+  BH: [50.3, 25.5, 50.9, 26.4], // Bahrain
   KW: [46.5, 28.5, 48.5, 30.1], // Kuwait
   JO: [34.9, 29.1, 39.3, 33.4], // Jordan
   IL: [34.2, 29.4, 35.9, 33.5], // Israel
@@ -70,7 +82,7 @@ const BOUNDS: Record<string, Bounds> = {
   IT: [6.6, 35.4, 18.6, 47.1], // Italy
   ES: [-9.3, 35.1, 4.4, 43.8], // Spain
   PT: [-9.5, 36.9, -6.2, 42.2], // Portugal
-  GR: [19.6, 34.8, 28.3, 41.8], // Greece
+  GR: [19.3, 34.8, 28.3, 41.8], // Greece
   MT: [14.1, 35.8, 14.6, 36.1], // Malta
   CY: [32.2, 34.6, 34.6, 35.7], // Cyprus
   IS: [-24.6, 63.3, -13.5, 66.6], // Iceland
@@ -78,7 +90,7 @@ const BOUNDS: Record<string, Bounds> = {
   SE: [11.1, 55.3, 24.2, 69.1], // Sweden
   NO: [4.6, 57.9, 31.1, 71.2], // Norway
   DK: [8, 54.5, 15.2, 57.8], // Denmark
-  FI: [20.6, 59.8, 31.6, 70.1], // Finland
+  FI: [19.5, 59.8, 31.6, 70.1], // Finland
   EE: [21.8, 57.5, 28.2, 59.7], // Estonia
   LV: [20.9, 55.6, 28.3, 58.1], // Latvia
   LT: [20.9, 53.8, 26.9, 56.5], // Lithuania
@@ -95,7 +107,7 @@ const BOUNDS: Record<string, Bounds> = {
   AL: [19.2, 39.6, 21.1, 42.7], // Albania
   ME: [18.4, 41.8, 20.4, 43.6], // Montenegro
   MK: [20.4, 40.8, 23.1, 42.4], // North Macedonia
-  UA: [22.1, 45.2, 40.2, 52.4], // Ukraine
+  UA: [22.1, 44.3, 40.2, 52.4], // Ukraine
   US: [-124.8, 24.5, -66.8, 49.4], // United States
   CA: [-141.1, 41.6, -52.6, 83.2], // Canada
   MX: [-117.3, 14.5, -86.7, 32.8], // Mexico
@@ -106,7 +118,7 @@ const BOUNDS: Record<string, Bounds> = {
   JM: [-78.4, 17.7, -76.1, 18.6], // Jamaica
   DO: [-72.1, 17.5, -68.3, 20], // Dominican Republic
   BS: [-79.6, 20.9, -72.7, 27], // Bahamas
-  BR: [-74.1, -33.8, -34.7, 5.3], // Brazil
+  BR: [-74.1, -33.8, -32.3, 5.3], // Brazil
   AR: [-73.6, -55.1, -53.6, -21.7], // Argentina
   CL: [-75.8, -56, -66.4, -17.5], // Chile
   PE: [-81.4, -18.4, -68.6, 0], // Peru
@@ -129,7 +141,7 @@ const BOUNDS: Record<string, Bounds> = {
   RW: [28.8, -2.9, 30.9, -1], // Rwanda
   AU: [112.9, -43.7, 153.7, -9.2], // Australia
   NZ: [166.4, -48.1, 178.6, -34.3], // New Zealand
-  FJ: [177, -20.7, 180, -16.1], // Fiji
+  FJ: [177, -19.2, 180, -16.1], // Fiji
   PG: [140.8, -11.7, 156, -1.3], // Papua New Guinea
 };
 

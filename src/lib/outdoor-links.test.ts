@@ -17,6 +17,9 @@ describe("links out for Outdoors and Wildlife", () => {
     expect(right).toBeGreaterThan(-9.1393);
     // Wider in longitude than in latitude, since a degree of longitude is shorter there.
     expect(right - left).toBeGreaterThan(top - bottom);
+    expect(url.href).toBe(
+      "https://www.alltrails.com/explore?b_tl_lat=38.9423&b_tl_lng=-9.4213&b_br_lat=38.5023&b_br_lng=-8.8573",
+    );
   });
 
   it("leaves AllTrails out for a place it cannot locate", () => {

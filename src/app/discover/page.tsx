@@ -43,8 +43,9 @@ import {
   eBirdUrl,
   TRAILS_INTEREST,
 } from "@/lib/outdoor-links";
-import { getCountry } from "@/lib/reference/countries";
+import { COUNTRY_LIST, getCountry } from "@/lib/reference/countries";
 import { groundPlace } from "@/lib/reference/places";
+import { fold } from "@/lib/reference/text";
 import { loadHolidays } from "@/lib/reference/holidays";
 import { addItem, cacheAdvice, cachedAdvice, updateTrip } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
@@ -147,10 +148,19 @@ export default function DiscoverScreen() {
   const searchEmpty = error?.status === 503 && fromCalendar && !advice;
   const filedTitles = new Set(items.map((item) => item.title.trim().toLowerCase()));
   // Links out cost nothing, so they show whether or not the search has run.
-  const linkCountry = groundPlace(where)?.countryCode ?? trip.destinationCountries?.[0];
+  // A country's own name is the country, not a city: "Malaysia" would match Malé.
+  const namedCountry = COUNTRY_LIST.find((country) => fold(country.name) === fold(where))?.code;
+  // A city the place lists cannot locate still has the country it was filed under.
+  const filedCountry = items.find((item) => item.place?.city && fold(item.place.city) === fold(where))
+    ?.place?.countryCode;
+  const linkCountry =
+    namedCountry ??
+    groundPlace(where)?.countryCode ??
+    filedCountry ??
+    trip.destinationCountries?.[0];
   const linkCountryName = getCountry(linkCountry)?.name ?? linkCountry;
   const wantsTrails = interests.includes(TRAILS_INTEREST);
-  const trailsNearUrl = wantsTrails ? allTrailsUrl(where) : undefined;
+  const trailsNearUrl = wantsTrails && !namedCountry ? allTrailsUrl(where) : undefined;
   // With no city to frame, the whole country.
   const trailsInUrl =
     wantsTrails && !trailsNearUrl && linkCountry ? allTrailsCountryUrl(linkCountry) : undefined;
