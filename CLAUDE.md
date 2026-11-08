@@ -13,3 +13,9 @@
 - On a fresh clone, run `npx next typegen` once before `npx tsc --noEmit`:
   Next.js writes the route types (`LayoutProps`, `PageProps`) into files git
   ignores. `npm run typecheck` does both.
+
+# Coding guidelines
+
+- Before any code change, load and follow the `coding-guidelines` skill:
+  state assumptions and ask when unclear, keep the change minimal and
+  surgical, and verify each step.
