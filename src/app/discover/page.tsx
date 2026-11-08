@@ -36,7 +36,9 @@ import {
 import { DEFAULT_INTERESTS } from "@/lib/advisor/interests";
 import type { Trip, TripItem } from "@/lib/domain/types";
 import { openInMapsUrl } from "@/lib/maps";
+import { allTrailsUrl, BIRDS_INTEREST, eBirdUrl, TRAILS_INTEREST } from "@/lib/outdoor-links";
 import { getCountry } from "@/lib/reference/countries";
+import { groundPlace } from "@/lib/reference/places";
 import { loadHolidays } from "@/lib/reference/holidays";
 import { addItem, cacheAdvice, cachedAdvice, updateTrip } from "@/lib/store/state";
 import { useTripView } from "@/lib/store/use-store";
@@ -138,6 +140,11 @@ export default function DiscoverScreen() {
   // The search found nothing, but the calendar has: a note, not a failure.
   const searchEmpty = error?.status === 503 && fromCalendar && !advice;
   const filedTitles = new Set(items.map((item) => item.title.trim().toLowerCase()));
+  // Links out cost nothing, so they show whether or not the search has run.
+  const trailsUrl = interests.includes(TRAILS_INTEREST) ? allTrailsUrl(where) : undefined;
+  const birdsCountry = interests.includes(BIRDS_INTEREST)
+    ? (groundPlace(where)?.countryCode ?? trip.destinationCountries?.[0])
+    : undefined;
 
   if (quiet && !loading && !advice) {
     return (
@@ -312,6 +319,32 @@ export default function DiscoverScreen() {
           })}
         </ul>
       </Card>
+
+      {(trailsUrl || birdsCountry) && (
+        <Card className="p-4">
+          <ul className="flex flex-col items-start gap-1">
+            {trailsUrl && (
+              <li>
+                <a href={trailsUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
+                  Trails near {where}, on AllTrails ↗
+                </a>
+              </li>
+            )}
+            {birdsCountry && (
+              <li>
+                <a
+                  href={eBirdUrl(birdsCountry)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={BORDERLESS_BUTTON_CLASSES}
+                >
+                  Birds seen in {getCountry(birdsCountry)?.name ?? birdsCountry}, on eBird ↗
+                </a>
+              </li>
+            )}
+          </ul>
+        </Card>
+      )}
 
       {error && !searchEmpty && (
         <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">{error.message}</div>

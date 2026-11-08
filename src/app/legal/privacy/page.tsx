@@ -163,7 +163,8 @@ export default function PrivacyPolicy() {
         </p>
         <p>
           Tapping Maps, Open in Maps or Directions opens Google Maps in a new tab with that place,
-          or both ends of the journey, in the address. A suggestion&rsquo;s source, a product link
+          or both ends of the journey, in the address. A suggestion&rsquo;s source, the AllTrails
+          and eBird links on Discover (with the place or country in the address), a product link
           on the Checks screen, and the app&rsquo;s store page when you choose to rate it open the
           same way. From there, that site&rsquo;s own privacy policy applies.
         </p>
