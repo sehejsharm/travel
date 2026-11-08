@@ -142,6 +142,18 @@ export default function Licences() {
           data is © Google and its data providers; it is shown under Google&rsquo;s terms and is not
           redistributed by us.
         </p>
+        <p>
+          The box each country&rsquo;s AllTrails link is framed on was worked out from{" "}
+          <a
+            href="https://www.naturalearthdata.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent-strong underline"
+          >
+            Natural Earth
+          </a>
+          &rsquo;s country outlines, which are in the public domain.
+        </p>
       </Section>
 
       <Section heading="Reference data">

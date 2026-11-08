@@ -1,3 +1,4 @@
+import { countryBounds } from "./reference/country-bounds";
 import { groundPlace } from "./reference/places";
 
 /**
@@ -23,12 +24,23 @@ export function allTrailsUrl(where: string): string | undefined {
 
   // A degree of longitude shrinks towards the poles, so widen it to match.
   const lngReach = REACH / Math.cos((point.lat * Math.PI) / 180);
+
+  return exploreUrl(point.lng - lngReach, point.lat - REACH, point.lng + lngReach, point.lat + REACH);
+}
+
+/** AllTrails' trail map framed on the whole country, for when no city is known. */
+export function allTrailsCountryUrl(countryCode: string): string | undefined {
+  const bounds = countryBounds(countryCode);
+  return bounds && exploreUrl(...bounds);
+}
+
+function exploreUrl(west: number, south: number, east: number, north: number): string {
   const at = (value: number) => value.toFixed(4);
 
   return (
     "https://www.alltrails.com/explore" +
-    `?b_tl_lat=${at(point.lat + REACH)}&b_tl_lng=${at(point.lng - lngReach)}` +
-    `&b_br_lat=${at(point.lat - REACH)}&b_br_lng=${at(point.lng + lngReach)}`
+    `?b_tl_lat=${at(north)}&b_tl_lng=${at(west)}` +
+    `&b_br_lat=${at(south)}&b_br_lng=${at(east)}`
   );
 }
 

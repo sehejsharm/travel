@@ -36,7 +36,13 @@ import {
 import { DEFAULT_INTERESTS } from "@/lib/advisor/interests";
 import type { Trip, TripItem } from "@/lib/domain/types";
 import { openInMapsUrl } from "@/lib/maps";
-import { allTrailsUrl, BIRDS_INTEREST, eBirdUrl, TRAILS_INTEREST } from "@/lib/outdoor-links";
+import {
+  allTrailsCountryUrl,
+  allTrailsUrl,
+  BIRDS_INTEREST,
+  eBirdUrl,
+  TRAILS_INTEREST,
+} from "@/lib/outdoor-links";
 import { getCountry } from "@/lib/reference/countries";
 import { groundPlace } from "@/lib/reference/places";
 import { loadHolidays } from "@/lib/reference/holidays";
@@ -141,10 +147,14 @@ export default function DiscoverScreen() {
   const searchEmpty = error?.status === 503 && fromCalendar && !advice;
   const filedTitles = new Set(items.map((item) => item.title.trim().toLowerCase()));
   // Links out cost nothing, so they show whether or not the search has run.
-  const trailsUrl = interests.includes(TRAILS_INTEREST) ? allTrailsUrl(where) : undefined;
-  const birdsCountry = interests.includes(BIRDS_INTEREST)
-    ? (groundPlace(where)?.countryCode ?? trip.destinationCountries?.[0])
-    : undefined;
+  const linkCountry = groundPlace(where)?.countryCode ?? trip.destinationCountries?.[0];
+  const linkCountryName = getCountry(linkCountry)?.name ?? linkCountry;
+  const wantsTrails = interests.includes(TRAILS_INTEREST);
+  const trailsNearUrl = wantsTrails ? allTrailsUrl(where) : undefined;
+  // With no city to frame, the whole country.
+  const trailsInUrl =
+    wantsTrails && !trailsNearUrl && linkCountry ? allTrailsCountryUrl(linkCountry) : undefined;
+  const birdsCountry = interests.includes(BIRDS_INTEREST) ? linkCountry : undefined;
 
   if (quiet && !loading && !advice) {
     return (
@@ -320,13 +330,20 @@ export default function DiscoverScreen() {
         </ul>
       </Card>
 
-      {(trailsUrl || birdsCountry) && (
+      {(trailsNearUrl || trailsInUrl || birdsCountry) && (
         <Card className="p-4">
           <ul className="flex flex-col items-start gap-1">
-            {trailsUrl && (
+            {trailsNearUrl && (
               <li>
-                <a href={trailsUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
+                <a href={trailsNearUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
                   Trails near {where}, on AllTrails ↗
+                </a>
+              </li>
+            )}
+            {trailsInUrl && (
+              <li>
+                <a href={trailsInUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
+                  Trails in {linkCountryName}, on AllTrails ↗
                 </a>
               </li>
             )}
@@ -338,7 +355,7 @@ export default function DiscoverScreen() {
                   rel="noreferrer"
                   className={BORDERLESS_BUTTON_CLASSES}
                 >
-                  Birds seen in {getCountry(birdsCountry)?.name ?? birdsCountry}, on eBird ↗
+                  Birds seen in {linkCountryName}, on eBird ↗
                 </a>
               </li>
             )}
