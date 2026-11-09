@@ -38,7 +38,7 @@ Free cancellation until 14 Sep 2026`,
   },
   {
     label: "Reel link",
-    text: "https://www.instagram.com/reel/C9xArashiyama/",
+    text: "https://www.instagram.com/reel/C9xAbc123/\nbamboo grove at Arashiyama, go at 7am",
   },
   {
     label: "A note",

@@ -97,6 +97,20 @@ describe("airport grounding", () => {
     expect(groundPlace("Miami (MIA)")?.name).toBe("Miami International (MIA)");
   });
 
+  it("does not read a code joined to a word by a hyphen", () => {
+    expect(groundPlace("HOTEL ARTS BARCELONA\nDELUXE SEA-VIEW ROOM")?.city).toBe("Barcelona");
+    expect(groundPlace("HOTEL NIKKO KYOTO\nADD-ONS: BREAKFAST")?.city).toBe("Kyoto");
+    // Two codes joined are a route.
+    expect(groundPlace("AI 142 DEL-HND")?.name).toContain("(DEL)");
+  });
+
+  it("takes an airport named for its city as the city, unless the text says airport", () => {
+    expect(groundPlace("Kunsthaus Zürich")?.name).toBe("Zurich");
+    expect(groundPlace("Munich")?.name).toBe("Munich");
+    expect(groundPlace("Zurich Airport")?.name).toBe("Zurich (ZRH)");
+    expect(groundPlace("MUC")?.name).toBe("Munich (MUC)");
+  });
+
   it("prefers a landmark over an airport that shares a city", () => {
     expect(groundPlace("Senso-ji")?.name).toBe("Senso-ji");
   });
@@ -123,6 +137,9 @@ describe("city and landmark grounding", () => {
     expect(groundPlace("Sao Paulo")?.city).toBe("São Paulo");
     expect(groundPlace("Cancun")?.city).toBe("Cancún");
     expect(groundPlace("Xian")?.city).toBe("Xi'an");
+    expect(groundPlace("Hotel Xi An Bell Tower")?.city).toBe("Xi'an");
+    expect(groundPlace("O Hare International")?.name).toBe("O'Hare International (ORD)");
+    expect(groundPlace("Milano Centrale 08:00")?.city).toBe("Milan");
   });
 
   it("still finds a place within a longer phrase", () => {
@@ -137,5 +154,6 @@ describe("city and landmark grounding", () => {
   it("suggests an accented city typed without its accents", () => {
     expect(suggestPlaces("male").map((s) => s.name)).toContain("Malé");
     expect(suggestPlaces("sao p").map((s) => s.name)).toContain("São Paulo");
+    expect(suggestPlaces("xi an").map((s) => s.name)).toContain("Xi'an");
   });
 });

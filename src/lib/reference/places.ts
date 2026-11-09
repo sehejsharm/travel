@@ -1,6 +1,6 @@
 import type { PlaceRef } from "../domain/types";
 import { AIRPORT_LIST } from "./airports";
-import { CITIES } from "./cities";
+import { CITIES, type City } from "./cities";
 import { fold, hasWords } from "./text";
 
 interface GazetteerEntry extends PlaceRef {
@@ -176,16 +176,48 @@ function plain(value: string): string {
   return fold(value.replace(/['`\u00b4\u2018\u2019\u02bb\u02bc]s\b/gi, " "));
 }
 
+/**
+ * A listed name in each form people type it. An apostrophe is written as
+ * nothing or as a space, so "Xi'an" is both "xian" and "xi an".
+ */
+function forms(name: string): string[] {
+  const joined = plain(name);
+  const split = plain(name.replace(/['`\u00b4\u2018\u2019\u02bb\u02bc]/g, " "));
+  return split === joined ? [joined] : [joined, split];
+}
+
+// Local names tickets print for a city: Trenitalia writes "Milano Centrale".
+const LOCAL_NAMES: Record<string, string[]> = { Milan: ["Milano"] };
+
 // Folded once, when the module loads, rather than on every lookup.
-const LANDMARKS = GAZETTEER.map((entry) => ({ entry, aliases: entry.aliases.map(plain) }));
-const AIRPORTS = AIRPORT_LIST.map((airport) => ({
-  airport,
-  name: plain(airport.name),
-  // A code counts only in capitals, as flights write them: "Los Angeles" is
-  // not Lagos (LOS), nor "per diem" Perth (PER).
-  code: new RegExp(`(^|[^\\p{L}\\p{N}])${airport.iata}([^\\p{L}\\p{N}]|$)`, "u"),
+const LANDMARKS = GAZETTEER.map((entry) => ({ entry, aliases: entry.aliases.flatMap(forms) }));
+const CITY_NAMES = CITIES.map((city) => ({
+  city,
+  names: [city.name, ...(LOCAL_NAMES[city.name] ?? [])].flatMap(forms),
 }));
-const CITY_NAMES = CITIES.map((city) => ({ city, name: plain(city.name) }));
+const CITY_WORDS = new Set(CITY_NAMES.flatMap(({ names }) => names));
+const AIRPORTS = AIRPORT_LIST.map((airport) => {
+  const names = forms(airport.name);
+  // An airport called by its city's name alone ("Zurich", "Munich") stands
+  // for the city unless the text says airport: "Kunsthaus Zürich" is not ZRH.
+  return { airport, names, cityNamed: names.some((name) => CITY_WORDS.has(name)) };
+});
+const CODES = new Set(AIRPORT_LIST.map((airport) => airport.iata));
+
+/**
+ * The airport codes a text names. A code counts only in capitals, as flights
+ * write them: "Los Angeles" is not Lagos (LOS), nor "per diem" Perth (PER). A
+ * hyphen joins a word, so "SEA-VIEW" and "ADD-ONS" name no airport, while
+ * "DEL-HND" names two.
+ */
+function codesIn(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const word of text.split(/[^\p{L}\p{N}-]+/u)) {
+    const parts = word.split("-");
+    if (parts.every((part) => CODES.has(part))) parts.forEach((part) => found.add(part));
+  }
+  return found;
+}
 
 /**
  * Resolves free text to a known place: a specific landmark where one matches,
@@ -217,8 +249,11 @@ export function groundPlace(text: string): PlaceRef | undefined {
   }
 
   // An airport next: a flight names one, and "DEL" is not a city.
-  for (const { airport, name, code } of AIRPORTS) {
-    if (code.test(text) || hasWords(needle, name)) {
+  const codes = codesIn(text);
+  const saysAirport = hasWords(needle, "airport");
+  for (const { airport, names, cityNamed } of AIRPORTS) {
+    const named = (!cityNamed || saysAirport) && names.some((name) => hasWords(needle, name));
+    if (codes.has(airport.iata) || named) {
       return {
         name: `${airport.name} (${airport.iata})`,
         city: airport.city,
@@ -229,10 +264,12 @@ export function groundPlace(text: string): PlaceRef | undefined {
   }
 
   // Longest city name wins, so "New York" beats a stray match on "York".
-  let longest: (typeof CITY_NAMES)[number] | undefined;
-  for (const candidate of CITY_NAMES) {
-    if (!hasWords(needle, candidate.name)) continue;
-    if (!longest || candidate.name.length > longest.name.length) longest = candidate;
+  let longest: { city: City; name: string } | undefined;
+  for (const { city, names } of CITY_NAMES) {
+    for (const name of names) {
+      if (!hasWords(needle, name)) continue;
+      if (!longest || name.length > longest.name.length) longest = { city, name };
+    }
   }
 
   if (!longest) return undefined;
@@ -320,7 +357,7 @@ export function suggestAirports(text: string, limit = 6): PlaceSuggestion[] {
 
 function rankOf(needle: string, name: string, aliases: string[] = []): number {
   if (!needle) return 1;
-  for (const candidate of [plain(name), ...aliases.map(plain)]) {
+  for (const candidate of [name, ...aliases].flatMap(forms)) {
     if (candidate.startsWith(needle)) return 3;
     if (candidate.includes(needle)) return 2;
   }
