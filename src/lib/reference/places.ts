@@ -1,7 +1,7 @@
 import type { PlaceRef } from "../domain/types";
 import { AIRPORT_LIST } from "./airports";
 import { CITIES } from "./cities";
-import { fold } from "./text";
+import { fold, hasWords } from "./text";
 
 interface GazetteerEntry extends PlaceRef {
   aliases: string[];
@@ -128,7 +128,7 @@ const GAZETTEER: GazetteerEntry[] = [
     city: "Fujikawaguchiko",
     countryCode: "JP",
     point: { lat: 35.5171, lng: 138.752 },
-    aliases: ["lake kawaguchi", "kawaguchiko", "mount fuji view", "mt fuji"],
+    aliases: ["lake kawaguchi", "kawaguchiko", "fujikawaguchiko", "mount fuji view", "mt fuji"],
   },
   {
     name: "Fushimi Inari Taisha",
@@ -167,13 +167,25 @@ const GAZETTEER: GazetteerEntry[] = [
   },
 ];
 
-function normalize(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+/**
+ * A name as people type it, accents and all folded away, with a possessive
+ * dropped first: fold() joins an apostrophe, which keeps "O'Hare" one word but
+ * would make "Tokyo's" "tokyos".
+ */
+function plain(value: string): string {
+  return fold(value.replace(/['`\u00b4\u2018\u2019\u02bb\u02bc]s\b/gi, " "));
 }
+
+// Folded once, when the module loads, rather than on every lookup.
+const LANDMARKS = GAZETTEER.map((entry) => ({ entry, aliases: entry.aliases.map(plain) }));
+const AIRPORTS = AIRPORT_LIST.map((airport) => ({
+  airport,
+  name: plain(airport.name),
+  // A code counts only in capitals, as flights write them: "Los Angeles" is
+  // not Lagos (LOS), nor "per diem" Perth (PER).
+  code: new RegExp(`(^|[^\\p{L}\\p{N}])${airport.iata}([^\\p{L}\\p{N}]|$)`, "u"),
+}));
+const CITY_NAMES = CITIES.map((city) => ({ city, name: plain(city.name) }));
 
 /**
  * Resolves free text to a known place: a specific landmark where one matches,
@@ -181,14 +193,15 @@ function normalize(value: string): string {
  * ungrounded item is still filed, it just sits out the distance checks.
  */
 export function groundPlace(text: string): PlaceRef | undefined {
-  const needle = normalize(text);
+  const needle = plain(text);
   if (!needle) return undefined;
 
   let best: { entry: GazetteerEntry; score: number } | undefined;
 
-  for (const entry of GAZETTEER) {
-    for (const alias of entry.aliases) {
-      if (!needle.includes(alias)) continue;
+  // Names match as whole words: "Malaysia" does not name Malé, nor "Festival" Fes.
+  for (const { entry, aliases } of LANDMARKS) {
+    for (const alias of aliases) {
+      if (!hasWords(needle, alias)) continue;
       const score = alias.length;
       if (!best || score > best.score) best = { entry, score };
     }
@@ -204,10 +217,8 @@ export function groundPlace(text: string): PlaceRef | undefined {
   }
 
   // An airport next: a flight names one, and "DEL" is not a city.
-  for (const airport of AIRPORT_LIST) {
-    const code = airport.iata.toLowerCase();
-    const byCode = new RegExp(`(^|\\s)${code}(\\s|$)`).test(needle);
-    if (byCode || needle.includes(normalize(airport.name))) {
+  for (const { airport, name, code } of AIRPORTS) {
+    if (code.test(text) || hasWords(needle, name)) {
       return {
         name: `${airport.name} (${airport.iata})`,
         city: airport.city,
@@ -218,14 +229,14 @@ export function groundPlace(text: string): PlaceRef | undefined {
   }
 
   // Longest city name wins, so "New York" beats a stray match on "York".
-  let city: { name: string; countryCode: string; point: { lat: number; lng: number } } | undefined;
-  for (const candidate of CITIES) {
-    const alias = normalize(candidate.name);
-    if (!needle.includes(alias)) continue;
-    if (!city || alias.length > normalize(city.name).length) city = candidate;
+  let longest: (typeof CITY_NAMES)[number] | undefined;
+  for (const candidate of CITY_NAMES) {
+    if (!hasWords(needle, candidate.name)) continue;
+    if (!longest || candidate.name.length > longest.name.length) longest = candidate;
   }
 
-  if (!city) return undefined;
+  if (!longest) return undefined;
+  const { city } = longest;
 
   return {
     name: city.name,
@@ -252,7 +263,7 @@ export interface PlaceSuggestion {
  * coordinates while you type instead of only when the name happens to match.
  */
 export function suggestPlaces(text: string, limit = 8): PlaceSuggestion[] {
-  const needle = normalize(text);
+  const needle = plain(text);
 
   const landmarks = GAZETTEER.map((entry) => ({
     name: entry.name,
@@ -309,7 +320,7 @@ export function suggestAirports(text: string, limit = 6): PlaceSuggestion[] {
 
 function rankOf(needle: string, name: string, aliases: string[] = []): number {
   if (!needle) return 1;
-  for (const candidate of [normalize(name), ...aliases]) {
+  for (const candidate of [plain(name), ...aliases.map(plain)]) {
     if (candidate.startsWith(needle)) return 3;
     if (candidate.includes(needle)) return 2;
   }
