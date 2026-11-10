@@ -35,7 +35,7 @@ import {
 } from "@/lib/advisor/types";
 import { DEFAULT_INTERESTS } from "@/lib/advisor/interests";
 import type { Trip, TripItem } from "@/lib/domain/types";
-import { openInMapsUrl } from "@/lib/maps";
+import { mapEmbedUrl, openInMapsUrl } from "@/lib/maps";
 import {
   allTrailsCountryUrl,
   allTrailsUrl,
@@ -48,6 +48,7 @@ import { groundPlace } from "@/lib/reference/places";
 import { fold } from "@/lib/reference/text";
 import { loadHolidays } from "@/lib/reference/holidays";
 import { addItem, cacheAdvice, cachedAdvice, updateTrip } from "@/lib/store/state";
+import { tripadvisorThingsToDoUrl, tripadvisorUrl } from "@/lib/tripadvisor";
 import { useTripView } from "@/lib/store/use-store";
 import {
   calendarCountries,
@@ -90,6 +91,7 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<SearchProblem>();
   const [fresh, setFresh] = useState<AdviceResult>();
+  const [mappedId, setMappedId] = useState<string>();
   // The calendar countries whose fetch has finished, joined. If they are
   // still not in after that, the device is offline with the chunk not cached
   // yet, which the calendar note says rather than waiting without a word.
@@ -165,6 +167,11 @@ export default function DiscoverScreen() {
   const trailsInUrl =
     wantsTrails && !trailsNearUrl && linkCountry ? allTrailsCountryUrl(linkCountry) : undefined;
   const birdsCountry = interests.includes(BIRDS_INTEREST) ? linkCountry : undefined;
+
+  // The map follows the suggestion last tapped, starting with the first.
+  const sectionsShown = shownSections(interests, fromCalendar, advice);
+  const suggestions = sectionsShown.flatMap((shown) => (shown.source === "search" ? shown.section.suggestions : []));
+  const mapped = suggestions.find((suggestion) => suggestion.id === mappedId) ?? suggestions[0];
 
   if (quiet && !loading && !advice) {
     return (
@@ -340,38 +347,46 @@ export default function DiscoverScreen() {
         </ul>
       </Card>
 
-      {(trailsNearUrl || trailsInUrl || birdsCountry) && (
-        <Card className="p-4">
-          <ul className="flex flex-col items-start gap-1">
-            {trailsNearUrl && (
-              <li>
-                <a href={trailsNearUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
-                  Trails near {where}, on AllTrails ↗
-                </a>
-              </li>
-            )}
-            {trailsInUrl && (
-              <li>
-                <a href={trailsInUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
-                  Trails in {linkCountryName}, on AllTrails ↗
-                </a>
-              </li>
-            )}
-            {birdsCountry && (
-              <li>
-                <a
-                  href={eBirdUrl(birdsCountry)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={BORDERLESS_BUTTON_CLASSES}
-                >
-                  Birds seen in {linkCountryName}, on eBird ↗
-                </a>
-              </li>
-            )}
-          </ul>
-        </Card>
-      )}
+      <Card className="p-4">
+        <ul className="flex flex-col items-start gap-1">
+          <li>
+            <a
+              href={tripadvisorThingsToDoUrl(where)}
+              target="_blank"
+              rel="noreferrer"
+              className={BORDERLESS_BUTTON_CLASSES}
+            >
+              Things to do in {where}, on Tripadvisor ↗
+            </a>
+          </li>
+          {trailsNearUrl && (
+            <li>
+              <a href={trailsNearUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
+                Trails near {where}, on AllTrails ↗
+              </a>
+            </li>
+          )}
+          {trailsInUrl && (
+            <li>
+              <a href={trailsInUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
+                Trails in {linkCountryName}, on AllTrails ↗
+              </a>
+            </li>
+          )}
+          {birdsCountry && (
+            <li>
+              <a
+                href={eBirdUrl(birdsCountry)}
+                target="_blank"
+                rel="noreferrer"
+                className={BORDERLESS_BUTTON_CLASSES}
+              >
+                Birds seen in {linkCountryName}, on eBird ↗
+              </a>
+            </li>
+          )}
+        </ul>
+      </Card>
 
       {error && !searchEmpty && (
         <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">{error.message}</div>
@@ -405,53 +420,64 @@ export default function DiscoverScreen() {
             notes={[...(fromCalendar ? [CALENDAR_NOTE] : []), ...(advice?.notes ?? [])]}
           />
 
-          {shownSections(interests, fromCalendar, advice).map((shown) => {
-            if (shown.source === "calendar") {
-              return (
-                <section key="calendar">
-                  <SectionTitle trailing={`${listed.length}`}>{TIER_LABELS.calendar}</SectionTitle>
+          <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-6">
+            {mapped && <SuggestionMap suggestion={mapped} />}
 
-                  <ul className="flex flex-col gap-3">
-                    {listed.map((event, index) => (
-                      <li
-                        key={event.id}
-                        className="animate-rise"
-                        style={{ animationDelay: `${Math.min(index, 6) * 30}ms` }}
-                      >
-                        <CalendarCard
-                          event={event}
-                          tripId={trip.id}
-                          showCountry={calendar.countries.length > 1 || elsewhere}
-                          alreadyFiled={filedTitles.has(event.name.trim().toLowerCase())}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              );
-            }
+            <div className="flex flex-col gap-5 lg:col-start-1 lg:row-start-1">
+              {sectionsShown.map((shown) => {
+                if (shown.source === "calendar") {
+                  return (
+                    <section key="calendar">
+                      <SectionTitle trailing={`${listed.length}`}>{TIER_LABELS.calendar}</SectionTitle>
 
-            const interest = getInterest(shown.interestId);
-            const title = interest ? `${interest.emoji} ${interest.label}` : shown.interestId;
+                      <ul className="flex flex-col gap-3">
+                        {listed.map((event, index) => (
+                          <li
+                            key={event.id}
+                            className="animate-rise"
+                            style={{ animationDelay: `${Math.min(index, 6) * 30}ms` }}
+                          >
+                            <CalendarCard
+                              event={event}
+                              tripId={trip.id}
+                              showCountry={calendar.countries.length > 1 || elsewhere}
+                              alreadyFiled={filedTitles.has(event.name.trim().toLowerCase())}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                }
 
-            return (
-              <section key={shown.interestId}>
-                <SectionTitle trailing={`${shown.section.suggestions.length}`}>{title}</SectionTitle>
+                const interest = getInterest(shown.interestId);
+                const title = interest ? `${interest.emoji} ${interest.label}` : shown.interestId;
 
-                <ul className="flex flex-col gap-3">
-                  {shown.section.suggestions.map((suggestion, index) => (
-                    <li
-                      key={suggestion.id}
-                      className="animate-rise"
-                      style={{ animationDelay: `${Math.min(index, 6) * 30}ms` }}
-                    >
-                      <SuggestionCard suggestion={suggestion} tripId={trip.id} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
+                return (
+                  <section key={shown.interestId}>
+                    <SectionTitle trailing={`${shown.section.suggestions.length}`}>{title}</SectionTitle>
+
+                    <ul className="flex flex-col gap-3">
+                      {shown.section.suggestions.map((suggestion, index) => (
+                        <li
+                          key={suggestion.id}
+                          className="animate-rise"
+                          style={{ animationDelay: `${Math.min(index, 6) * 30}ms` }}
+                        >
+                          <SuggestionCard
+                            suggestion={suggestion}
+                            tripId={trip.id}
+                            mapped={suggestion.id === mapped?.id}
+                            onMap={() => setMappedId(suggestion.id)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
+          </div>
         </>
       )}
     </div>
@@ -530,7 +556,47 @@ function CalendarCard({
 const FILED_BUTTON_CLASSES =
   "press inline-flex min-h-11 items-center justify-center gap-2 rounded-control bg-ok-soft px-4 py-2 text-subheadline font-medium text-ok";
 
-function SuggestionCard({ suggestion, tripId }: { suggestion: Suggestion; tripId: string }) {
+/**
+ * The suggestion last tapped, on a small map: beside the list on a wide
+ * screen, and on a phone a strip held under the top bar while the list
+ * scrolls. It searches by name and city, since most suggestions only know
+ * their city's centre.
+ */
+function SuggestionMap({ suggestion }: { suggestion: Suggestion }) {
+  return (
+    <aside
+      aria-label="Map"
+      className="sticky top-[var(--header-height,0px)] z-20 lg:top-10 lg:col-start-2 lg:row-start-1"
+    >
+      <Card as="div" className="overflow-hidden">
+        <iframe
+          key={suggestion.id}
+          src={mapEmbedUrl({ name: suggestion.name, city: suggestion.place.city })}
+          title={`Map of ${suggestion.name}`}
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+          className="h-36 w-full border-0 lg:h-64"
+        />
+        <p className="truncate border-t border-line px-4 py-2 text-footnote text-ink-soft">
+          {suggestion.name}
+        </p>
+      </Card>
+    </aside>
+  );
+}
+
+function SuggestionCard({
+  suggestion,
+  tripId,
+  mapped,
+  onMap,
+}: {
+  suggestion: Suggestion;
+  tripId: string;
+  /** Whether the map beside the list shows this one. */
+  mapped: boolean;
+  onMap: () => void;
+}) {
   const [filed, setFiled] = useState(false);
 
   function file() {
@@ -549,53 +615,81 @@ function SuggestionCard({ suggestion, tripId }: { suggestion: Suggestion; tripId
   }
 
   return (
-    <Card as="div" className="raised p-4">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-headline">{suggestion.name}</h3>
-        <Chip tone={TIER_TONE[suggestion.tier] ?? "neutral"}>
-          {suggestion.tier.charAt(0).toUpperCase() + suggestion.tier.slice(1)}
-        </Chip>
-      </div>
+    // A tap anywhere but its buttons and links puts the card on the map. The
+    // title is the same control as a button, for the keyboard.
+    <div
+      onClick={(event) => {
+        if (!(event.target as HTMLElement).closest("a, button")) onMap();
+      }}
+    >
+      <Card as="div" className={`raised p-4 ${mapped ? "border-accent" : ""}`}>
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-headline">
+            <button
+              type="button"
+              onClick={onMap}
+              aria-pressed={mapped}
+              aria-label={`Show ${suggestion.name} on the map`}
+              className="text-left"
+            >
+              {suggestion.name}
+            </button>
+          </h3>
+          <Chip tone={TIER_TONE[suggestion.tier] ?? "neutral"}>
+            {suggestion.tier.charAt(0).toUpperCase() + suggestion.tier.slice(1)}
+          </Chip>
+        </div>
 
-      <p className="mt-1 text-subheadline text-ink-soft">{suggestion.why}</p>
+        <p className="mt-1 text-subheadline text-ink-soft">{suggestion.why}</p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={file}
-          disabled={filed}
-          className={filed ? FILED_BUTTON_CLASSES : SECONDARY_BUTTON_CLASSES}
-        >
-          {filed ? "Filed ✓" : "Add to trip"}
-        </button>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={file}
+            disabled={filed}
+            className={filed ? FILED_BUTTON_CLASSES : SECONDARY_BUTTON_CLASSES}
+          >
+            {filed ? "Filed ✓" : "Add to trip"}
+          </button>
 
-        <a
-          href={openInMapsUrl(suggestion.place)}
-          target="_blank"
-          rel="noreferrer"
-          className={BORDERLESS_BUTTON_CLASSES}
-        >
-          Maps ↗
-        </a>
-
-        {suggestion.url && (
           <a
-            href={suggestion.url}
+            href={openInMapsUrl(suggestion.place)}
             target="_blank"
             rel="noreferrer"
-            className="press tap inline-flex items-center text-footnote text-ink-soft underline underline-offset-2 hover:text-ink"
+            className={BORDERLESS_BUTTON_CLASSES}
           >
-            {suggestion.attribution ?? "source"} ↗
+            Maps ↗
           </a>
-        )}
 
-        {suggestion.priceHint && (
-          <span className="ml-auto text-footnote text-ink-soft tabular">
-            {suggestion.priceHint}
-          </span>
-        )}
-      </div>
-    </Card>
+          <a
+            href={tripadvisorUrl(suggestion.name, suggestion.place.city)}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Reviews of ${suggestion.name} on Tripadvisor`}
+            className={BORDERLESS_BUTTON_CLASSES}
+          >
+            Tripadvisor ↗
+          </a>
+
+          {suggestion.url && (
+            <a
+              href={suggestion.url}
+              target="_blank"
+              rel="noreferrer"
+              className="press tap inline-flex items-center text-footnote text-ink-soft underline underline-offset-2 hover:text-ink"
+            >
+              {suggestion.attribution ?? "source"} ↗
+            </a>
+          )}
+
+          {suggestion.priceHint && (
+            <span className="ml-auto text-footnote text-ink-soft tabular">
+              {suggestion.priceHint}
+            </span>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }
 

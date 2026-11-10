@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { adviceKey } from "@/lib/advisor/calendar";
 import type { AdviceResult } from "@/lib/advisor/types";
 import type { Trip, TripItem } from "@/lib/domain/types";
+import { mapEmbedUrl } from "@/lib/maps";
 import { primeHolidays } from "@/lib/reference/holidays";
 import type { AppState } from "@/lib/store/state";
 import type { TripView } from "@/lib/store/use-store";
@@ -226,5 +227,61 @@ describe("Discover's links out to AllTrails and eBird", () => {
 
     expect(html).not.toContain("alltrails.com");
     expect(html).not.toContain("ebird.org");
+  });
+});
+
+describe("Discover's map and its links to Tripadvisor", () => {
+  const portugal = { destinationCountries: ["PT"], interests: ["food"] };
+
+  /** A cached answer for the trip's default place, "Portugal", with two food picks. */
+  function answered(): AppState["advice"] {
+    const result: AdviceResult = {
+      destination: "Portugal",
+      sections: [
+        {
+          interestId: "food",
+          suggestions: [
+            { id: "s1", interestId: "food", name: "Pastéis de Belém", why: "The custard tarts.", place: { name: "Pastéis de Belém", city: "Lisbon" }, tier: "web" },
+            { id: "s2", interestId: "food", name: "Time Out Market", why: "Many stalls.", place: { name: "Time Out Market", city: "Lisbon" }, tier: "web" },
+          ],
+        },
+      ],
+      tiersUsed: ["web"],
+      generatedAt: "2026-06-01T00:00:00Z",
+    };
+    return [{ tripId: "t1", key: adviceKey("Portugal", ["food"]), result }];
+  }
+
+  /** As React writes an attribute: "&" escaped. */
+  const attribute = (value: string) => value.replaceAll("&", "&amp;");
+
+  beforeEach(() => {
+    view.current = undefined;
+  });
+
+  it("links to Tripadvisor's things to do for the place, before any search", () => {
+    const html = show(trip(portugal));
+
+    expect(html).toContain(`href="${attribute("https://www.tripadvisor.com/Search?q=Portugal&ssrc=A")}"`);
+    expect(html).toContain("Things to do in Portugal, on Tripadvisor ↗");
+    // No suggestions yet, so nothing to put on a map.
+    expect(html).not.toContain("<iframe");
+  });
+
+  it("maps the first suggestion until another is tapped", () => {
+    const html = show(trip(portugal), answered());
+
+    expect(html).toContain(`src="${attribute(mapEmbedUrl({ name: "Pastéis de Belém", city: "Lisbon" }))}"`);
+    expect(html).toContain('title="Map of Pastéis de Belém"');
+    expect(html).toMatch(/aria-pressed="true" aria-label="Show Pastéis de Belém on the map"/);
+    expect(html).toMatch(/aria-pressed="false" aria-label="Show Time Out Market on the map"/);
+  });
+
+  it("gives every suggestion its own Tripadvisor link", () => {
+    const html = show(trip(portugal), answered());
+
+    expect(html).toContain('href="https://www.tripadvisor.com/Search?q=Past%C3%A9is%20de%20Bel%C3%A9m%2C%20Lisbon"');
+    expect(html).toContain('href="https://www.tripadvisor.com/Search?q=Time%20Out%20Market%2C%20Lisbon"');
+    expect(html).toContain('aria-label="Reviews of Time Out Market on Tripadvisor"');
   });
 });

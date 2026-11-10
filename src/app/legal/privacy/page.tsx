@@ -146,8 +146,9 @@ export default function PrivacyPolicy() {
 
       <Section heading="3. Maps, and links out">
         <p>
-          Where a map is shown — on the Cabinet&rsquo;s map view, in an item&rsquo;s editor, and
-          under a place you type in on the Add screen — it is a Google Maps embed your browser
+          Where a map is shown — on the Cabinet&rsquo;s map view, in an item&rsquo;s editor, under a
+          place you type in on the Add screen, and beside Discover&rsquo;s suggestions, with the
+          name of the one you tapped — it is a Google Maps embed your browser
           loads straight from Google. Google receives your IP address, your browser&rsquo;s
           details, and the place name or coordinates shown, and may set or read its own cookies
           inside the map, under{" "}
@@ -163,8 +164,9 @@ export default function PrivacyPolicy() {
         </p>
         <p>
           Tapping Maps, Open in Maps or Directions opens Google Maps in a new tab with that place,
-          or both ends of the journey, in the address. A suggestion&rsquo;s source, the AllTrails
-          and eBird links on Discover (with the place or country in the address), a product link
+          or both ends of the journey, in the address. A suggestion&rsquo;s source, the
+          Tripadvisor, AllTrails and eBird links on Discover (with the place or country in the
+          address), a product link
           on the Checks screen, and the app&rsquo;s store page when you choose to rate it open the
           same way. From there, that site&rsquo;s own privacy policy applies.
         </p>
