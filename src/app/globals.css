@@ -352,6 +352,17 @@ body {
 }
 
 /*
+ * And of Discover's map strip, where it is held under the header: below lg,
+ * on a screen tall enough (as in SuggestionMap). 11.5rem is its 9rem map plus
+ * the caption.
+ */
+@media (width < 64rem) and (height >= 36rem) {
+  :root:has([data-map-strip]) {
+    scroll-padding-top: calc(var(--header-height, 0px) + 11.5rem);
+  }
+}
+
+/*
  * Scroll-edge appearance, as on iOS: the action bar is a material only while
  * the page runs on beneath it. Its resting look is the button alone; while
  * the page has more to scroll, the first keyframe (filled backwards) lays the

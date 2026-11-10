@@ -18,7 +18,7 @@ function Term({ children }: { children: string }) {
  *   reading:      src/lib/capture.ts, src/app/api/extract, src/lib/extract/
  *   suggestions:  src/app/discover/page.tsx, src/app/api/advise, src/lib/advisor/
  *   abuse guard:  src/lib/api/guard.ts
- *   maps:         src/lib/maps.ts, trip-map.tsx, item-fields.tsx
+ *   maps:         src/lib/maps.ts, trip-map.tsx, item-fields.tsx, src/app/discover/page.tsx
  *   storage:      src/lib/store/, add-draft.ts, review.ts, onboarding.tsx,
  *                 install-prompt.tsx, app-shell.tsx, public/sw.js
  *   share links:  src/lib/share.ts (stripPrivate)
@@ -147,11 +147,10 @@ export default function PrivacyPolicy() {
       <Section heading="3. Maps, and links out">
         <p>
           Where a map is shown — on the Cabinet&rsquo;s map view, in an item&rsquo;s editor, under a
-          place you type in on the Add screen, and beside Discover&rsquo;s suggestions, with the
-          name of the one you tapped — it is a Google Maps embed your browser
-          loads straight from Google. Google receives your IP address, your browser&rsquo;s
-          details, and the place name or coordinates shown, and may set or read its own cookies
-          inside the map, under{" "}
+          place you type in on the Add screen, and next to Discover&rsquo;s suggestions — it is a
+          Google Maps embed your browser loads straight from Google. Google receives your IP
+          address, your browser&rsquo;s details, and the place name or coordinates shown, and may
+          set or read its own cookies inside the map, under{" "}
           <a
             href="https://policies.google.com/privacy"
             target="_blank"
@@ -160,7 +159,10 @@ export default function PrivacyPolicy() {
           >
             Google&rsquo;s privacy policy
           </a>
-          . No map loads until you open a view that shows one.
+          . No map loads until you open a view that shows one. Discover&rsquo;s map shows the
+          first suggestion as soon as suggestions appear, and the one you tap after that: its
+          name with its city, or, where its city is not known, the place Discover looked in,
+          which can be what you typed under Where or your trip&rsquo;s name.
         </p>
         <p>
           Tapping Maps, Open in Maps or Directions opens Google Maps in a new tab with that place,

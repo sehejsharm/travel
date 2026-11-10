@@ -23,6 +23,7 @@ import {
   adviceKey,
   CALENDAR_INTEREST,
   calendarSection,
+  mappedSuggestion,
   shownSections,
 } from "@/lib/advisor/calendar";
 import { getInterest } from "@/lib/advisor/interests";
@@ -168,10 +169,15 @@ export default function DiscoverScreen() {
     wantsTrails && !trailsNearUrl && linkCountry ? allTrailsCountryUrl(linkCountry) : undefined;
   const birdsCountry = interests.includes(BIRDS_INTEREST) ? linkCountry : undefined;
 
+  // With no place typed, filed or picked, `where` is only the trip's name.
+  const placeKnown =
+    Boolean(destination.trim()) ||
+    items.some((item) => item.place?.city) ||
+    Boolean(getCountry(trip.destinationCountries?.[0]));
+
   // The map follows the suggestion last tapped, starting with the first.
   const sectionsShown = shownSections(interests, fromCalendar, advice);
-  const suggestions = sectionsShown.flatMap((shown) => (shown.source === "search" ? shown.section.suggestions : []));
-  const mapped = suggestions.find((suggestion) => suggestion.id === mappedId) ?? suggestions[0];
+  const mapped = mappedSuggestion(sectionsShown, mappedId);
 
   if (quiet && !loading && !advice) {
     return (
@@ -347,46 +353,50 @@ export default function DiscoverScreen() {
         </ul>
       </Card>
 
-      <Card className="p-4">
-        <ul className="flex flex-col items-start gap-1">
-          <li>
-            <a
-              href={tripadvisorThingsToDoUrl(where)}
-              target="_blank"
-              rel="noreferrer"
-              className={BORDERLESS_BUTTON_CLASSES}
-            >
-              Things to do in {where}, on Tripadvisor ↗
-            </a>
-          </li>
-          {trailsNearUrl && (
-            <li>
-              <a href={trailsNearUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
-                Trails near {where}, on AllTrails ↗
-              </a>
-            </li>
-          )}
-          {trailsInUrl && (
-            <li>
-              <a href={trailsInUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
-                Trails in {linkCountryName}, on AllTrails ↗
-              </a>
-            </li>
-          )}
-          {birdsCountry && (
-            <li>
-              <a
-                href={eBirdUrl(birdsCountry)}
-                target="_blank"
-                rel="noreferrer"
-                className={BORDERLESS_BUTTON_CLASSES}
-              >
-                Birds seen in {linkCountryName}, on eBird ↗
-              </a>
-            </li>
-          )}
-        </ul>
-      </Card>
+      {(placeKnown || trailsNearUrl || trailsInUrl || birdsCountry) && (
+        <Card className="p-4">
+          <ul className="flex flex-col items-start gap-1">
+            {placeKnown && (
+              <li>
+                <a
+                  href={tripadvisorThingsToDoUrl(where)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={BORDERLESS_BUTTON_CLASSES}
+                >
+                  Things to do in {where}, on Tripadvisor ↗
+                </a>
+              </li>
+            )}
+            {trailsNearUrl && (
+              <li>
+                <a href={trailsNearUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
+                  Trails near {where}, on AllTrails ↗
+                </a>
+              </li>
+            )}
+            {trailsInUrl && (
+              <li>
+                <a href={trailsInUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
+                  Trails in {linkCountryName}, on AllTrails ↗
+                </a>
+              </li>
+            )}
+            {birdsCountry && (
+              <li>
+                <a
+                  href={eBirdUrl(birdsCountry)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={BORDERLESS_BUTTON_CLASSES}
+                >
+                  Birds seen in {linkCountryName}, on eBird ↗
+                </a>
+              </li>
+            )}
+          </ul>
+        </Card>
+      )}
 
       {error && !searchEmpty && (
         <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">{error.message}</div>
@@ -420,10 +430,18 @@ export default function DiscoverScreen() {
             notes={[...(fromCalendar ? [CALENDAR_NOTE] : []), ...(advice?.notes ?? [])]}
           />
 
-          <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-6">
+          {/* Two columns only with a map to put in the second. */}
+          <div
+            className={`flex flex-col gap-5 ${mapped ? "lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-6" : ""}`}
+          >
             {mapped && <SuggestionMap suggestion={mapped} />}
 
             <div className="flex flex-col gap-5 lg:col-start-1 lg:row-start-1">
+              {mapped && (
+                <span id="suggestion-map-hint" hidden>
+                  Shows it on the map
+                </span>
+              )}
               {sectionsShown.map((shown) => {
                 if (shown.source === "calendar") {
                   return (
@@ -559,14 +577,18 @@ const FILED_BUTTON_CLASSES =
 /**
  * The suggestion last tapped, on a small map: beside the list on a wide
  * screen, and on a phone a strip held under the top bar while the list
- * scrolls. It searches by name and city, since most suggestions only know
- * their city's centre.
+ * scrolls, if the screen is tall enough to spare the room. It searches by
+ * name and city, since most suggestions only know their city's centre.
+ *
+ * globals.css reserves the strip's height when scrolling to a control, so
+ * nothing focused hides under it: keep the two in step.
  */
 function SuggestionMap({ suggestion }: { suggestion: Suggestion }) {
   return (
     <aside
       aria-label="Map"
-      className="sticky top-[var(--header-height,0px)] z-20 lg:top-10 lg:col-start-2 lg:row-start-1"
+      data-map-strip
+      className="top-[var(--header-height,0px)] z-20 [@media(min-height:36rem)]:sticky lg:sticky lg:top-10 lg:col-start-2 lg:row-start-1"
     >
       <Card as="div" className="overflow-hidden">
         <iframe
@@ -629,7 +651,7 @@ function SuggestionCard({
               type="button"
               onClick={onMap}
               aria-pressed={mapped}
-              aria-label={`Show ${suggestion.name} on the map`}
+              aria-describedby="suggestion-map-hint"
               className="text-left"
             >
               {suggestion.name}

@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { adviceKey } from "@/lib/advisor/calendar";
 import type { AdviceResult } from "@/lib/advisor/types";
 import type { Trip, TripItem } from "@/lib/domain/types";
-import { mapEmbedUrl } from "@/lib/maps";
 import { primeHolidays } from "@/lib/reference/holidays";
 import type { AppState } from "@/lib/store/state";
 import type { TripView } from "@/lib/store/use-store";
@@ -241,7 +240,8 @@ describe("Discover's map and its links to Tripadvisor", () => {
         {
           interestId: "food",
           suggestions: [
-            { id: "s1", interestId: "food", name: "Pastéis de Belém", why: "The custard tarts.", place: { name: "Pastéis de Belém", city: "Lisbon" }, tier: "web" },
+            // Only the city's centre, as most suggestions carry: the map must search by name.
+            { id: "s1", interestId: "food", name: "Pastéis de Belém", why: "The custard tarts.", place: { name: "Pastéis de Belém", city: "Lisbon", point: { lat: 38.7223, lng: -9.1393 } }, tier: "web" },
             { id: "s2", interestId: "food", name: "Time Out Market", why: "Many stalls.", place: { name: "Time Out Market", city: "Lisbon" }, tier: "web" },
           ],
         },
@@ -268,13 +268,35 @@ describe("Discover's map and its links to Tripadvisor", () => {
     expect(html).not.toContain("<iframe");
   });
 
-  it("maps the first suggestion until another is tapped", () => {
+  it("maps the first suggestion before any is tapped, by its name and city", () => {
     const html = show(trip(portugal), answered());
 
-    expect(html).toContain(`src="${attribute(mapEmbedUrl({ name: "Pastéis de Belém", city: "Lisbon" }))}"`);
+    expect(html).toContain(
+      `src="${attribute("https://www.google.com/maps?q=Past%C3%A9is%20de%20Bel%C3%A9m%2C%20Lisbon&z=15&output=embed")}"`,
+    );
     expect(html).toContain('title="Map of Pastéis de Belém"');
-    expect(html).toMatch(/aria-pressed="true" aria-label="Show Pastéis de Belém on the map"/);
-    expect(html).toMatch(/aria-pressed="false" aria-label="Show Time Out Market on the map"/);
+    expect(html).toMatch(/<button[^>]*aria-pressed="true" aria-describedby="suggestion-map-hint"[^>]*>Pastéis de Belém</);
+    expect(html).toMatch(/<button[^>]*aria-pressed="false" aria-describedby="suggestion-map-hint"[^>]*>Time Out Market</);
+    expect(html).toContain('<span id="suggestion-map-hint" hidden="">Shows it on the map</span>');
+    // Headings keep the place's own name: no label inside them renames them.
+    expect(html).not.toContain('aria-label="Show');
+    expect(html).toContain("lg:grid-cols-[minmax(0,1fr)_16rem]");
+  });
+
+  it("keeps one column when there is nothing to map", () => {
+    // Festivals & shows alone, with no search yet: the calendar's section, and no map.
+    const html = show(trip());
+
+    expect(html).toContain("From Manifest");
+    expect(html).not.toContain("<iframe");
+    expect(html).not.toContain("lg:grid-cols-[minmax(0,1fr)_16rem]");
+  });
+
+  it("has no Tripadvisor link when it knows no place, only the trip's name", () => {
+    const html = show(trip({ name: "New trip", destinationCountries: [], interests: ["food"] }));
+
+    expect(html).not.toContain("tripadvisor.com");
+    expect(html).not.toContain("Things to do in New trip");
   });
 
   it("gives every suggestion its own Tripadvisor link", () => {

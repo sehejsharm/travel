@@ -6,7 +6,7 @@
  * festivals on the trip's own dates. It runs on the device, from data that
  * ships with the app, so that part costs nothing and sends nothing anywhere.
  */
-import type { AdviceResult, AdviceSection } from "./types";
+import type { AdviceResult, AdviceSection, Suggestion } from "./types";
 import type { HolidayKind } from "../reference/holidays";
 import type { CalendarAnswer, CalendarEvent } from "../trip-calendar";
 
@@ -73,4 +73,13 @@ export function shownSections(
     }
   }
   return shown;
+}
+
+/**
+ * The suggestion on Discover's map: the one last tapped, otherwise the first,
+ * which is also where it goes back to once the tapped one is no longer shown.
+ */
+export function mappedSuggestion(shown: ShownSection[], mappedId: string | undefined): Suggestion | undefined {
+  const suggestions = shown.flatMap((entry) => (entry.source === "search" ? entry.section.suggestions : []));
+  return suggestions.find((suggestion) => suggestion.id === mappedId) ?? suggestions[0];
 }
