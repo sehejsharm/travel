@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Metadata } from "next";
 import { describe, expect, it } from "vitest";
 import { siteUrl } from "@/lib/site-url";
@@ -19,7 +20,8 @@ import sitemap from "./sitemap";
 import { metadata as trip } from "./trip/layout";
 import { metadata as newTrip } from "./trip/new/layout";
 
-const APP = path.dirname(new URL(import.meta.url).pathname);
+// fileURLToPath, not URL.pathname: the pathname keeps %20 for spaces and, on Windows, a leading /C:/.
+const APP = path.dirname(fileURLToPath(import.meta.url));
 const origin = siteUrl().origin;
 
 const TEMPLATE = "%s · Manifest";

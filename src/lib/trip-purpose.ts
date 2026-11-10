@@ -71,8 +71,11 @@ export const PURPOSES: PurposeProfile[] = [
     id: "backpacking",
     label: "Backpacking",
     emoji: "🥾",
-    effect: "Expects loose dates and long stays, and leans outdoors.",
-    interests: ["nature", "adventure", "food"],
+    effect:
+      "Expects loose dates and long stays, and leans toward the outdoors, hidden gems, local life and meeting people.",
+    // What backpackers say they travel for: other travellers, the local way of
+    // doing things, and the places off the tourist trail.
+    interests: ["nature", "adventure", "food", "gems", "local", "social"],
   },
 ];
 

@@ -141,6 +141,33 @@ const SIDEBAR_ICON = (
   </svg>
 );
 
+/**
+ * A ref callback that publishes a bar's height as a CSS variable on the root,
+ * so a screen's own bottom bar (ActionBar) stacks exactly on the tab bar and
+ * a control scrolled to stays clear of both bars. A bar a wide screen hides
+ * measures 0. The border box is watched, not the content box: the safe-area
+ * padding changes on its own when a phone's browser chrome hides or shows. A
+ * ref callback's return value is its cleanup.
+ */
+function publishHeight(variable: string) {
+  return (bar: HTMLElement | null) => {
+    if (!bar) return;
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty(variable, `${bar.getBoundingClientRect().height}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(bar, { box: "border-box" });
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty(variable);
+    };
+  };
+}
+
+// Made once, so React never sees a new ref and re-measures on every render.
+const publishHeaderHeight = publishHeight("--header-height");
+const publishTabBarHeight = publishHeight("--tab-bar-height");
+
 function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
@@ -212,8 +239,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="nav-surface pt-safe sticky top-0 z-30 border-b border-line lg:hidden">
+      {/* Clipped, not hidden, so the bars stay sticky and a full-bleed ActionBar's
+          100vw never scrolls the page sideways past a classic scrollbar. */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
+        <header
+          ref={publishHeaderHeight}
+          className="nav-surface pt-safe sticky top-0 z-30 border-b border-line lg:hidden"
+        >
           <div className="flex h-14 items-center gap-2 px-5">
             <Link href="/" aria-label="Manifest home" className="press tap rounded-control">
               <Wordmark compact />
@@ -246,6 +278,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
 
         <nav
+          ref={publishTabBarHeight}
           aria-label="Main"
           className="nav-surface pb-bar fixed inset-x-0 bottom-0 z-30 border-t border-line lg:hidden"
         >

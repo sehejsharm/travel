@@ -90,6 +90,27 @@ describe("airport grounding", () => {
     expect(groundPlace("delicatessen crawl")?.city).not.toBe("Delhi");
   });
 
+  it("reads a code only in capitals, as flights write them", () => {
+    expect(groundPlace("Los Angeles")?.city).toBe("Los Angeles");
+    expect(groundPlace("per-diem lunch")).toBeUndefined();
+    expect(groundPlace("Zagreb Franjo Tuđman Airport")?.name).toBe("Franjo Tuđman (ZAG)");
+    expect(groundPlace("Miami (MIA)")?.name).toBe("Miami International (MIA)");
+  });
+
+  it("does not read a code joined to a word by a hyphen", () => {
+    expect(groundPlace("HOTEL ARTS BARCELONA\nDELUXE SEA-VIEW ROOM")?.city).toBe("Barcelona");
+    expect(groundPlace("HOTEL NIKKO KYOTO\nADD-ONS: BREAKFAST")?.city).toBe("Kyoto");
+    // Two codes joined are a route.
+    expect(groundPlace("AI 142 DEL-HND")?.name).toContain("(DEL)");
+  });
+
+  it("takes an airport named for its city as the city, unless the text says airport", () => {
+    expect(groundPlace("Kunsthaus Zürich")?.name).toBe("Zurich");
+    expect(groundPlace("Munich")?.name).toBe("Munich");
+    expect(groundPlace("Zurich Airport")?.name).toBe("Zurich (ZRH)");
+    expect(groundPlace("MUC")?.name).toBe("Munich (MUC)");
+  });
+
   it("prefers a landmark over an airport that shares a city", () => {
     expect(groundPlace("Senso-ji")?.name).toBe("Senso-ji");
   });
@@ -97,5 +118,42 @@ describe("airport grounding", () => {
   it("offers airports in the type-ahead", () => {
     expect(suggestPlaces("hnd").some((s) => s.name.includes("HND"))).toBe(true);
     expect(suggestPlaces("changi").some((s) => s.name.includes("SIN"))).toBe(true);
+  });
+});
+
+describe("city and landmark grounding", () => {
+  it("does not find a place inside a longer word", () => {
+    // Malé, Tunis, Fes, Agra and Nadi hide inside these.
+    for (const text of ["Malaysia", "Tunisia", "Malibu beach", "Kite Festival", "Sagrada Familia", "Canadian Rockies"]) {
+      expect(groundPlace(text), text).toBeUndefined();
+    }
+    // Asakusa, the alias for Senso-ji, hides inside Asakusabashi.
+    expect(groundPlace("Asakusabashi hostel")).toBeUndefined();
+  });
+
+  it("reads accents the way people type them", () => {
+    expect(groundPlace("Malé")?.city).toBe("Malé");
+    expect(groundPlace("hotel in Male")?.city).toBe("Malé");
+    expect(groundPlace("Sao Paulo")?.city).toBe("São Paulo");
+    expect(groundPlace("Cancun")?.city).toBe("Cancún");
+    expect(groundPlace("Xian")?.city).toBe("Xi'an");
+    expect(groundPlace("Hotel Xi An Bell Tower")?.city).toBe("Xi'an");
+    expect(groundPlace("O Hare International")?.name).toBe("O'Hare International (ORD)");
+    expect(groundPlace("Milano Centrale 08:00")?.city).toBe("Milan");
+  });
+
+  it("still finds a place within a longer phrase", () => {
+    expect(groundPlace("Kyoto station")?.city).toBe("Kyoto");
+    expect(groundPlace("Tokyo's best ramen")?.city).toBe("Tokyo");
+    expect(groundPlace("Venice")?.city).toBe("Venice");
+    expect(groundPlace("shibuya sky tickets")?.name).toBe("Shibuya Sky");
+    expect(groundPlace("Kiyomizu-dera at dawn")?.name).toBe("Kiyomizu-dera");
+    expect(groundPlace("Fujikawaguchiko")?.name).toBe("Lake Kawaguchi");
+  });
+
+  it("suggests an accented city typed without its accents", () => {
+    expect(suggestPlaces("male").map((s) => s.name)).toContain("Malé");
+    expect(suggestPlaces("sao p").map((s) => s.name)).toContain("São Paulo");
+    expect(suggestPlaces("xi an").map((s) => s.name)).toContain("Xi'an");
   });
 });

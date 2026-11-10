@@ -1,8 +1,13 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, afterEach, describe, expect, it } from "vitest";
+import { POST as advise } from "@/app/api/advise/route";
+import { InterestPicker } from "@/components/interest-picker";
+import { resetBudgets } from "../api/guard";
 import type { Trip, TripItem } from "../domain/types";
 import { offersFor } from "../partners";
 import { communityPicks } from "./community";
-import { INTERESTS, getInterest } from "./interests";
+import { DEFAULT_INTERESTS, INTERESTS, MAX_INTERESTS, getInterest, togglePick } from "./interests";
 import { searchPlaces } from "./places";
 import { fallbackSections, verify } from "./verify";
 
@@ -45,6 +50,170 @@ describe("interest sections", () => {
   it("looks up by id and misses cleanly", () => {
     expect(getInterest("food")?.label).toBe("Eating");
     expect(getInterest("nonsense")).toBeUndefined();
+  });
+
+  it("adds the ten new interests after the original twelve, in the order they were approved", () => {
+    expect(INTERESTS).toHaveLength(22);
+    expect(INTERESTS.slice(12).map((interest) => [interest.id, interest.label])).toEqual([
+      ["gems", "Hidden gems"],
+      ["wildlife", "Wildlife"],
+      ["local", "Local life"],
+      ["festivals", "Festivals & shows"],
+      ["classes", "Classes & workshops"],
+      ["social", "Meet people"],
+      ["camping", "Camping & road trips"],
+      ["daytrips", "Day trips"],
+      ["photo", "Photo spots"],
+      ["film", "Film locations"],
+    ]);
+  });
+
+  it("gives every interest a label, an emoji and a line under it", () => {
+    for (const interest of INTERESTS) {
+      expect(interest.label.trim()).not.toBe("");
+      expect(interest.emoji.trim()).not.toBe("");
+      expect(interest.blurb.trim()).not.toBe("");
+    }
+  });
+
+  it("keeps ids to plain lowercase words, safe inside Discover's cache key", () => {
+    // The key joins ids with "," after a "|", and ids are stored on trips for good.
+    for (const interest of INTERESTS) expect(interest.id).toMatch(/^[a-z]+$/);
+  });
+
+  it("starts a traveller who picked nothing on interests that exist, within the limit", () => {
+    expect(DEFAULT_INTERESTS.every((id) => getInterest(id))).toBe(true);
+    expect(DEFAULT_INTERESTS.length).toBeLessThanOrEqual(MAX_INTERESTS);
+  });
+});
+
+describe("picking interests", () => {
+  const ids = INTERESTS.map((interest) => interest.id);
+
+  it("keeps the picker's order, whatever order they were tapped in", () => {
+    const picked = ["film", "gems", "food"].reduce(togglePick, [] as string[]);
+    expect(picked).toEqual(["food", "gems", "film"]);
+  });
+
+  it("unpicks one that was picked", () => {
+    expect(togglePick(["food", "social"], "social")).toEqual(["food"]);
+  });
+
+  it("stops at the limit rather than letting a pick past it be dropped later", () => {
+    const full = ids.slice(0, MAX_INTERESTS);
+    expect(togglePick(full, "film")).toEqual(full);
+    // Swapping still works: unpick one, then the other goes in.
+    expect(togglePick(togglePick(full, full[0]), "film")).toEqual([...full.slice(1), "film"]);
+  });
+
+  it("lets a trip that already holds more than the limit come back under it", () => {
+    const over = ids.slice(0, MAX_INTERESTS + 2);
+    expect(togglePick(over, over[0])).toEqual(over.slice(1));
+    expect(togglePick(over, "film")).toEqual(over);
+  });
+
+  it("drops ids that are not interests, and ignores a tap on one", () => {
+    expect(togglePick(["food", "retired-id"], "gems")).toEqual(["food", "gems"]);
+    expect(togglePick(["food"], "nonsense")).toEqual(["food"]);
+  });
+});
+
+describe("the interest picker", () => {
+  const ids = INTERESTS.map((interest) => interest.id);
+
+  function render(selected: string[], min?: number): string {
+    return renderToStaticMarkup(createElement(InterestPicker, { selected, onChange: () => {}, min }));
+  }
+
+  function count(html: string, pattern: RegExp): number {
+    return html.match(pattern)?.length ?? 0;
+  }
+
+  it("offers all of them, and none is off-limits below the limit", () => {
+    const html = render(["food", "gems"]);
+    expect(count(html, /<button/g)).toBe(INTERESTS.length);
+    expect(count(html, / (?:aria-)?disabled="/g)).toBe(0);
+    expect(html).toContain("Film locations");
+    expect(html).toContain("2 picked");
+  });
+
+  it("holds the rest back at the limit, and says why", () => {
+    const html = render(ids.slice(0, MAX_INTERESTS));
+    // Unavailable rather than disabled, so each stays in the Tab order and is announced.
+    expect(count(html, /aria-disabled="true"/g)).toBe(INTERESTS.length - MAX_INTERESTS);
+    expect(count(html, / disabled="/g)).toBe(0);
+    expect(count(html, /aria-describedby="/g)).toBe(INTERESTS.length - MAX_INTERESTS);
+    expect(count(html, /aria-pressed="true"/g)).toBe(MAX_INTERESTS);
+    expect(html).toContain("the most Discover looks up at a time");
+  });
+
+  it("tells a trip over the limit how many to unpick", () => {
+    const html = render(ids.slice(0, MAX_INTERESTS + 2));
+    expect(html).toContain("unpick 2 to choose which");
+  });
+
+  it("does not count an id that is no longer an interest", () => {
+    expect(render(["food", "retired-id"])).toContain("1 picked");
+    expect(render(["retired-id"], 0)).toContain("Optional");
+  });
+});
+
+describe("the advise route and the new interests", () => {
+  const keys = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "GOOGLE_PLACES_API_KEY"] as const;
+  const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  // Tokyo has published picks for food, and none for any of these.
+  const uncovered = ["gems", "wildlife", "local", "festivals", "classes", "social", "camping", "daytrips", "photo", "film"];
+
+  beforeEach(() => {
+    // No keys, so only the free tiers run and nothing is sent anywhere.
+    for (const key of keys) delete process.env[key];
+  });
+  afterEach(() => {
+    for (const key of keys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  });
+
+  function ask(interests: string[]) {
+    // Each request still passes the guard, just with a fresh budget: these are not a burst.
+    resetBudgets();
+    return advise(
+      new Request("https://manifest.example/api/advise", {
+        method: "POST",
+        headers: {
+          host: "manifest.example",
+          origin: "https://manifest.example",
+          "sec-fetch-site": "same-origin",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ destination: "Tokyo", countryCode: "JP", interests }),
+      }),
+    );
+  }
+
+  it("accepts every new interest rather than turning it away as unknown", async () => {
+    for (const id of uncovered) {
+      // Nothing to verify for these yet, which is a 503; an unknown id is a 400.
+      expect((await ask([id])).status).toBe(503);
+    }
+    expect((await ask(["nonsense"])).status).toBe(400);
+  });
+
+  it("answers the sections it can alongside a new one", async () => {
+    const response = await ask(["food", "gems"]);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { sections: { interestId: string }[] };
+    expect(body.sections.map((section) => section.interestId)).toEqual(["food"]);
+  });
+
+  it("caps a request at the same number the picker stops at", async () => {
+    expect((await ask([...uncovered.slice(0, MAX_INTERESTS - 1), "food"])).status).toBe(200);
+    expect((await ask([...uncovered.slice(0, MAX_INTERESTS), "food"])).status).toBe(503);
+  });
+
+  it("has no published picks to offer under a new interest, rather than made-up ones", () => {
+    expect(communityPicks("Tokyo", uncovered)).toEqual([]);
   });
 });
 

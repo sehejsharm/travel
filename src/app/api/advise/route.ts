@@ -1,11 +1,10 @@
 import { guard } from "@/lib/api/guard";
 import { advise } from "@/lib/advisor";
-import { INTERESTS } from "@/lib/advisor/interests";
+import { INTERESTS, MAX_INTERESTS } from "@/lib/advisor/interests";
 import type { Candidate } from "@/lib/advisor/types";
 
 /** A destination name, not an essay. */
 const MAX_DESTINATION = 120;
-const MAX_INTERESTS = 8;
 /** Their own saved items are the first tier, but a trip is not unbounded. */
 const MAX_SAVED = 60;
 /** Titles and place names both, so a filed place is not suggested back. */

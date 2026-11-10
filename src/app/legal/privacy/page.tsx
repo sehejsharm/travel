@@ -22,6 +22,8 @@ function Term({ children }: { children: string }) {
  *   storage:      src/lib/store/, add-draft.ts, review.ts, onboarding.tsx,
  *                 install-prompt.tsx, app-shell.tsx, public/sw.js
  *   share links:  src/lib/share.ts (stripPrivate)
+ *   holidays:     src/lib/reference/holidays.ts, holiday-data/index.ts (one chunk
+ *                 per country), src/lib/store/use-store.ts, src/lib/advisor/calendar.ts
  */
 export default function PrivacyPolicy() {
   return (
@@ -161,7 +163,8 @@ export default function PrivacyPolicy() {
         </p>
         <p>
           Tapping Maps, Open in Maps or Directions opens Google Maps in a new tab with that place,
-          or both ends of the journey, in the address. A suggestion&rsquo;s source, a product link
+          or both ends of the journey, in the address. A suggestion&rsquo;s source, the AllTrails
+          and eBird links on Discover (with the place or country in the address), a product link
           on the Checks screen, and the app&rsquo;s store page when you choose to rate it open the
           same way. From there, that site&rsquo;s own privacy policy applies.
         </p>
@@ -263,12 +266,22 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section heading="Reference data never leaves the device">
+      <Section heading="Reference data runs on the device">
         <p>
-          Visa rules, vaccination advice, duty-free allowances, plug types, public holidays and
-          exchange rates are compiled into the app itself. Running a check contacts nobody and
-          reveals nothing about you or where you are going — which is also why those figures carry
-          a verification date and can go out of date between releases.
+          Visa rules, vaccination advice, duty-free allowances, plug types and exchange rates are
+          compiled into the app itself. Running a check contacts nobody and reveals nothing about
+          you or where you are going — which is also why those figures carry a verification date
+          and can go out of date between releases.
+        </p>
+        <p>
+          The holiday and festival calendar covers every country to 2050, which is too much to
+          load at once, so each country&rsquo;s part is a separate file of the app. The first time
+          a trip goes somewhere, this device downloads that country&rsquo;s file from Vercel, like
+          any other part of the app, and the offline worker keeps it. The request carries nothing
+          about you or your trip, but the file it asks for belongs to one country, so Vercel&rsquo;s
+          request logs could show that your IP address loaded, say, Japan&rsquo;s calendar. From
+          then on the calendar, and the timeline marks and the festivals and days off Discover
+          lists from it, work on this device and contact no one.
         </p>
       </Section>
 

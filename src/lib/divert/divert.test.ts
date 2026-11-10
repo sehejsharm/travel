@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdviceResult } from "../advisor/types";
 import type { TripItem } from "../domain/types";
 import { formatTime } from "../rules/shared";
@@ -1017,16 +1017,24 @@ describe("divert state", () => {
   });
 
   it("remembers the chosen way back and a switched spot", () => {
-    const japan = trip("Japan");
-    startDivert({ tripId: japan, interestIds: ["coffee"], spot: spot() }, NOW);
+    // chooseRejoin reads the real clock, and a session lasts 12 hours, so the
+    // clock is held at NOW; left real, this test fails from 12 hours after NOW.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    try {
+      const japan = trip("Japan");
+      startDivert({ tripId: japan, interestIds: ["coffee"], spot: spot() }, NOW);
 
-    chooseRejoin("GROUP_DETOUR");
-    expect(activeDivert(getSnapshot(), japan, NOW)?.chosen).toBe("GROUP_DETOUR");
+      chooseRejoin("GROUP_DETOUR");
+      expect(activeDivert(getSnapshot(), japan, NOW)?.chosen).toBe("GROUP_DETOUR");
 
-    updateDivert({ spot: spot({ id: "turret", name: "Turret Coffee" }), chosen: undefined }, NOW);
-    const session = activeDivert(getSnapshot(), japan, NOW);
-    expect(session?.spot.name).toBe("Turret Coffee");
-    expect(session?.chosen).toBeUndefined();
+      updateDivert({ spot: spot({ id: "turret", name: "Turret Coffee" }), chosen: undefined }, NOW);
+      const session = activeDivert(getSnapshot(), japan, NOW);
+      expect(session?.spot.name).toBe("Turret Coffee");
+      expect(session?.chosen).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("names whoever broke off, and nobody once they are gone", () => {
