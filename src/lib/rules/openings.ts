@@ -74,7 +74,7 @@ export function publicHolidays(ctx: RuleContext): Flag[] {
             ? `${clashing[0].name} falls on a day you have plans`
             : `${holidays.length} public holiday${holidays.length === 1 ? "" : "s"} during your trip`,
         detail: holidays
-          .map((holiday) => `${formatDay(holiday.date)} — ${holiday.name}`)
+          .map((holiday) => `${formatDay(holiday.date)}: ${holiday.name}`)
           .join("; ")
           .concat(". Museums and offices close, and transport gets busy."),
         itemIds: [],

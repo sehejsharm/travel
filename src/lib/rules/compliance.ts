@@ -96,7 +96,7 @@ export function entryRequirements(
           severity: "warning",
           category: "compliance",
           title: `${countryName} requires ${requirement.authorisation}`,
-          detail: `This is separate from a visa and is easy to miss — arrange it for ${traveler.name} before departure.`,
+          detail: `This is separate from a visa and is easy to miss. Arrange it for ${traveler.name} before departure.`,
           itemIds: [],
           verifyWith: VERIFY_NOTE,
         });
@@ -166,7 +166,7 @@ function passportValidity(
     title: `${traveler.name}'s passport expires too soon for ${countryName}`,
     detail:
       requiredMonths > 0
-        ? `${countryName} wants ${requiredMonths} months of validity beyond your stay — that means valid until ${formatDay(
+        ? `${countryName} wants ${requiredMonths} months of validity beyond your stay: that means valid until ${formatDay(
             requiredUntil.toISOString(),
           )}, but this passport expires ${formatDay(traveler.passportExpiry)}.`
         : `The passport expires ${formatDay(
@@ -293,21 +293,21 @@ export function visaAssistance(
 
       if (requirement.outcome === "visa-required") {
         return [
-          `${countryName}: a visa has to be granted before you fly. Book the consulate or visa-centre appointment first — that slot, not the decision, is usually what runs out. Take the passport, photos to their spec, proof of funds, and your return flight and lodging bookings.${
+          `${countryName}: a visa has to be granted before you fly. Book the consulate or visa-centre appointment first: that slot, not the decision, is usually what runs out. Take the passport, photos to their spec, proof of funds, and your return flight and lodging bookings.${
             lead > 0 ? ` You have ${lead} days.` : ""
           }`,
         ];
       }
       if (requirement.outcome === "e-visa") {
         return [
-          `${countryName}: applied for online, but not instant. Apply on the official government portal only — search results are full of paid intermediaries charging for a free form. Have a passport scan and a card ready.${
+          `${countryName}: applied for online, but not instant. Apply on the official government portal only: search results are full of paid intermediaries charging for a free form. Have a passport scan and a card ready.${
             lead > 0 ? ` You have ${lead} days.` : ""
           }`,
         ];
       }
       if (requirement.outcome === "visa-on-arrival") {
         return [
-          `${countryName}: nothing to do in advance, but land prepared — the fee is often cash only in a specific currency, and they will ask for an onward ticket and an address.${
+          `${countryName}: nothing to do in advance, but land prepared. The fee is often cash only in a specific currency, and they will ask for an onward ticket and an address.${
             requirement.maxStayDays ? ` Good for ${requirement.maxStayDays} days.` : ""
           }`,
         ];
@@ -327,7 +327,7 @@ export function visaAssistance(
           severity: "info",
           category: "compliance",
           title: `${traveler.name} has no visa to arrange for this trip`,
-          detail: `Nothing to apply for on a ${traveler.passportCountry} passport for these destinations. Still worth reconfirming close to travel — rules move.`,
+          detail: `Nothing to apply for on a ${traveler.passportCountry} passport for these destinations. Still worth reconfirming close to travel: rules move.`,
           itemIds: [],
           verifyWith: VERIFY_NOTE,
         },

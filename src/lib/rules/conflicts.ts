@@ -33,7 +33,7 @@ export function timeOverlaps({ items }: RuleContext): Flag[] {
         severity: "critical",
         category: "conflict",
         title: `${a.title} overlaps ${b.title}`,
-        detail: `Both are booked on ${formatDay(a.startsAt!)} — ${a.title} runs until ${formatTime(
+        detail: `Both are booked on ${formatDay(a.startsAt!)}: ${a.title} runs until ${formatTime(
           a.endsAt!,
         )} but ${b.title} starts at ${formatTime(b.startsAt!)}.`,
         itemIds: [a.id, b.id],
@@ -105,7 +105,7 @@ export function layoverFeasibility({ items }: RuleContext): Flag[] {
         title: `Connection changes airport (${arrivalCode} → ${departureCode})`,
         detail: `You land at ${arrivalCode} and depart from ${departureCode} ${Math.round(
           layover,
-        )} min later. That transfer is on you — check it is possible before relying on it.`,
+        )} min later. That transfer is on you. Check it is possible before relying on it.`,
         itemIds: [arriving.id, departing.id],
       });
       continue;
