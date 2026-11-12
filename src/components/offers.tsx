@@ -48,7 +48,7 @@ export function Offers({ offers }: { offers: Offer[] }) {
                   rel="noreferrer sponsored"
                   className={`${SECONDARY_BUTTON_CLASSES} mt-3`}
                 >
-                  Look on {offer.partner} ↗
+                  Look on {offer.partner}
                 </a>
               </div>
             </Card>
@@ -59,7 +59,7 @@ export function Offers({ offers }: { offers: Offer[] }) {
       {anyAffiliate(offers) && (
         <p className="mt-3 text-caption text-ink-soft">
           Some links here earn us a commission if you buy, at no extra cost to you. They are chosen
-          by the checks above — never by who pays most — and the app works identically if you
+          by the checks above (never by who pays most), and the app works identically if you
           ignore them.
         </p>
       )}

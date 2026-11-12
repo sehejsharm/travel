@@ -24,8 +24,9 @@ token, so light and dark come from the same class names.
 | Fills, tracks, hover wash | `surface-2`, `surface-3` | `#eaeee8`, `#dfe5dc` | `#1b252c`, `#243038` |
 | Primary text | `ink` | brand ink `#0b1116` at 90% | paper `#f4f6f3` at 90% |
 | Secondary text | `ink-soft` | brand ink at 60% | paper at 60% |
-| Tertiary (placeholders, disabled, decoration only) | `ink-faint` | brand ink at 30% | paper at 30% |
+| Tertiary (disabled, decoration only) | `ink-faint` | brand ink at 30% | paper at 30% |
 | Hairlines | `line` | brand ink at 10% | paper at 10% |
+| Field edges: text fields, selects, text areas, checkboxes | `field-edge` | brand ink at 48% | paper at 38% |
 | Critical / warning / success | `critical`, `warning`, `ok` | `#b23b46` / amber `#7a5c00` / teal `#2f6f62` | `#e5808a` / `#e8b84a` / `#59a595` |
 | Frosted bars, sheets | `.nav-surface`, `.material-thick` | paper at 72%, white at 80% | ink at 72%, surface at 80% |
 
@@ -34,13 +35,23 @@ Rules:
 - Use tokens only. No hex values in class names and no Tailwind palette
   colours (`gray-*`, `slate-*`, `red-*` and so on). White and black are allowed
   only on the trip hero's gradient and for the dimmed backdrop behind a sheet.
-- `ink-faint` is 30%, about 1.9:1. It is for placeholders, disabled controls
-  and decorative glyphs (a separator dot, a chevron, a dashed outline), never
-  for text a person needs to read. Labels, hints, timestamps and metadata use
-  `ink-soft`.
+- `ink-faint` is 30%, about 1.9:1. It is for disabled controls and
+  decorative glyphs (a separator dot, a dashed outline), never for text a
+  person needs to read. Labels, hints, placeholders, timestamps and metadata
+  use `ink-soft`. An icon that is the only sign of what a control does, such as
+  the trip switcher's chevron, is `ink-soft` too.
+- A control's edge is `field-edge`, 3:1 on every surface (WCAG 1.4.11), never
+  the hairline.
+- `ok` is for something done or settled. A finding that is only good to know,
+  and a chip saying where something came from, are neutral (`surface-2` with
+  `ink-soft`).
 - Warnings are amber (`warning`), never copper: a warning must not look like
   something to tap.
 - On the trip hero's gradient, secondary text is `text-white/80` at least.
+- The trip hero's gradient runs from the trip's hue to 48 degrees on, in OKLCH
+  at fixed lightness. Neither end sits in hues 250 to 305 (blue into violet):
+  `theme.ts` moves any start from 202 to 305 out of that band. Nothing is drawn
+  over the gradient, and it does not move.
 
 ## Type: San Francisco, with Apple's text styles
 
@@ -78,6 +89,8 @@ Rules:
   content, and the eyebrow in `ScreenHeader`.
 - `font-display` and `font-sans` resolve to the same stack; neither is needed
   in markup.
+- Headings (h1 to h3) balance their lines (`text-wrap: balance`, set in
+  `globals.css`), so none ends on a one-word line.
 
 ## Layout: the 4pt grid, 44pt targets, continuous corners
 
@@ -104,6 +117,8 @@ Rules:
   | `rounded-window` | 32px | Window-sized wrappers |
   | `rounded-full` | circle | Avatars, dots, the Add button, round icon buttons, segmented controls, progress bars |
 
+- One containment layer: a form's groups (the When box, disclosures, field
+  groups) are the cards, so the form itself does not go in a `Card`.
 - Fixed bottom bars pad with `.pb-bar`: `max(16px, env(safe-area-inset-bottom))`.
   The page clears the tab bar with `.pb-safe`.
 - A long screen keeps its one next step in reach with `ActionBar`, placed last.
@@ -124,6 +139,12 @@ Rules:
 - Sheets (`Sheet`) slide up from the bottom on a phone, over a dimmed
   backdrop, with Apple's grabber (36 x 5px, rounded, ink at 30%), and settle in
   place as a dialog on a wide screen.
+- A screen opened from a tab keeps that tab current: Trip settings, a new trip
+  and Divert mark Trip; the recap and the legal pages mark More. Folded, the
+  sidebar keeps the trip switcher as an icon button.
+- A screen opened from another puts its way back above the eyebrow, at the
+  leading edge: a chevron and the name of where it goes (`ScreenHeader`'s
+  `back`). The `action` slot is for the screen's own actions.
 - Overlays (bars, menus, popovers, sheets) use a material, never an opaque
   fill: `.nav-surface` (72%) or `.material-thick` (80%), each a 20px blur with
   saturation at 180%.
@@ -142,8 +163,13 @@ Rules:
   devices only), an immediate dip to 0.96 at 80% opacity when pressed, and a
   spring back. `.liftable` does the same for tappable cards, plus a lifted
   shadow.
-- Focus: a 2px copper outline, offset 2px, on everything; inputs instead turn
-  their border copper with a soft copper glow. Don't remove outlines.
+- Focus: a 2px copper outline, offset 2px, on everything, text fields
+  included (their border also turns copper). It shows at once, never faded in.
+  Don't remove outlines.
+- Motion marks a change of state, never decoration. Nothing loops except a
+  loading skeleton. Nothing overshoots: no keyframe goes past 100% or rotates.
+  A route change is one short fade (`--dur-micro`) on the main region, with no
+  second entrance inside it. Numbers are shown at their values, not counted up.
 - Reduced motion turns all of it off (see the end of `globals.css`).
 
 ## Components
@@ -161,6 +187,9 @@ Rules:
   utilities wins, not the order they are written in. Use the right variant.
 - Inputs: `TextInput`, `TextArea`, `Select`. They use 17px text, because
   Safari zooms into any field under 16px. Labels sit above, from `Field`,
-  which also shows a validation `error` in the critical tone.
+  which also shows a validation `error` in the critical tone. Their edge is
+  `field-edge`, and their placeholder is `ink-soft`.
+- Disabled, a button has `ink-faint` text on a `surface-3` fill (no fill on a
+  borderless or remove button) and the not-allowed cursor.
 - Empty states (`EmptyState`): a thin-stroke icon, a bold title, a sentence on
   why it is empty, and a required action that fills it.

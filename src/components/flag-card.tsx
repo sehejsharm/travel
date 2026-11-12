@@ -1,14 +1,17 @@
 import type { Flag, FlagSeverity } from "@/lib/domain/types";
 import { Card, Chip, type Tone } from "./ui";
 
-const SEVERITY: Record<
-  FlagSeverity,
-  { tone: Tone; rail: string; label: string }
-> = {
-  critical: { tone: "critical", rail: "bg-critical", label: "Fix before you fly" },
-  warning: { tone: "warning", rail: "bg-warning", label: "Worth a look" },
-  info: { tone: "ok", rail: "bg-ok", label: "Good to know" },
+// Good to know is not a status, so it is neutral: ok is kept for a check that is done.
+const SEVERITY: Record<FlagSeverity, { tone: Tone; label: string }> = {
+  critical: { tone: "critical", label: "Fix before you fly" },
+  warning: { tone: "warning", label: "Worth a look" },
+  info: { tone: "neutral", label: "Good to know" },
 };
+
+/** The words for a severity, for the headings the Checks screen groups findings under. */
+export function severityLabel(severity: FlagSeverity): string {
+  return SEVERITY[severity].label;
+}
 
 /** `settled` means its pre-trip task has been ticked, so it reads as handled. */
 export function FlagCard({
@@ -22,9 +25,6 @@ export function FlagCard({
   index?: number;
 }) {
   const severity = SEVERITY[flag.severity];
-  // An unresolved conflict is the one severity that is about to cost you
-  // something, so it gets a second signal beyond colour and label.
-  const urgent = !settled && flag.severity === "critical";
 
   return (
     <Card
@@ -34,31 +34,18 @@ export function FlagCard({
       }`}
       style={{ "--i": index } as React.CSSProperties}
     >
-      <span
-        className={`w-1 shrink-0 transition-colors duration-300 ease-[var(--ease-spring)] ${
-          settled ? "bg-ok" : severity.rail
-        }`}
-        aria-hidden="true"
-      />
       <div className="min-w-0 flex-1 px-4 py-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Chip tone={settled ? "ok" : severity.tone}>
-            {urgent && (
-              <span
-                aria-hidden="true"
-                className={`animate-pulse-dot h-2 w-2 rounded-full ${severity.rail}`}
-              />
-            )}
-            {settled ? "done" : flag.category}
-          </Chip>
-          <h3 className={`text-headline ${settled ? "text-ink-soft line-through" : ""}`}>
+          <Chip tone={settled ? "ok" : severity.tone}>{settled ? "done" : flag.category}</Chip>
+          {/* An h4: the Checks screen sets each card under its severity's h3. */}
+          <h4 className={`text-headline ${settled ? "text-ink-soft line-through" : ""}`}>
             {flag.title}
-          </h3>
+          </h4>
         </div>
         <p className="mt-1 text-subheadline text-ink-soft">{flag.detail}</p>
         {flag.verifyWith && (
           <p className="mt-2 rounded-control bg-surface-2 px-3 py-2 text-caption text-ink-soft">
-            Reference data — confirm with {flag.verifyWith}.
+            Reference data: confirm with {flag.verifyWith}.
           </p>
         )}
       </div>

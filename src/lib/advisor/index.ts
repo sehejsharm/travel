@@ -60,7 +60,7 @@ export async function advise(request: AdviceRequest): Promise<AdviceResult> {
   } else if (thin.length > 0 && !hasPlacesKey()) {
     notes.push("Google Places is not configured, so nearby lookups were skipped.");
   } else if (thin.length > 0) {
-    notes.push("Nearby lookups need an Anthropic API key to write them up, so they were skipped.");
+    notes.push("Nearby places were not looked up this time.");
   }
 
   // Tier 4 — the open web. Paid, so only for what is still missing.
@@ -76,7 +76,7 @@ export async function advise(request: AdviceRequest): Promise<AdviceResult> {
       tiersUsed.push("web");
     }
   } else if (thin.length > 0 && !hasSearchCredentials()) {
-    notes.push("Web search needs an Anthropic API key, so the last tier was skipped.");
+    notes.push("The web was not searched this time.");
   }
 
   const written = await writeAdvice(

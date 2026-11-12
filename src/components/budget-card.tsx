@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useCountUp } from "@/lib/use-motion";
 import { CATEGORY_LABELS } from "@/lib/domain/types";
 import { formatMoney, RATES_AS_OF } from "@/lib/reference/fx";
 import type { BudgetRollup } from "@/lib/rules";
@@ -12,6 +11,10 @@ export function BudgetCard({ rollup }: { rollup: BudgetRollup }) {
   const ceiling = Math.max(rollup.total, rollup.target ?? 0) || 1;
   const over = rollup.target !== undefined && rollup.total > rollup.target;
   const share = (value: number) => `${Math.max(0, (value / ceiling) * 100)}%`;
+  // Past the plan the bar turns critical, so an overspend never reads as booked.
+  const plan = over ? rollup.target! : rollup.total;
+  const booked = Math.min(rollup.actual, plan);
+  const estimated = Math.min(rollup.planned, plan - booked);
 
   // 0 on the first client frame, 1 after — which is what the bar animates
   // between. An effect rather than a class so it also replays on remount.
@@ -21,7 +24,7 @@ export function BudgetCard({ rollup }: { rollup: BudgetRollup }) {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  const total = useCountUp(rollup.total, 800);
+  const total = rollup.total;
 
   return (
     <Card className="p-5">
@@ -29,7 +32,7 @@ export function BudgetCard({ rollup }: { rollup: BudgetRollup }) {
         <div>
           <p className="text-footnote text-ink-soft">Filed spend</p>
           <p className={`mt-1 text-title-1 tabular ${over ? "text-critical" : ""}`}>
-            {formatMoney(Math.round(total), rollup.currency)}
+            {formatMoney(total, rollup.currency)}
           </p>
           {rollup.target !== undefined && (
             <p className="mt-1 text-footnote text-ink-soft tabular">
@@ -51,18 +54,32 @@ export function BudgetCard({ rollup }: { rollup: BudgetRollup }) {
       </div>
 
       {/*
-        Both segments scale from the left on load rather than being painted at
+        The segments scale from the left on load rather than being painted at
         their final width, so the bar reads as filling up.
       */}
-      <div className="mt-4 flex h-2 overflow-hidden rounded-full bg-surface-2">
+      <div className="relative mt-4 flex h-2 overflow-hidden rounded-full bg-surface-2">
         <div
           className="origin-left bg-teal transition-transform duration-300 ease-[var(--ease-out)] motion-reduce:transition-none"
-          style={{ width: share(rollup.actual), transform: `scaleX(${grown})` }}
+          style={{ width: share(booked), transform: `scaleX(${grown})` }}
         />
         <div
           className="origin-left bg-accent/60 transition-transform delay-100 duration-300 ease-[var(--ease-out)] motion-reduce:transition-none motion-reduce:delay-0"
-          style={{ width: share(rollup.planned), transform: `scaleX(${grown})` }}
+          style={{ width: share(estimated), transform: `scaleX(${grown})` }}
         />
+        {over && (
+          <>
+            <div
+              className="origin-left bg-critical transition-transform delay-200 duration-300 ease-[var(--ease-out)] motion-reduce:transition-none motion-reduce:delay-0"
+              style={{ width: share(rollup.total - plan), transform: `scaleX(${grown})` }}
+            />
+            {/* The plan, as a tick the spend runs past. */}
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0 -ml-px w-0.5 bg-ink"
+              style={{ left: share(plan) }}
+            />
+          </>
+        )}
       </div>
 
       <dl className="mt-4 flex flex-col gap-2">

@@ -40,7 +40,7 @@ export default function DataDeletion() {
           goes when you file it, clear it or close the tab. Clearing site data, below, removes the
           lot.
         </p>
-        <Link href="/more" className={`${PRIMARY_BUTTON_CLASSES} sm:max-w-xs`}>
+        <Link href="/more#this-device" className={`${PRIMARY_BUTTON_CLASSES} sm:max-w-xs`}>
           Go to This device
         </Link>
       </Section>

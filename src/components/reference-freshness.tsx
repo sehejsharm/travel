@@ -13,7 +13,7 @@ import { Card } from "./ui";
 const OUTCOMES: Record<UpdateOutcome["status"], string> = {
   updated: "A newer build is downloading. Reopen Manifest to pick it up.",
   current: "You already have the latest build, so this is the newest data there is.",
-  offline: "No connection — try again when you have signal.",
+  offline: "No connection. Try again when you have signal.",
   unsupported: "This browser cannot check for updates. Reload the page to fetch the latest build.",
 };
 
@@ -78,7 +78,7 @@ export function ReferenceFreshness() {
               rel="noreferrer"
               className="press tap text-subheadline text-accent-strong underline underline-offset-2"
             >
-              {source.label} ↗
+              {source.label}
             </a>
             <span className="text-caption text-ink-soft">{source.covers}</span>
           </li>

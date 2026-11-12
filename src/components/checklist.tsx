@@ -77,8 +77,14 @@ export function Checklist({
       {note && <p className="mt-1 text-caption text-ink-soft">{note}</p>}
 
       {travelers.length > 1 && (
-        // The padding keeps each chip's 44px hit area and focus ring inside the scroller, which clips.
-        <div className="no-scrollbar -mx-1 mt-1 -mb-2 flex gap-2 overflow-x-auto px-1 py-2">
+        // One choice of several, so a radio group, the way Segmented is built. It wraps rather
+        // than scrolls, so no name is cut off; the 12px between rows keeps each chip's 44px hit
+        // area clear of the next row's.
+        <div
+          role="radiogroup"
+          aria-label={`Show ${title.toLowerCase()} for`}
+          className="mt-3 flex flex-wrap gap-x-2 gap-y-3"
+        >
           {[
             { value: "everyone", label: "Everyone" },
             ...travelers.map((traveler) => ({ value: traveler.id, label: traveler.name })),
@@ -87,9 +93,10 @@ export function Checklist({
             <button
               key={option.value}
               type="button"
+              role="radio"
               onClick={() => setWhose(option.value)}
-              aria-pressed={whose === option.value}
-              className={`press tap flex min-h-8 shrink-0 items-center rounded-badge border px-3 text-footnote ${
+              aria-checked={whose === option.value}
+              className={`press tap flex min-h-8 items-center rounded-badge border px-3 text-footnote ${
                 whose === option.value
                   ? "border-accent bg-accent-soft text-accent-strong"
                   : "border-line bg-surface text-ink-soft"
@@ -107,7 +114,7 @@ export function Checklist({
           every frame, and this one moves on every tick of a checkbox.
         */}
         <div
-          className="h-full origin-left rounded-full bg-teal transition-transform duration-300 ease-[var(--ease-spring)]"
+          className="h-full origin-left rounded-full bg-accent transition-transform duration-300 ease-[var(--ease-spring)]"
           style={{ transform: `scaleX(${progress / 100})`, width: "100%" }}
         />
       </div>
@@ -223,8 +230,8 @@ export function Checklist({
 
 /**
  * The most-tapped control in the app, so it gets the most care: the box fills
- * with a slight overshoot and the tick draws itself. A real input sits
- * underneath, so keyboard, screen readers and form semantics are untouched.
+ * and the tick fades in, with no overshoot. A real input sits underneath, so
+ * keyboard, screen readers and form semantics are untouched.
  */
 function Checkbox({
   checked,
@@ -251,7 +258,7 @@ function Checkbox({
         className={`flex h-5 w-5 items-center justify-center rounded-badge border transition-[background-color,border-color] duration-300 ease-[var(--ease-spring)] peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-1 ${
           checked
             ? "scale-100 border-teal bg-teal"
-            : "border-line-strong bg-surface peer-hover:border-teal"
+            : "border-field-edge bg-surface peer-hover:border-teal"
         }`}
       >
         <svg width="11" height="11" viewBox="0 0 12 12" fill="none">

@@ -195,7 +195,7 @@ export function RejoinOptionCard({
           }
           className={`${BORDERLESS_BUTTON_CLASSES} shrink-0`}
         >
-          Maps ↗
+          Maps
         </a>
       </div>
     </Card>

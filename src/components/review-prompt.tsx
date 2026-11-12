@@ -35,7 +35,7 @@ export function ReviewPrompt({
       <div className="min-w-0 flex-1">
         <p className="text-headline">{moment.reason}</p>
         <p className="mt-1 text-subheadline text-ink-soft">
-          If Manifest helped, a review is the only way other travellers find it — there is no
+          If Manifest helped, a review is the only way other travellers find it. There is no
           marketing budget behind this.
         </p>
 

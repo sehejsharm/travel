@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { Trip, TripItem } from "@/lib/domain/types";
 import type { Readiness } from "@/lib/readiness";
-import { useCountUp } from "@/lib/use-motion";
 import { getCountry } from "@/lib/reference/countries";
 import { flagEmoji, heroGradient, hueGradient } from "@/lib/theme";
 import { daysBetween, formatDay } from "@/lib/rules";
@@ -36,43 +35,11 @@ export function TripHero({
       // instead of hard-cutting to the next gradient.
       key={trip.id}
       className="animate-hero-in grain relative isolate overflow-hidden rounded-container text-white shadow-float"
+      style={{
+        backgroundImage:
+          trip.accentHue === undefined ? heroGradient(seed) : hueGradient(trip.accentHue),
+      }}
     >
-      {/*
-        The gradient lives on its own layer so its hue-drift loop and the
-        section's one-shot entrance can both run — a single element can only
-        carry one `animation` shorthand, and the later rule would otherwise
-        silently win and drop the other.
-      */}
-      <div
-        aria-hidden="true"
-        className="animate-hue-drift pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            trip.accentHue === undefined ? heroGradient(seed) : hueGradient(trip.accentHue),
-        }}
-      />
-
-      {/* Contour lines, so the block reads as a place rather than a swatch. */}
-      <svg
-        aria-hidden="true"
-        className="animate-drift pointer-events-none absolute inset-0 h-full w-full"
-        preserveAspectRatio="none"
-        viewBox="0 0 400 200"
-      >
-        {[0, 1, 2, 3, 4, 5].map((ring) => (
-          <ellipse
-            key={ring}
-            cx="330"
-            cy="40"
-            rx={40 + ring * 42}
-            ry={28 + ring * 30}
-            fill="none"
-            stroke="white"
-            strokeWidth="1.2"
-          />
-        ))}
-      </svg>
-
       <div className="relative p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -131,14 +98,14 @@ export function TripHero({
             <p className="text-subheadline font-medium">
               {critical > 0
                 ? `${critical} thing${critical === 1 ? "" : "s"} to fix before you fly`
-                : "Nothing blocking — you are clear to fly"}
+                : "Nothing blocking: you are clear to fly"}
             </p>
             <p className="mt-1 text-footnote text-white/80 tabular">
               {readiness.done}/{readiness.total} done · {items.length} filed
               {!trip.datesTbd && !underway && daysToGo > 0 && (
                 <>
                   {" · "}
-                  <Countdown days={daysToGo} /> days to go
+                  {daysToGo} days to go
                 </>
               )}
             </p>
@@ -149,7 +116,7 @@ export function TripHero({
             aria-label="Open checks"
             className="press tap inline-flex h-8 shrink-0 items-center rounded-button-sm border border-white/25 bg-white/10 px-3 text-footnote font-medium backdrop-blur-sm hover:bg-white/20"
           >
-            Checks ›
+            Checks
           </Link>
         </div>
       </div>
@@ -164,9 +131,9 @@ export function TripHero({
  */
 function ReadyRing({ readiness }: { readiness: Readiness }) {
   const circumference = 2 * Math.PI * 20;
-  // The arc and the number are driven by the same tween, so they arrive
-  // together — a ring that finishes before its label reads as broken.
-  const share = useCountUp(readiness.share, 900);
+  // Drawn at its value: a ring that counts up on every visit is motion with
+  // no change behind it.
+  const share = readiness.share;
 
   return (
     <div
@@ -206,10 +173,4 @@ function destinationsOf(trip: Trip, items: TripItem[]): string[] {
   }
   codes.delete(trip.homeCountry);
   return [...codes].slice(0, 6);
-}
-
-/** The number counts in on mount, so the trip reads as approaching. */
-function Countdown({ days }: { days: number }) {
-  const shown = useCountUp(days, 800);
-  return <>{Math.round(shown)}</>;
 }

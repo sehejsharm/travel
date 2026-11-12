@@ -2,9 +2,10 @@
 
 import { useMemo } from "react";
 import type { Flag, Trip, TripItem } from "@/lib/domain/types";
+import { formatMinutes } from "@/lib/divert/format";
 import { estimateTravel } from "@/lib/geo";
 import { directionsUrl } from "@/lib/maps";
-import { formatDay, formatTime, localDateKey } from "@/lib/rules";
+import { formatDay, formatTime, localDateKey, minutesBetween, rollUpBudget } from "@/lib/rules";
 import { getCountry } from "@/lib/reference/countries";
 import { convert, formatMoney } from "@/lib/reference/fx";
 import type { HolidayKind } from "@/lib/reference/holidays";
@@ -58,6 +59,27 @@ const KIND_TONE: Record<string, string> = {
   lodging: "text-teal",
 };
 
+/**
+ * What a flagged row's chip says, by the check that raised the flag (its id up
+ * to the first colon): the problem in a few words. The checks screen has the
+ * whole sentence.
+ */
+const FLAG_LABEL: Record<string, string> = {
+  overlap: "Overlaps",
+  geo: "Not enough time",
+  "airport-change": "Airport change",
+  layover: "Short layover",
+  "name-mismatch": "Name differs",
+  "lodging-gap": "No bed on arrival",
+  "lodging-coverage": "Nights unbooked",
+  "lodging-overrun": "Past flight home",
+  onward: "No transport booked",
+  customs: "Over duty-free",
+  refund: "Refund ends soon",
+  closed: "Closed that day",
+  advance: "Book ahead",
+};
+
 export function Timeline({
   items,
   flags,
@@ -80,9 +102,19 @@ export function Timeline({
   );
   const marks = calendar?.days ?? new Map<string, CalendarMark[]>();
   const days = groupByDay(items, marks);
-  const flagged = new Set(
-    flags.filter((flag) => flag.severity !== "info").flatMap((flag) => flag.itemIds),
-  );
+  // Day totals are in the budget's currency, the one the budget card shows.
+  const currency = trip ? rollUpBudget(trip, items).currency : "USD";
+  // The worst flag on each item, which its chip names and colours.
+  const flagged = new Map<string, Flag>();
+  for (const flag of flags) {
+    if (flag.severity === "info") continue;
+    for (const id of flag.itemIds) {
+      const held = flagged.get(id);
+      if (!held || (held.severity !== "critical" && flag.severity === "critical")) {
+        flagged.set(id, flag);
+      }
+    }
+  }
 
   return (
     <ol className="flex flex-col gap-5">
@@ -92,6 +124,7 @@ export function Timeline({
             day={day}
             items={dayItems}
             label={dayLabel(trip, day, dayIndex)}
+            currency={currency}
           />
 
           <Card as="div" className="overflow-hidden">
@@ -127,7 +160,7 @@ export function Timeline({
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="text-headline">{item.title}</span>
-                          {flagged.has(item.id) && <Chip tone="critical">Check</Chip>}
+                          {flagged.has(item.id) && <FlagChip flag={flagged.get(item.id)!} />}
                         </span>
                         <span className="mt-1 block text-footnote text-ink-soft tabular">
                           {[
@@ -144,7 +177,7 @@ export function Timeline({
                       </span>
                     </button>
 
-                    <Hop from={item} to={dayItems[index + 1]} />
+                    <Hop from={item} to={dayItems[index + 1]} flags={flags} />
                   </li>
                 ))}
               </ul>
@@ -153,6 +186,15 @@ export function Timeline({
         </li>
       ))}
     </ol>
+  );
+}
+
+/** A flagged row's chip: its worst problem, in that flag's tone. */
+function FlagChip({ flag }: { flag: Flag }) {
+  return (
+    <Chip tone={flag.severity === "critical" ? "critical" : "warning"}>
+      {FLAG_LABEL[flag.id.split(":")[0]] ?? flag.title}
+    </Chip>
   );
 }
 
@@ -223,28 +265,53 @@ const MODE_LABEL: Record<string, string> = {
   fly: "fly",
 };
 
-/** The gap between two pinned stops, with a one-tap handoff to Google Maps. */
-function Hop({ from, to }: { from: TripItem; to?: TripItem }) {
-  if (!from.place?.point || !to?.place?.point) return null;
+const HOP_CLASSES =
+  "flex min-h-11 items-center gap-2 border-t border-dashed border-line/70 bg-surface-2/40 pr-4 pl-17";
 
-  const travel = estimateTravel(from.place.point, to.place.point);
+/**
+ * The gap between two pinned stops, with a one-tap handoff to Google Maps. It
+ * starts where the first stop ends, so a flight's starts at the airport it
+ * lands at, and two flights through one airport show the connection instead.
+ */
+function Hop({ from, to, flags }: { from: TripItem; to?: TripItem; flags: Flag[] }) {
+  const start = from.arrivalPlace ?? from.place;
+  if (!to?.place) return null;
+
+  if (start?.airport && start.airport === to.place.airport && from.endsAt) {
+    // Whether it is too short is the layover check's call, so the two agree.
+    const short = flags.some((flag) => flag.id === `layover:${from.id}:${to.id}`);
+    return (
+      <div className={HOP_CLASSES}>
+        <span className={`text-caption tabular ${short ? "text-warning" : "text-ink-soft"}`}>
+          {formatMinutes(minutesBetween(from.endsAt, to.startsAt!))} at {start.airport}
+        </span>
+      </div>
+    );
+  }
+
+  if (!start?.point || !to.place.point) return null;
+
+  const travel = estimateTravel(start.point, to.place.point);
   if (travel.distanceKm < 0.15) return null;
 
   return (
-    <div className="flex min-h-11 items-center gap-2 border-t border-dashed border-line/70 bg-surface-2/40 pr-4 pl-17">
+    <div className={HOP_CLASSES}>
       <span className="text-caption text-ink-soft tabular">
-        {MODE_LABEL[travel.mode]} · {travel.minutes} min ·{" "}
+        {MODE_LABEL[travel.mode]} · {formatMinutes(travel.minutes)} ·{" "}
         {travel.distanceKm < 10 ? travel.distanceKm.toFixed(1) : Math.round(travel.distanceKm)} km
       </span>
-      <a
-        href={directionsUrl(from.place, to.place)}
-        target="_blank"
-        rel="noreferrer"
-        onClick={(event) => event.stopPropagation()}
-        className={`${BORDERLESS_BUTTON_CLASSES} -mr-3 ml-auto shrink-0`}
-      >
-        Directions ↗
-      </a>
+      {/* Maps cannot route a flight. */}
+      {travel.mode !== "fly" && (
+        <a
+          href={directionsUrl(start, to.place)}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => event.stopPropagation()}
+          className={`${BORDERLESS_BUTTON_CLASSES} -mr-3 ml-auto shrink-0`}
+        >
+          Directions
+        </a>
+      )}
     </div>
   );
 }
@@ -253,10 +320,20 @@ function Hop({ from, to }: { from: TripItem; to?: TripItem }) {
  * A day gets its own masthead: which day of the trip it is, what it costs,
  * and where it happens — so the timeline scans as days, not as a list of rows.
  */
-function DayHeader({ day, items, label }: { day: string; items: TripItem[]; label: string }) {
+function DayHeader({
+  day,
+  items,
+  label,
+  currency,
+}: {
+  day: string;
+  items: TripItem[];
+  label: string;
+  currency: string;
+}) {
   const spend = items.reduce(
     (total, item) =>
-      total + (item.cost ? convert(item.cost.amount, item.cost.currency, "USD") ?? 0 : 0),
+      total + (item.cost ? convert(item.cost.amount, item.cost.currency, currency) ?? 0 : 0),
     0,
   );
   const areas = [...new Set(items.map((item) => item.place?.city ?? item.place?.name).filter(Boolean))];
@@ -282,7 +359,7 @@ function DayHeader({ day, items, label }: { day: string; items: TripItem[]; labe
               ? "Nothing planned"
               : `${items.length} stop${items.length === 1 ? "" : "s"}`,
             areas.slice(0, 2).join(" · "),
-            spend > 0 && formatMoney(spend, "USD"),
+            spend > 0 && formatMoney(spend, currency),
           ]
             .filter(Boolean)
             .join(" · ")}

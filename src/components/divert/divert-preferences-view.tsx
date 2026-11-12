@@ -125,26 +125,34 @@ export function DivertPreferencesView({
 
   return (
     <div className="flex flex-col gap-6">
-      <ScreenHeader
-        eyebrow={editing ? "Diverted" : "Divert from group"}
-        title={editing ? "Change your plans" : "Break off for a bit"}
-        meta={
-          editing
-            ? "Pick again. The way back is worked out from wherever you are now."
-            : "Pick what you are after. Manifest works out where to meet the others again."
-        }
-        action={
-          editing ? (
-            <BorderlessButton type="button" onClick={onDone}>
-              Back
-            </BorderlessButton>
-          ) : (
-            <Link href="/" className={BORDERLESS_BUTTON_CLASSES}>
-              Back
-            </Link>
-          )
-        }
-      />
+      {/* Back above the title at the leading edge, named for where it goes, as on iOS. */}
+      <div>
+        {editing ? (
+          <BorderlessButton
+            type="button"
+            onClick={onDone}
+            aria-label={`Back to ${session.spot.name}`}
+            className="-ml-3 mb-1 max-w-full"
+          >
+            <span aria-hidden="true">‹</span>
+            <span className="truncate">{session.spot.name}</span>
+          </BorderlessButton>
+        ) : (
+          <Link href="/" aria-label="Back to Trip" className={`${BORDERLESS_BUTTON_CLASSES} -ml-3 mb-1`}>
+            <span aria-hidden="true">‹</span>
+            Trip
+          </Link>
+        )}
+        <ScreenHeader
+          eyebrow={editing ? "Diverted" : "Divert from group"}
+          title={editing ? "Change your plans" : "Break off for a bit"}
+          meta={
+            editing
+              ? "Pick again. The way back is worked out from wherever you are now."
+              : "Pick what you are after. Manifest works out where to meet the others again."
+          }
+        />
+      </div>
 
       <GroupNowCard route={route} />
 

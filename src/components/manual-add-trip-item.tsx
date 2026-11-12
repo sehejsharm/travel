@@ -37,7 +37,7 @@ import {
   TravellerField,
   WhenFields,
 } from "./item-fields";
-import { Card, Chip } from "./ui";
+import { Chip } from "./ui";
 
 type Section = "cost" | "confirmation" | "traveller" | "refund" | "notes";
 
@@ -307,7 +307,8 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
 
   return (
     <div className="flex flex-col gap-3">
-      <Card className="p-5">
+      {/* Not in a Card: the field groups (Route, When, More details) are the cards, one layer deep. */}
+      <div>
         <DraftHeading title={copy.heading} chip={<Chip>{SOURCE_LABELS.manual}</Chip>} />
 
         <div className="mt-4 flex flex-col gap-4">
@@ -465,7 +466,7 @@ export function ManualAddTripItem({ trip, items }: { trip?: Trip; items: TripIte
         ) : (
           <StartsTripNote what="what you typed" />
         )}
-      </Card>
+      </div>
 
       <div aria-live="polite" className="flex flex-col gap-3">
         {pending && (

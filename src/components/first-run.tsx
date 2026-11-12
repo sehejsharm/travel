@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { loadSampleTrip } from "@/lib/store/state";
-import { heroGradient } from "@/lib/theme";
+import { hueGradient } from "@/lib/theme";
 import { BorderlessButton } from "./form";
 import { PRIMARY_BUTTON_CLASSES } from "./styles";
 import { Card } from "./ui";
+
+/** The brand copper's hue in OKLCH (--brand and --accent both sit at 57 to 58). */
+const COPPER_HUE = 58;
 
 const BEATS: [string, string][] = [
   ["Send it anything", "A booking email, a screenshot, a Reel. It comes back filed with dates, prices and a place."],
@@ -24,30 +27,11 @@ export function FirstRun() {
 
   return (
     <div className="flex flex-col gap-5 py-2">
+      {/* There is no trip yet to take a colour from, so the hero takes the brand's. */}
       <section
-        className="animate-rise relative isolate overflow-hidden rounded-container p-6 text-white shadow-float sm:p-8"
-        style={{ backgroundImage: heroGradient("manifest") }}
+        className="relative isolate overflow-hidden rounded-container p-6 text-white shadow-float sm:p-8"
+        style={{ backgroundImage: hueGradient(COPPER_HUE) }}
       >
-        <svg
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.16]"
-          preserveAspectRatio="none"
-          viewBox="0 0 400 220"
-        >
-          {[0, 1, 2, 3, 4, 5, 6].map((ring) => (
-            <ellipse
-              key={ring}
-              cx="340"
-              cy="30"
-              rx={36 + ring * 44}
-              ry={26 + ring * 32}
-              fill="none"
-              stroke="white"
-              strokeWidth="1.2"
-            />
-          ))}
-        </svg>
-
         <div className="relative">
           <p className="text-footnote font-medium text-white/80">Manifest</p>
           <h1 className="mt-2 text-title-1 sm:text-display">
@@ -60,7 +44,6 @@ export function FirstRun() {
 
           <Link href="/trip/new" className={`${PRIMARY_BUTTON_CLASSES} mt-5 sm:max-w-xs`}>
             Create your first trip
-            <span aria-hidden="true">→</span>
           </Link>
         </div>
       </section>

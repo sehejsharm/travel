@@ -12,15 +12,28 @@ export function destinationHues(seed: string): [number, number] {
 }
 
 /*
+ * Blue running into violet is the stock gradient, and it reads as nowhere in
+ * particular, so neither end of a hero sits in OKLCH hues 250 to 305. Any
+ * start from 202 (whose end, 48 on, would reach 250) to 305 is moved out,
+ * spread evenly over the 256 degrees that are left, so a trip that lands
+ * there still gets a colour of its own. Every other hue is drawn as it is.
+ */
+function outsideBlueViolet(hue: number): number {
+  const start = ((hue % 360) + 360) % 360;
+  if (start < 202 || start > 305) return start;
+  return Math.round(306 + ((start - 202) * 256) / 104) % 360;
+}
+
+/*
  * Drawn in OKLCH rather than HSL, so every hue is equally light. In HSL a
  * yellow or an orange at the same lightness as a blue is far brighter, and the
  * hero's white text fell to about 2.3:1 on half the hues. At OKLCH lightness
  * 0.45, white stays above 6.4:1 and the hero's 80% white above 4.5:1 for every
- * hue, through the hero's hue drift too (hue-rotate and saturate both keep
- * luminance).
+ * hue.
  */
 function gradientFrom(hue: number): string {
-  return `linear-gradient(135deg, oklch(0.45 0.13 ${hue}), oklch(0.34 0.12 ${(hue + 48) % 360}))`;
+  const start = outsideBlueViolet(hue);
+  return `linear-gradient(135deg, oklch(0.45 0.13 ${start}), oklch(0.34 0.12 ${(start + 48) % 360}))`;
 }
 
 export function heroGradient(seed: string): string {

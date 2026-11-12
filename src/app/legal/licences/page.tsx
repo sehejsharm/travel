@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { LegalPage, Section } from "@/components/legal";
 import { getCountry } from "@/lib/reference/countries";
 import { HOLIDAY_SOURCES } from "@/lib/reference/holiday-data/sources";
@@ -9,35 +10,43 @@ export const metadata: Metadata = {
   description: "The open-source software and data Manifest is built on.",
 };
 
+/*
+ * Each links to the full text of its licence, in its own repository. date-holidays is pinned to
+ * the release in use, 3.37.0: the project has since moved its data to CC BY-SA 4.0.
+ */
 const SOFTWARE: [string, string, string][] = [
-  ["Next.js", "MIT", "https://github.com/vercel/next.js"],
-  ["React and React DOM", "MIT", "https://github.com/facebook/react"],
-  ["Tailwind CSS", "MIT", "https://github.com/tailwindlabs/tailwindcss"],
-  ["Zod", "MIT", "https://github.com/colinhacks/zod"],
-  ["Anthropic TypeScript SDK", "MIT", "https://github.com/anthropics/anthropic-sdk-typescript"],
+  ["Next.js", "MIT", "https://github.com/vercel/next.js/blob/HEAD/license.md"],
+  ["React and React DOM", "MIT", "https://github.com/facebook/react/blob/HEAD/LICENSE"],
+  ["Tailwind CSS", "MIT", "https://github.com/tailwindlabs/tailwindcss/blob/HEAD/LICENSE"],
+  ["Zod", "MIT", "https://github.com/colinhacks/zod/blob/HEAD/LICENSE"],
+  [
+    "Anthropic TypeScript SDK",
+    "MIT",
+    "https://github.com/anthropics/anthropic-sdk-typescript/blob/HEAD/LICENSE",
+  ],
   [
     "date-holidays",
     "ISC (code), CC BY-SA 3.0 (data)",
-    "https://github.com/commenthol/date-holidays",
+    "https://github.com/commenthol/date-holidays/blob/v3.37.0/LICENSE",
   ],
   [
     "astronomia (Sun and Moon positions for the lunar calendars)",
     "MIT, © 2013 Sonia Keys, © 2016 commenthol",
-    "https://github.com/commenthol/astronomia",
+    "https://github.com/commenthol/astronomia/blob/HEAD/LICENSE",
   ],
   [
-    "pythaidate (Thai lunar calendar, ported in scripts/holiday-supplements/festivals.mjs)",
+    "pythaidate (adapted for Manifest’s Thai lunar calendar)",
     "MIT, © 2023 Mark Hollow",
-    "https://github.com/hmmbug/pythaidate",
+    "https://github.com/hmmbug/pythaidate/blob/HEAD/LICENSE.txt",
   ],
   [
-    "mmcal (Myanmar calendar, ported in scripts/holiday-supplements/theravada.mjs)",
+    "mmcal (adapted for Manifest’s Myanmar calendar)",
     "MIT, © 2018 Yan Naing Aye",
-    "https://github.com/yan9a/mmcal",
+    "https://github.com/yan9a/mmcal/blob/HEAD/LICENSE",
   ],
-  ["TypeScript", "Apache-2.0", "https://github.com/microsoft/TypeScript"],
-  ["ESLint", "MIT", "https://github.com/eslint/eslint"],
-  ["Vitest", "MIT", "https://github.com/vitest-dev/vitest"],
+  ["TypeScript", "Apache-2.0", "https://github.com/microsoft/TypeScript/blob/HEAD/LICENSE.txt"],
+  ["ESLint", "MIT", "https://github.com/eslint/eslint/blob/HEAD/LICENSE"],
+  ["Vitest", "MIT", "https://github.com/vitest-dev/vitest/blob/HEAD/LICENSE"],
 ];
 
 const SERVICES: [string, string][] = [
@@ -50,6 +59,14 @@ const SERVICES: [string, string][] = [
 const HOLIDAYS_REPO = "https://github.com/commenthol/date-holidays";
 const CC_BY_SA_3 = "https://creativecommons.org/licenses/by-sa/3.0/";
 
+/*
+ * How Lunar New Year and the other Chinese festivals are dated, word for word as the data gives it
+ * for every country that keeps one. Said once, above the list, instead of once a country.
+ */
+const LUNISOLAR =
+  ": Chinese lunisolar calendar, computed astronomically by scripts/build-holidays.mjs" +
+  " (GB/T 33661-2017 rules), checked against date-holidays (https://github.com/commenthol/date-holidays)";
+
 function countryName(code: string): string {
   const known = getCountry(code)?.name;
   if (known) return known;
@@ -60,46 +77,89 @@ function countryName(code: string): string {
   }
 }
 
-/** A source as written, with its web address made a link. */
+/** The holiday sources a country at a time: countries by name, each one's sources in the order given. */
+function sourcesByCountry(): [string, string[]][] {
+  const byCode = new Map<string, string[]>();
+  for (const { country, source } of HOLIDAY_SOURCES) {
+    byCode.set(country, [...(byCode.get(country) ?? []), source]);
+  }
+  return [...byCode]
+    .map(([code, sources]): [string, string[]] => [countryName(code), sources])
+    .sort(([a], [b]) => a.localeCompare(b, "en"));
+}
+
+/**
+ * Where the words naming a web address start: after the last colon or semicolon outside brackets
+ * (the clause they belong to), and past a leading "and" left over from the address before.
+ */
+function nameStart(words: string): number {
+  let start = 0;
+  let depth = 0;
+  for (let index = words.length - 1; index > 0; index--) {
+    const char = words[index];
+    if (char === ")") depth++;
+    else if (char === "(") depth--;
+    else if (depth === 0 && char === " " && (words[index - 1] === ":" || words[index - 1] === ";")) {
+      start = index + 1;
+      break;
+    }
+  }
+  return start + /^,?\s*(?:and\s+)?/.exec(words.slice(start))![0].length;
+}
+
+/**
+ * A source as written, with each web address folded into a link on the words that name it:
+ * "Moomba: City of Melbourne, https://…" reads "Moomba: City of Melbourne", the publisher linked.
+ */
 function SourceText({ text }: { text: string }) {
   // The address stops before a comma, bracket or closing full stop.
   const parts = text.split(/(https?:\/\/[^\s,;)]*[^\s,;).])/);
-  return (
-    <>
-      {parts.map((part, index) =>
-        index % 2 === 1 ? (
-          <a
-            key={index}
-            href={part}
-            target="_blank"
-            rel="noreferrer"
-            className="break-all text-accent-strong underline"
-          >
-            {part}
-          </a>
-        ) : (
-          part
-        ),
-      )}
-    </>
-  );
+  const nodes: ReactNode[] = [];
+  let rest = parts[0];
+  for (let index = 1; index < parts.length; index += 2) {
+    const url = parts[index];
+    const after = parts[index + 1];
+    // "…, https://…" or "… (https://…)": the separator goes, and the words before it are the link.
+    const bracketed = rest.endsWith(" (") && after.startsWith(")");
+    const named = bracketed || rest.endsWith(", ");
+    const words = named ? rest.slice(0, -2) : rest;
+    const start = named ? nameStart(words) : words.length;
+    nodes.push(
+      words.slice(0, start),
+      <a
+        key={index}
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="break-words text-accent-strong underline"
+      >
+        {words.slice(start) || url}
+      </a>,
+    );
+    rest = bracketed ? after.slice(1) : after;
+  }
+  nodes.push(rest);
+  return <>{nodes}</>;
 }
 
 function Table({ rows, note }: { rows: [string, string, string][]; note?: string }) {
   return (
     <>
-      <ul className="flex flex-col">
+      {/* One link a row, name and licence together, as the legal pages' "Also here" rows are. */}
+      <ul className="flex flex-col gap-2">
         {rows.map(([name, licence, url]) => (
-          <li key={name} className="flex flex-wrap items-baseline gap-x-2">
+          <li key={name}>
             <a
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="press tap inline-flex min-h-11 items-center text-subheadline text-accent-strong underline underline-offset-2"
+              className="press tap inline-flex min-h-11 flex-wrap content-center items-baseline gap-x-2"
             >
-              {name}
+              <span className="text-subheadline text-accent-strong underline underline-offset-2">
+                {name}
+              </span>
+              <span className="text-caption text-ink-soft">{licence}</span>
             </a>
-            <span className="text-caption text-ink-soft">{licence}</span>
           </li>
         ))}
       </ul>
@@ -117,7 +177,7 @@ export default function Licences() {
       <Section heading="Software">
         <Table
           rows={SOFTWARE}
-          note="Full licence texts ship inside node_modules in the source repository."
+          note="Each entry links to the full text of its licence."
         />
       </Section>
 
@@ -209,12 +269,41 @@ export default function Licences() {
           The adapted calendar ships inside the app and is shared under the same licence, CC BY-SA
           3.0.
         </p>
+        {HOLIDAY_SOURCES.some(({ source }) => source.endsWith(LUNISOLAR)) && (
+          <p>
+            Where a source below is the Chinese lunisolar calendar, the dates are computed
+            astronomically for Manifest (GB/T 33661-2017 rules) and checked against date-holidays.
+          </p>
+        )}
         {HOLIDAY_SOURCES.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {HOLIDAY_SOURCES.map(({ country, source }) => (
-              <li key={`${country} ${source}`} className="text-subheadline">
-                <span className="text-ink">{countryName(country)}</span>:{" "}
-                <SourceText text={source} />
+          <ul className="divide-y divide-line border-y border-line">
+            {sourcesByCountry().map(([name, sources]) => (
+              <li key={name}>
+                <details className="group">
+                  <summary className="press flex min-h-11 cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                    <span className="min-w-0 flex-1 text-subheadline">{name}</span>
+                    <span className="text-footnote text-ink-soft tabular">
+                      {sources.length} {sources.length === 1 ? "source" : "sources"}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 text-ink-faint transition-transform duration-300 ease-[var(--ease-spring)] group-open:rotate-90"
+                    >
+                      ›
+                    </span>
+                  </summary>
+                  <ul className="flex flex-col gap-2 pb-3 text-subheadline">
+                    {sources.map((source) => (
+                      <li key={source}>
+                        {source.endsWith(LUNISOLAR) ? (
+                          `${source.slice(0, -LUNISOLAR.length)}: Chinese lunisolar calendar`
+                        ) : (
+                          <SourceText text={source} />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               </li>
             ))}
           </ul>
@@ -235,7 +324,7 @@ export default function Licences() {
                 rel="noreferrer"
                 className="press tap inline-flex min-h-11 items-center text-subheadline text-accent-strong underline underline-offset-2"
               >
-                {name} ↗
+                {name}
               </a>
             </li>
           ))}

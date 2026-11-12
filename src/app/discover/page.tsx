@@ -60,12 +60,17 @@ import {
   type CalendarEvent,
 } from "@/lib/trip-calendar";
 
-const TIER_TONE: Record<string, "accent" | "ok" | "neutral" | "warning"> = {
-  saved: "ok",
-  community: "ok",
-  places: "warning",
-  web: "neutral",
-  calendar: "ok",
+/**
+ * One short name per tier, the same on every card's chip and in the legend
+ * above them. All neutral: where a suggestion came from is neither good news
+ * nor a warning.
+ */
+const TIER_CHIPS: Record<SourceTier, string> = {
+  saved: "Your saves",
+  community: "Manifest’s list",
+  places: "Google Places",
+  web: "The web",
+  calendar: "Manifest’s calendar",
 };
 
 const CALENDAR_NOTE =
@@ -77,7 +82,7 @@ const CALENDAR_NOTE =
  * festivals and days off below it.
  */
 const SEARCH_EMPTY_NOTE =
-  "The search found nothing it could verify, so what is below comes from Manifest’s calendar only. To search further, add an API key for the paid tiers, or file a few places yourself first.";
+  "The search found nothing it could verify, so what is below comes from Manifest’s calendar only. File a few places you like, then look again.";
 
 /** What went wrong with the search, and the route's status, when it answered at all. */
 interface SearchProblem {
@@ -147,8 +152,8 @@ export default function DiscoverScreen() {
   const typed = destination.trim().toLowerCase();
   const elsewhere = typed !== "" && typed !== defaultDestination(trip, items).toLowerCase();
   const advice = fresh ?? cachedAdvice(state, trip.id, adviceKey(where, interests));
-  // The search found nothing, but the calendar has: a note, not a failure.
-  const searchEmpty = error?.status === 503 && fromCalendar && !advice;
+  // The search found nothing: a note with the one thing to do, not a failure.
+  const searchEmpty = error?.status === 503 && !advice;
   const filedTitles = new Set(items.map((item) => item.title.trim().toLowerCase()));
   // Links out cost nothing, so they show whether or not the search has run.
   // A country's own name is the country, not a city: "Malaysia" would match Malé.
@@ -187,14 +192,15 @@ export default function DiscoverScreen() {
           title="Kept quiet for this trip"
           meta="You marked this a business trip, so suggestions are off by default."
         />
-        <Card className="p-4">
+        {/* No card around the tiles: they are the screen's one container layer. */}
+        <div>
           <p className="text-subheadline text-ink-soft">
             Pick a few interests and Discover starts suggesting things to do around your meetings.
           </p>
           <div className="mt-3">
             <InterestPicker selected={draftInterests ?? []} onChange={setDraftInterests} />
           </div>
-        </Card>
+        </div>
         <ActionBar>
           <PrimaryButton
             onClick={() => {
@@ -223,9 +229,7 @@ export default function DiscoverScreen() {
           meta="Your picks become the sections your suggestions arrive under. Change them any time."
         />
 
-        <Card className="p-4">
-          <InterestPicker selected={picked} onChange={setDraftInterests} />
-        </Card>
+        <InterestPicker selected={picked} onChange={setDraftInterests} />
         {/* Kept in reach: on a phone the end of 22 tiles is screens away. */}
         <ActionBar>
           <PrimaryButton
@@ -351,52 +355,67 @@ export default function DiscoverScreen() {
             );
           })}
         </ul>
-      </Card>
 
-      {(placeKnown || trailsNearUrl || trailsInUrl || birdsCountry) && (
-        <Card className="p-4">
-          <ul className="flex flex-col items-start gap-1">
-            {placeKnown && (
-              <li>
-                <a
-                  href={tripadvisorThingsToDoUrl(where)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={BORDERLESS_BUTTON_CLASSES}
-                >
-                  Things to do in {where}, on Tripadvisor ↗
-                </a>
-              </li>
-            )}
-            {trailsNearUrl && (
-              <li>
-                <a href={trailsNearUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
-                  Trails near {where}, on AllTrails ↗
-                </a>
-              </li>
-            )}
-            {trailsInUrl && (
-              <li>
-                <a href={trailsInUrl} target="_blank" rel="noreferrer" className={BORDERLESS_BUTTON_CLASSES}>
-                  Trails in {linkCountryName}, on AllTrails ↗
-                </a>
-              </li>
-            )}
-            {birdsCountry && (
-              <li>
-                <a
-                  href={eBirdUrl(birdsCountry)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={BORDERLESS_BUTTON_CLASSES}
-                >
-                  Birds seen in {linkCountryName}, on eBird ↗
-                </a>
-              </li>
-            )}
-          </ul>
-        </Card>
-      )}
+        {/*
+          The links out, one quiet row under the search rather than a card of
+          their own, so the results start sooner. Each label is the site and
+          the place, kept to one line: a long place name is cut short.
+        */}
+        {(placeKnown || trailsNearUrl || trailsInUrl || birdsCountry) && (
+          <div className="mt-3 border-t border-line pt-2">
+            <ul className="-mx-3 flex flex-wrap">
+              {placeKnown && (
+                <li className="max-w-full">
+                  <a
+                    href={tripadvisorThingsToDoUrl(where)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`${BORDERLESS_BUTTON_CLASSES} max-w-full`}
+                  >
+                    <span className="truncate">Tripadvisor: {where}</span>
+                  </a>
+                </li>
+              )}
+              {trailsNearUrl && (
+                <li className="max-w-full">
+                  <a
+                    href={trailsNearUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`${BORDERLESS_BUTTON_CLASSES} max-w-full`}
+                  >
+                    <span className="truncate">AllTrails: {where}</span>
+                  </a>
+                </li>
+              )}
+              {trailsInUrl && (
+                <li className="max-w-full">
+                  <a
+                    href={trailsInUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`${BORDERLESS_BUTTON_CLASSES} max-w-full`}
+                  >
+                    <span className="truncate">AllTrails: {linkCountryName}</span>
+                  </a>
+                </li>
+              )}
+              {birdsCountry && (
+                <li className="max-w-full">
+                  <a
+                    href={eBirdUrl(birdsCountry)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`${BORDERLESS_BUTTON_CLASSES} max-w-full`}
+                  >
+                    <span className="truncate">eBird: {linkCountryName}</span>
+                  </a>
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+      </Card>
 
       {error && !searchEmpty && (
         <div className="rounded-card bg-critical-soft p-4 text-subheadline text-critical">{error.message}</div>
@@ -404,7 +423,10 @@ export default function DiscoverScreen() {
 
       {searchEmpty && (
         <Card className="p-4">
-          <p className="text-subheadline text-ink-soft">{SEARCH_EMPTY_NOTE}</p>
+          <p className="text-subheadline text-ink-soft">{fromCalendar ? SEARCH_EMPTY_NOTE : error.message}</p>
+          <Link href="/add" className={`${BORDERLESS_BUTTON_CLASSES} -ml-3 mt-1`}>
+            Add a place
+          </Link>
         </Card>
       )}
 
@@ -543,7 +565,7 @@ function CalendarCard({
     <Card as="div" className="raised p-4">
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-headline">{event.name}</h3>
-        <Chip tone={TIER_TONE.calendar}>Calendar</Chip>
+        <Chip>{TIER_CHIPS.calendar}</Chip>
       </div>
 
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -657,9 +679,7 @@ function SuggestionCard({
               {suggestion.name}
             </button>
           </h3>
-          <Chip tone={TIER_TONE[suggestion.tier] ?? "neutral"}>
-            {suggestion.tier.charAt(0).toUpperCase() + suggestion.tier.slice(1)}
-          </Chip>
+          <Chip>{TIER_CHIPS[suggestion.tier]}</Chip>
         </div>
 
         <p className="mt-1 text-subheadline text-ink-soft">{suggestion.why}</p>
@@ -680,7 +700,7 @@ function SuggestionCard({
             rel="noreferrer"
             className={BORDERLESS_BUTTON_CLASSES}
           >
-            Maps ↗
+            Maps
           </a>
 
           <a
@@ -690,7 +710,7 @@ function SuggestionCard({
             aria-label={`Reviews of ${suggestion.name} on Tripadvisor`}
             className={BORDERLESS_BUTTON_CLASSES}
           >
-            Tripadvisor ↗
+            Tripadvisor
           </a>
 
           {suggestion.url && (
@@ -700,7 +720,7 @@ function SuggestionCard({
               rel="noreferrer"
               className="press tap inline-flex items-center text-footnote text-ink-soft underline underline-offset-2 hover:text-ink"
             >
-              {suggestion.attribution ?? "source"} ↗
+              {suggestion.attribution ?? "source"}
             </a>
           )}
 
@@ -715,24 +735,29 @@ function SuggestionCard({
   );
 }
 
-/** Says plainly which tiers were consulted — and which were not. */
+/**
+ * Says plainly which tiers were consulted, and which were not. A quiet line
+ * under the search rather than a card, so the results start sooner.
+ */
 function Sourcing({ tiers, notes }: { tiers: readonly SourceTier[]; notes: string[] }) {
   return (
-    <Card className="p-4">
-      <p className="section-label">Where these came from</p>
-      <ul className="mt-2 flex flex-wrap gap-2">
-        {tiers.map((tier) => (
-          <li key={tier}>
-            <Chip tone={TIER_TONE[tier] ?? "neutral"}>{TIER_LABELS[tier]}</Chip>
-          </li>
-        ))}
-      </ul>
+    <div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="section-label">Where these came from</p>
+        <ul className="flex flex-wrap gap-2">
+          {tiers.map((tier) => (
+            <li key={tier}>
+              <Chip>{TIER_CHIPS[tier]}</Chip>
+            </li>
+          ))}
+        </ul>
+      </div>
       {notes.map((note) => (
         <p key={note} className="mt-2 text-caption text-ink-soft">
           {note}
         </p>
       ))}
-    </Card>
+    </div>
   );
 }
 

@@ -192,33 +192,33 @@ describe("Discover's links out to AllTrails and eBird", () => {
     expect(html).toContain(
       'href="https://www.alltrails.com/explore?b_tl_lat=42.2000&amp;b_tl_lng=-9.5000&amp;b_br_lat=36.9000&amp;b_br_lng=-6.2000"',
     );
-    expect(html).toContain("Trails in Portugal, on AllTrails ↗");
-    expect(html).not.toContain("Trails near");
+    expect(html).toContain(">AllTrails: Portugal</span>");
+    expect(html.match(/>AllTrails: /g)).toHaveLength(1);
     expect(html).toContain('href="https://ebird.org/region/PT"');
-    expect(html).toContain("Birds seen in Portugal, on eBird ↗");
+    expect(html).toContain(">eBird: Portugal</span>");
   });
 
   it("frames the city once one is filed, and not the country as well", () => {
     const html = show(trip({ destinationCountries: ["PT"], ...outdoors }), [], [bookedIn("Lisbon", "PT")]);
 
-    expect(html).toContain("Trails near Lisbon, on AllTrails ↗");
-    expect(html).not.toContain("Trails in");
+    expect(html).toContain(">AllTrails: Lisbon</span>");
+    expect(html).not.toContain("AllTrails: Portugal");
   });
 
   it("does not mistake a country's name for a city inside another one", () => {
     // "Malaysia" contains "mal", which is how the place lists spell Malé, in the Maldives.
     const html = show(trip({ destinationCountries: ["MY"], ...outdoors }));
 
-    expect(html).toContain("Trails in Malaysia, on AllTrails ↗");
-    expect(html).toContain("Birds seen in Malaysia, on eBird ↗");
+    expect(html).toContain(">AllTrails: Malaysia</span>");
+    expect(html).toContain(">eBird: Malaysia</span>");
     expect(html).not.toContain("Maldives");
   });
 
   it("takes the country a city was filed under when the place lists cannot locate it", () => {
     const html = show(trip({ destinationCountries: ["ES", "PT"], ...outdoors }), [], [bookedIn("Sintra", "PT")]);
 
-    expect(html).toContain("Trails in Portugal, on AllTrails ↗");
-    expect(html).toContain("Birds seen in Portugal, on eBird ↗");
+    expect(html).toContain(">AllTrails: Portugal</span>");
+    expect(html).toContain(">eBird: Portugal</span>");
   });
 
   it("shows neither link without Outdoors or Wildlife", () => {
@@ -263,7 +263,7 @@ describe("Discover's map and its links to Tripadvisor", () => {
     const html = show(trip(portugal));
 
     expect(html).toContain(`href="${attribute("https://www.tripadvisor.com/Search?q=Portugal&ssrc=A")}"`);
-    expect(html).toContain("Things to do in Portugal, on Tripadvisor ↗");
+    expect(html).toContain(">Tripadvisor: Portugal</span>");
     // No suggestions yet, so nothing to put on a map.
     expect(html).not.toContain("<iframe");
   });
@@ -296,7 +296,7 @@ describe("Discover's map and its links to Tripadvisor", () => {
     const html = show(trip({ name: "New trip", destinationCountries: [], interests: ["food"] }));
 
     expect(html).not.toContain("tripadvisor.com");
-    expect(html).not.toContain("Things to do in New trip");
+    expect(html).not.toContain("Tripadvisor: New trip");
   });
 
   it("gives every suggestion its own Tripadvisor link", () => {
@@ -305,5 +305,63 @@ describe("Discover's map and its links to Tripadvisor", () => {
     expect(html).toContain('href="https://www.tripadvisor.com/Search?q=Past%C3%A9is%20de%20Bel%C3%A9m%2C%20Lisbon"');
     expect(html).toContain('href="https://www.tripadvisor.com/Search?q=Time%20Out%20Market%2C%20Lisbon"');
     expect(html).toContain('aria-label="Reviews of Time Out Market on Tripadvisor"');
+  });
+});
+
+describe("Discover's sources", () => {
+  /** A cached answer for "Portugal" with one pick from each of two tiers. */
+  function answered(interests = ["food"]): AppState["advice"] {
+    const result: AdviceResult = {
+      destination: "Portugal",
+      sections: [
+        {
+          interestId: "food",
+          suggestions: [
+            { id: "s1", interestId: "food", name: "Taberna", why: "Petiscos.", place: { name: "Taberna", city: "Lisbon" }, tier: "community" },
+            { id: "s2", interestId: "food", name: "Cervejaria", why: "Seafood.", place: { name: "Cervejaria", city: "Lisbon" }, tier: "places" },
+          ],
+        },
+      ],
+      tiersUsed: ["community", "places"],
+      generatedAt: "2026-06-01T00:00:00Z",
+    };
+    return [{ tripId: "t1", key: adviceKey("Portugal", interests), result }];
+  }
+
+  /** Every chip from the legend down: its classes and its text. */
+  function chips(html: string): { className: string; text: string }[] {
+    const below = html.slice(html.indexOf("Where these came from"));
+    return [...below.matchAll(/<span class="(inline-flex items-center gap-1 rounded-badge[^"]*)">([^<]*)<\/span>/g)].map(
+      (match) => ({ className: match[1], text: match[2] }),
+    );
+  }
+
+  beforeEach(() => {
+    view.current = undefined;
+  });
+
+  it("names each tier the same on its cards as in the legend above them", () => {
+    const html = show(trip({ destinationCountries: ["PT"], interests: ["food"] }), answered());
+    const texts = chips(html).map((chip) => chip.text);
+
+    // The legend's two, then one on each card.
+    expect(texts).toEqual(["Manifest’s list", "Google Places", "Manifest’s list", "Google Places"]);
+    expect(html).not.toContain(">Community<");
+    expect(html).not.toContain(">Places<");
+  });
+
+  it("draws where a suggestion came from in the neutral tone, not as good news or a warning", () => {
+    const html = show(trip({ destinationCountries: ["PT"], interests: ["food"] }), answered());
+
+    for (const chip of chips(html)) expect(chip.className).not.toMatch(/warning|ok|accent|critical/);
+  });
+
+  it("glues no arrow to a link out", () => {
+    const outdoors = ["food", "nature", "wildlife"];
+    const html = show(trip({ destinationCountries: ["PT"], interests: outdoors }), answered(outdoors));
+
+    expect(html).toContain(">Maps</a>");
+    expect(html).toContain(">Tripadvisor</a>");
+    expect(html).not.toMatch(/[↗→›]/);
   });
 });

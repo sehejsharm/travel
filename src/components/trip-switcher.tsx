@@ -11,12 +11,21 @@ import { SecondaryButton } from "./form";
 import { PRIMARY_BUTTON_CLASSES } from "./styles";
 import { Sheet } from "./sheet";
 
+const chevron = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.7,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
 /**
  * Which trip you are looking at, changeable from anywhere. It also settles
  * the question the sample trip used to leave open: loading it adds a trip
- * alongside yours, and says so before it does anything.
+ * alongside yours, and says so before it does anything. Compact, for the
+ * folded sidebar, it is an icon button with the trip's name as its title.
  */
-export function TripSwitcher() {
+export function TripSwitcher({ compact = false }: { compact?: boolean }) {
   const { state, trip } = useTripView();
   const [open, setOpen] = useState(false);
 
@@ -26,17 +35,32 @@ export function TripSwitcher() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Switch trip"
-        className="press flex min-h-11 max-w-[45vw] items-center gap-2 rounded-control border border-line px-3 py-2"
-      >
-        <span className="truncate text-footnote text-ink-soft">{trip.name}</span>
-        <span aria-hidden="true" className="shrink-0 text-caption-2 text-ink-faint">
-          ▾
-        </span>
-      </button>
+      {compact ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Switch trip"
+          title={trip.name}
+          className="press flex h-11 w-11 items-center justify-center rounded-control border border-line text-ink-soft hover:bg-surface-2 hover:text-ink"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path {...chevron} d="m8 9.5 4-4 4 4M8 14.5l4 4 4-4" />
+          </svg>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Switch trip"
+          className="press flex min-h-11 max-w-[45vw] items-center gap-2 rounded-control border border-line px-3 py-2"
+        >
+          <span className="truncate text-subheadline text-ink">{trip.name}</span>
+          {/* The only sign the pill opens a list, so ink-soft (3:1 and up), not faint. */}
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" className="shrink-0 text-ink-soft">
+            <path {...chevron} d="m7 9.5 5 5 5-5" />
+          </svg>
+        </button>
+      )}
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Your trips">
         <ul className="flex flex-col gap-2">
