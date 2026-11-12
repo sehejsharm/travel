@@ -22,6 +22,26 @@ function download(filename: string, contents: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * A country's emergency line with each number a link that calls it: "110
+ * police / 119 fire and ambulance" keeps its words, and 110 and 119 dial.
+ */
+function EmergencyNumbers({ numbers }: { numbers: string }) {
+  return numbers.split(/(\d+)/).map((part, index) =>
+    index % 2 === 1 ? (
+      <a
+        key={index}
+        href={`tel:${part}`}
+        className="tap inline-flex min-h-11 items-center font-medium tabular underline underline-offset-2"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
+}
+
 export default function MoreScreen() {
   const { trip, items, hydrated } = useTripView();
   const [shareState, setShareState] = useState<"idle" | "copied" | "failed">("idle");
@@ -104,7 +124,7 @@ export default function MoreScreen() {
               <span className="block text-headline">Share the plan</span>
               <span className="mt-1 block text-footnote text-ink-soft">
                 {shareState === "copied"
-                  ? "Link copied — prices and confirmations are stripped out"
+                  ? "Link copied. Prices and confirmations are stripped out"
                   : shareState === "failed"
                     ? "This trip is too big to fit in a link"
                     : "A read-only link, held in the URL itself"}
@@ -124,7 +144,7 @@ export default function MoreScreen() {
               ) : (
                 <>
                   This link is {shareLink.length.toLocaleString()} characters. It will open fine,
-                  but some chat apps and email clients cut long links — check it arrived whole.
+                  but some chat apps and email clients cut long links, so check it arrived whole.
                 </>
               )}
             </p>
@@ -147,7 +167,9 @@ export default function MoreScreen() {
                 Spend, places, and where each item came from
               </span>
             </span>
-            <span aria-hidden="true" className="text-ink-faint">→</span>
+            <span aria-hidden="true" className="shrink-0 text-ink-faint">
+              ›
+            </span>
           </Link>
         </Card>
       </section>
@@ -159,15 +181,25 @@ export default function MoreScreen() {
             {briefs.map(({ country, hoursFromHome }) => (
               <div key={country.code} className="px-4 py-3">
                 <p className="text-subheadline font-medium text-teal">{country.name}</p>
-                <p className="mt-1 text-subheadline text-ink-soft">
-                  Emergency {country.emergency} · {country.currency} · plugs Type{" "}
-                  {country.plugTypes.join("/")} ·{" "}
-                  <span className="tabular">
-                    {hoursFromHome > 0 ? "+" : ""}
-                    {hoursFromHome}h
-                  </span>{" "}
-                  from home
-                </p>
+                {/* Emergency first, on its own row, each number a tap from a call. */}
+                <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 text-subheadline">
+                  <dt className="text-ink-soft">Emergency</dt>
+                  <dd className="text-ink">
+                    <EmergencyNumbers numbers={country.emergency} />
+                  </dd>
+                  <dt className="text-ink-soft">Currency</dt>
+                  <dd className="text-ink">{country.currency}</dd>
+                  <dt className="text-ink-soft">Plugs</dt>
+                  <dd className="text-ink">Type {country.plugTypes.join("/")}</dd>
+                  <dt className="text-ink-soft">Time</dt>
+                  <dd className="text-ink">
+                    <span className="tabular">
+                      {hoursFromHome > 0 ? "+" : ""}
+                      {hoursFromHome}h
+                    </span>{" "}
+                    from home
+                  </dd>
+                </dl>
                 <p className="mt-1 text-subheadline text-ink-soft">{country.tipping}</p>
               </div>
             ))}
@@ -175,7 +207,7 @@ export default function MoreScreen() {
         </section>
       )}
 
-      <section className="flex flex-col gap-3">
+      <section id="this-device" className="flex flex-col gap-3">
         <SectionTitle>This device</SectionTitle>
         <InstallPrompt />
         <BackupPanel />

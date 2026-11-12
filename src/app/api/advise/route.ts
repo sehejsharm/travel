@@ -67,8 +67,7 @@ export async function POST(request: Request) {
   if (result.sections.length === 0) {
     return Response.json(
       {
-        error:
-          "Nothing came back that I could verify. Add an API key for the paid tiers, or file a few places yourself first.",
+        error: `Nothing came back for ${destination.trim()} that I could verify. File a few places you like, then look again.`,
         notes: result.notes,
       },
       { status: 503 },

@@ -56,9 +56,11 @@ function show(current: Trip, advice: AppState["advice"] = [], items: TripItem[] 
   return renderToStaticMarkup(createElement(Discover));
 }
 
-/** The section headings, in order. */
+/** The section headings' text, in order, without the icons drawn inside them. */
 function sections(html: string): string[] {
-  return [...html.matchAll(/<h2 class="text-title-3">([^<]*)</g)].map((match) => match[1]);
+  return [...html.matchAll(/<h2 class="text-title-3">([\s\S]*?)<\/h2>/g)].map((match) =>
+    match[1].replace(/<svg[\s\S]*?<\/svg>/g, ""),
+  );
 }
 
 describe("Discover's Festivals & shows", () => {
@@ -124,7 +126,10 @@ describe("Discover's Festivals & shows", () => {
     // The key holds every interest, festivals included, as the cache always did.
     const html = show(current, [{ tripId: "t1", key: adviceKey("July", ["food", "festivals"]), result }]);
 
-    expect(sections(html)).toEqual(["🎭 Festivals &amp; shows", "From Manifest&#x27;s calendar"]);
+    expect(sections(html)).toEqual(["Festivals &amp; shows", "From Manifest&#x27;s calendar"]);
+    // The section's icon is a hidden line drawing beside the name, so the heading is named by its text alone.
+    expect(html).toMatch(/<h2 class="text-title-3"><svg[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/svg>Festivals &amp; shows<\/h2>/);
+    expect(html).not.toContain("🎭");
     expect(html).toContain("Summer opera");
     expect(html).toContain("Look again");
   });
@@ -142,12 +147,12 @@ describe("Discover's interest question", () => {
     return html.match(/<div class="action-bar [^"]*">([\s\S]*?)<\/div>/)?.[1] ?? null;
   }
 
-  it("keeps its button in the action bar, after the tiles, on the first visit", () => {
+  it("keeps its button in the action bar, after the rows, on the first visit", () => {
     const html = show(trip({ interests: [] }));
 
     expect(html).toContain("What are you into?");
     expect(actionBar(html)).toMatch(/<button[^>]*>Save and find things to do<\/button>/);
-    // Last on the screen, so the bar settles below the tiles at the end.
+    // Last on the screen, so the bar settles below the rows at the end.
     expect(html.indexOf("action-bar")).toBeGreaterThan(html.lastIndexOf("aria-pressed"));
   });
 
@@ -160,6 +165,17 @@ describe("Discover's interest question", () => {
 
   it("has no action bar once interests are picked", () => {
     expect(actionBar(show(trip()))).toBeNull();
+  });
+
+  it("names the picked interests in chips, each with a hidden line icon rather than an emoji", () => {
+    const html = show(trip({ interests: ["food", "festivals"] }));
+
+    for (const label of ["Eating", "Festivals &amp; shows"]) {
+      expect(html).toMatch(
+        new RegExp(`<span class="inline-flex items-center gap-1 rounded-badge[^"]*"><svg[^>]*aria-hidden="true"[^>]*>(?:(?!</?span)[\\s\\S])*?</svg>${label}</span>`),
+      );
+    }
+    expect(html).not.toMatch(/🍜|🎭/u);
   });
 });
 
@@ -192,33 +208,33 @@ describe("Discover's links out to AllTrails and eBird", () => {
     expect(html).toContain(
       'href="https://www.alltrails.com/explore?b_tl_lat=42.2000&amp;b_tl_lng=-9.5000&amp;b_br_lat=36.9000&amp;b_br_lng=-6.2000"',
     );
-    expect(html).toContain("Trails in Portugal, on AllTrails ↗");
-    expect(html).not.toContain("Trails near");
+    expect(html).toContain(">AllTrails: Portugal</span>");
+    expect(html.match(/>AllTrails: /g)).toHaveLength(1);
     expect(html).toContain('href="https://ebird.org/region/PT"');
-    expect(html).toContain("Birds seen in Portugal, on eBird ↗");
+    expect(html).toContain(">eBird: Portugal</span>");
   });
 
   it("frames the city once one is filed, and not the country as well", () => {
     const html = show(trip({ destinationCountries: ["PT"], ...outdoors }), [], [bookedIn("Lisbon", "PT")]);
 
-    expect(html).toContain("Trails near Lisbon, on AllTrails ↗");
-    expect(html).not.toContain("Trails in");
+    expect(html).toContain(">AllTrails: Lisbon</span>");
+    expect(html).not.toContain("AllTrails: Portugal");
   });
 
   it("does not mistake a country's name for a city inside another one", () => {
     // "Malaysia" contains "mal", which is how the place lists spell Malé, in the Maldives.
     const html = show(trip({ destinationCountries: ["MY"], ...outdoors }));
 
-    expect(html).toContain("Trails in Malaysia, on AllTrails ↗");
-    expect(html).toContain("Birds seen in Malaysia, on eBird ↗");
+    expect(html).toContain(">AllTrails: Malaysia</span>");
+    expect(html).toContain(">eBird: Malaysia</span>");
     expect(html).not.toContain("Maldives");
   });
 
   it("takes the country a city was filed under when the place lists cannot locate it", () => {
     const html = show(trip({ destinationCountries: ["ES", "PT"], ...outdoors }), [], [bookedIn("Sintra", "PT")]);
 
-    expect(html).toContain("Trails in Portugal, on AllTrails ↗");
-    expect(html).toContain("Birds seen in Portugal, on eBird ↗");
+    expect(html).toContain(">AllTrails: Portugal</span>");
+    expect(html).toContain(">eBird: Portugal</span>");
   });
 
   it("shows neither link without Outdoors or Wildlife", () => {
@@ -226,5 +242,142 @@ describe("Discover's links out to AllTrails and eBird", () => {
 
     expect(html).not.toContain("alltrails.com");
     expect(html).not.toContain("ebird.org");
+  });
+});
+
+describe("Discover's map and its links to Tripadvisor", () => {
+  const portugal = { destinationCountries: ["PT"], interests: ["food"] };
+
+  /** A cached answer for the trip's default place, "Portugal", with two food picks. */
+  function answered(): AppState["advice"] {
+    const result: AdviceResult = {
+      destination: "Portugal",
+      sections: [
+        {
+          interestId: "food",
+          suggestions: [
+            // Only the city's centre, as most suggestions carry: the map must search by name.
+            { id: "s1", interestId: "food", name: "Pastéis de Belém", why: "The custard tarts.", place: { name: "Pastéis de Belém", city: "Lisbon", point: { lat: 38.7223, lng: -9.1393 } }, tier: "web" },
+            { id: "s2", interestId: "food", name: "Time Out Market", why: "Many stalls.", place: { name: "Time Out Market", city: "Lisbon" }, tier: "web" },
+          ],
+        },
+      ],
+      tiersUsed: ["web"],
+      generatedAt: "2026-06-01T00:00:00Z",
+    };
+    return [{ tripId: "t1", key: adviceKey("Portugal", ["food"]), result }];
+  }
+
+  /** As React writes an attribute: "&" escaped. */
+  const attribute = (value: string) => value.replaceAll("&", "&amp;");
+
+  beforeEach(() => {
+    view.current = undefined;
+  });
+
+  it("links to Tripadvisor's things to do for the place, before any search", () => {
+    const html = show(trip(portugal));
+
+    expect(html).toContain(`href="${attribute("https://www.tripadvisor.com/Search?q=Portugal&ssrc=A")}"`);
+    expect(html).toContain(">Tripadvisor: Portugal</span>");
+    // No suggestions yet, so nothing to put on a map.
+    expect(html).not.toContain("<iframe");
+  });
+
+  it("maps the first suggestion before any is tapped, by its name and city", () => {
+    const html = show(trip(portugal), answered());
+
+    expect(html).toContain(
+      `src="${attribute("https://www.google.com/maps?q=Past%C3%A9is%20de%20Bel%C3%A9m%2C%20Lisbon&z=15&output=embed")}"`,
+    );
+    expect(html).toContain('title="Map of Pastéis de Belém"');
+    expect(html).toMatch(/<button[^>]*aria-pressed="true" aria-describedby="suggestion-map-hint"[^>]*>Pastéis de Belém</);
+    expect(html).toMatch(/<button[^>]*aria-pressed="false" aria-describedby="suggestion-map-hint"[^>]*>Time Out Market</);
+    expect(html).toContain('<span id="suggestion-map-hint" hidden="">Shows it on the map</span>');
+    // Headings keep the place's own name: no label inside them renames them.
+    expect(html).not.toContain('aria-label="Show');
+    expect(html).toContain("lg:grid-cols-[minmax(0,1fr)_16rem]");
+  });
+
+  it("keeps one column when there is nothing to map", () => {
+    // Festivals & shows alone, with no search yet: the calendar's section, and no map.
+    const html = show(trip());
+
+    expect(html).toContain("From Manifest");
+    expect(html).not.toContain("<iframe");
+    expect(html).not.toContain("lg:grid-cols-[minmax(0,1fr)_16rem]");
+  });
+
+  it("has no Tripadvisor link when it knows no place, only the trip's name", () => {
+    const html = show(trip({ name: "New trip", destinationCountries: [], interests: ["food"] }));
+
+    expect(html).not.toContain("tripadvisor.com");
+    expect(html).not.toContain("Tripadvisor: New trip");
+  });
+
+  it("gives every suggestion its own Tripadvisor link", () => {
+    const html = show(trip(portugal), answered());
+
+    expect(html).toContain('href="https://www.tripadvisor.com/Search?q=Past%C3%A9is%20de%20Bel%C3%A9m%2C%20Lisbon"');
+    expect(html).toContain('href="https://www.tripadvisor.com/Search?q=Time%20Out%20Market%2C%20Lisbon"');
+    expect(html).toContain('aria-label="Reviews of Time Out Market on Tripadvisor"');
+  });
+});
+
+describe("Discover's sources", () => {
+  /** A cached answer for "Portugal" with one pick from each of two tiers. */
+  function answered(interests = ["food"]): AppState["advice"] {
+    const result: AdviceResult = {
+      destination: "Portugal",
+      sections: [
+        {
+          interestId: "food",
+          suggestions: [
+            { id: "s1", interestId: "food", name: "Taberna", why: "Petiscos.", place: { name: "Taberna", city: "Lisbon" }, tier: "community" },
+            { id: "s2", interestId: "food", name: "Cervejaria", why: "Seafood.", place: { name: "Cervejaria", city: "Lisbon" }, tier: "places" },
+          ],
+        },
+      ],
+      tiersUsed: ["community", "places"],
+      generatedAt: "2026-06-01T00:00:00Z",
+    };
+    return [{ tripId: "t1", key: adviceKey("Portugal", interests), result }];
+  }
+
+  /** Every chip from the legend down: its classes and its text. */
+  function chips(html: string): { className: string; text: string }[] {
+    const below = html.slice(html.indexOf("Where these came from"));
+    return [...below.matchAll(/<span class="(inline-flex items-center gap-1 rounded-badge[^"]*)">([^<]*)<\/span>/g)].map(
+      (match) => ({ className: match[1], text: match[2] }),
+    );
+  }
+
+  beforeEach(() => {
+    view.current = undefined;
+  });
+
+  it("names each tier the same on its cards as in the legend above them", () => {
+    const html = show(trip({ destinationCountries: ["PT"], interests: ["food"] }), answered());
+    const texts = chips(html).map((chip) => chip.text);
+
+    // The legend's two, then one on each card.
+    expect(texts).toEqual(["Manifest’s list", "Google Places", "Manifest’s list", "Google Places"]);
+    expect(html).not.toContain(">Community<");
+    expect(html).not.toContain(">Places<");
+  });
+
+  it("draws where a suggestion came from in the neutral tone, not as good news or a warning", () => {
+    const html = show(trip({ destinationCountries: ["PT"], interests: ["food"] }), answered());
+
+    for (const chip of chips(html)) expect(chip.className).not.toMatch(/warning|ok|accent|critical/);
+  });
+
+  it("glues no arrow to a link out", () => {
+    const outdoors = ["food", "nature", "wildlife"];
+    const html = show(trip({ destinationCountries: ["PT"], interests: outdoors }), answered(outdoors));
+
+    expect(html).toContain(">Maps</a>");
+    expect(html).toContain(">Tripadvisor</a>");
+    expect(html).not.toMatch(/[↗→›]/);
   });
 });

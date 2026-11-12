@@ -92,9 +92,7 @@ const SIDEBAR_TABS: Tab[] = [...TABS, MORE];
 function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2">
-      <span className="animate-float inline-flex">
-        <Mark size={24} />
-      </span>
+      <Mark size={24} />
       {!compact && <span className="text-headline">Manifest</span>}
     </span>
   );
@@ -168,7 +166,18 @@ function publishHeight(variable: string) {
 const publishHeaderHeight = publishHeight("--header-height");
 const publishTabBarHeight = publishHeight("--tab-bar-height");
 
+/*
+ * Screens opened from a tab rather than being one keep that tab current, so
+ * the chrome still says where you are: Trip settings, a new trip and Divert
+ * belong to Trip, the recap and the legal pages to More.
+ */
+const CHILD_ROUTES: Record<string, string[]> = {
+  "/": ["/trip", "/divert"],
+  "/more": ["/recap", "/legal"],
+};
+
 function isActive(pathname: string, href: string): boolean {
+  if (CHILD_ROUTES[href]?.some((route) => pathname.startsWith(route))) return true;
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
@@ -186,7 +195,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Split view: the sidebar holds navigation, the pane beside it holds the
           screen, and a hairline separates them. It folds to icons on demand. */}
       <aside
-        className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line py-6 transition-[width] duration-300 ease-[var(--ease-out)] lg:flex ${
+        className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line py-6 lg:flex ${
           collapsed ? "w-20 px-4" : "w-64 px-4"
         }`}
       >
@@ -205,11 +214,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        {!collapsed && (
-          <div className="mt-4 px-2">
-            <TripSwitcher />
-          </div>
-        )}
+        {/* Folded, the switcher shrinks to an icon rather than going: the
+            header holding the other one is hidden on a wide screen. */}
+        <div className={`mt-4 ${collapsed ? "flex justify-center" : "px-2"}`}>
+          <TripSwitcher compact={collapsed} />
+        </div>
 
         <nav className="mt-8 flex flex-col gap-1">
           {SIDEBAR_TABS.map((tab) => {
@@ -230,8 +239,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 }`}
               >
                 {/* tab-icon is shared with the mobile nav: [aria-current="page"]
-                    .tab-icon pops on arrival regardless of which layout renders it. */}
-                <span className="tab-icon flex">{tab.icon}</span>
+                    .tab-icon settles in on arrival regardless of which layout
+                    renders it. Every icon gets Add's 24px box, so the labels
+                    start on one line. */}
+                <span className="tab-icon flex w-6 justify-center">{tab.icon}</span>
                 {!collapsed && tab.label}
               </Link>
             );
@@ -309,11 +320,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                     />
                     <span
                       // Same box for every tab, so the labels sit on one line.
-                      // tab-icon is what the spring-pop keyframe hooks onto;
-                      // fab-ring is the idle breathing ring behind Add alone.
+                      // tab-icon is what the arrival keyframe hooks onto.
                       className={`tab-icon flex h-10 w-10 items-center justify-center ${
                         isAdd
-                          ? "fab-ring rounded-full bg-accent text-accent-ink shadow-float ring-1 ring-white/10"
+                          ? "rounded-full bg-accent text-accent-ink"
                           : `rounded-control ${active ? "bg-accent-soft" : ""}`
                       }`}
                     >

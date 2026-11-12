@@ -1,3 +1,5 @@
+import type { IconName } from "../icons";
+
 /**
  * The sections a trip gets divided into. Picking these up front is what makes
  * a suggestion feel addressed to you rather than to the average tourist —
@@ -6,7 +8,7 @@
 export interface Interest {
   id: string;
   label: string;
-  emoji: string;
+  icon: IconName;
   /** Shown under the label in the picker. */
   blurb: string;
   /** What the advisor should go looking for under this heading. */
@@ -17,91 +19,91 @@ export const INTERESTS: Interest[] = [
   {
     id: "food",
     label: "Eating",
-    emoji: "🍜",
+    icon: "bowl",
     blurb: "Restaurants, markets, street food",
     looksFor: "restaurants, food markets, street food streets and famous local dishes",
   },
   {
     id: "coffee",
     label: "Coffee & bakeries",
-    emoji: "☕️",
+    icon: "cup",
     blurb: "Somewhere to sit and read",
     looksFor: "speciality coffee roasters, cafés worth sitting in, and bakeries",
   },
   {
     id: "nightlife",
     label: "Nights out",
-    emoji: "🍸",
+    icon: "cocktail",
     blurb: "Bars, live music, late food",
     looksFor: "cocktail bars, live music venues, night markets and late-night food",
   },
   {
     id: "nature",
     label: "Outdoors",
-    emoji: "🏞️",
+    icon: "mountains",
     blurb: "Parks, hikes, viewpoints",
     looksFor: "parks, gardens, hikes, viewpoints and day trips into nature",
   },
   {
     id: "beach",
     label: "Water",
-    emoji: "🏝️",
+    icon: "waves",
     blurb: "Beaches, islands, swimming",
     looksFor: "beaches, swimming spots, islands and boat trips",
   },
   {
     id: "art",
     label: "Art & museums",
-    emoji: "🖼️",
+    icon: "palette",
     blurb: "Galleries, exhibitions, collections",
     looksFor: "museums, galleries, exhibitions and artist studios",
   },
   {
     id: "architecture",
     label: "Buildings",
-    emoji: "🏛️",
+    icon: "columns",
     blurb: "Landmarks, temples, old towns",
     looksFor: "landmark buildings, temples, old quarters and notable architecture",
   },
   {
     id: "shopping",
     label: "Shopping",
-    emoji: "🛍️",
+    icon: "bag",
     blurb: "Markets, vintage, design",
     looksFor: "markets, vintage shops, design stores and neighbourhoods to browse",
   },
   {
     id: "adventure",
     label: "Adventure",
-    emoji: "🧗",
+    icon: "compass",
     blurb: "Diving, climbing, riding",
     looksFor: "diving, climbing, cycling, surfing and other things you book a guide for",
   },
   {
     id: "wellness",
     label: "Slowing down",
-    emoji: "♨️",
+    icon: "hot-spring",
     blurb: "Baths, spas, quiet corners",
     looksFor: "hot springs, bath houses, spas and quiet places to do nothing",
   },
   {
     id: "history",
     label: "History",
-    emoji: "📜",
+    icon: "scroll",
     blurb: "Ruins, memorials, walking tours",
     looksFor: "historic sites, ruins, memorials and walking tours with a story",
   },
   {
     id: "family",
     label: "With kids",
-    emoji: "🧸",
+    icon: "family",
     blurb: "Things that work for small people",
     looksFor: "aquariums, zoos, playgrounds, science museums and family-friendly outings",
   },
   {
     id: "gems",
     label: "Hidden gems",
-    emoji: "💎",
+    icon: "gem",
     blurb: "Off the tourist trail",
     looksFor:
       "lesser-known towns, villages and islands, quiet regions and uncrowded alternatives to famous spots",
@@ -109,14 +111,14 @@ export const INTERESTS: Interest[] = [
   {
     id: "wildlife",
     label: "Wildlife",
-    emoji: "🐘",
+    icon: "paw",
     blurb: "Animals in the wild",
     looksFor: "safaris, wildlife reserves, ethical sanctuaries, whale watching and marine encounters",
   },
   {
     id: "local",
     label: "Local life",
-    emoji: "🏘️",
+    icon: "houses",
     blurb: "Live like a local",
     looksFor: "everyday neighbourhoods, homestays, village visits, local markets and traditional crafts",
   },
@@ -124,49 +126,49 @@ export const INTERESTS: Interest[] = [
     // Keep this id: the festival data elsewhere in the app is matched to it.
     id: "festivals",
     label: "Festivals & shows",
-    emoji: "🎭",
+    icon: "ticket",
     blurb: "What's on while you're there",
     looksFor: "festivals, carnivals, concerts, theatre, opera and seasonal events",
   },
   {
     id: "classes",
     label: "Classes & workshops",
-    emoji: "🧶",
+    icon: "mortarboard",
     blurb: "Learn a local skill",
     looksFor: "cooking classes, craft workshops, dance lessons and language schools",
   },
   {
     id: "social",
     label: "Meet people",
-    emoji: "👋",
+    icon: "chat",
     blurb: "Make travel friends",
     looksFor: "social hostels, group dinners, pub crawls, language exchanges and traveller meetups",
   },
   {
     id: "camping",
     label: "Camping & road trips",
-    emoji: "🏕️",
+    icon: "tent",
     blurb: "On the road and under canvas",
     looksFor: "campsites, campervan routes, motorbike loops, scenic drives and overland journeys",
   },
   {
     id: "daytrips",
     label: "Day trips",
-    emoji: "🚆",
+    icon: "train",
     blurb: "Easy escapes from the city",
     looksFor: "nearby towns, ruins, islands and scenery you can get to and back from in a day",
   },
   {
     id: "photo",
     label: "Photo spots",
-    emoji: "📸",
+    icon: "camera",
     blurb: "Get the shot",
     looksFor: "postcard viewpoints, sunrise spots at landmarks and photo walks",
   },
   {
     id: "film",
     label: "Film locations",
-    emoji: "🎬",
+    icon: "clapper",
     blurb: "Seen it on screen",
     looksFor: "filming locations, studio tours, and film and TV walking tours",
   },

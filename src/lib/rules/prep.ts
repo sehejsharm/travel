@@ -167,7 +167,7 @@ export function weatherOutlook(ctx: RuleContext): Flag[] {
         category: "prep",
         title: `Expect ${weather.lowC}–${weather.highC}°C in ${country.name}`,
         detail: `Seasonal normals for ${weather.referenceCity} across your dates${
-          weather.wet ? ", and you are travelling in the wet season — pack a rain layer" : ""
+          weather.wet ? ", and you are travelling in the wet season, so pack a rain layer" : ""
         }. Your packing list is built from this.`,
         itemIds: [],
       },

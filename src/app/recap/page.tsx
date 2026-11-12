@@ -11,7 +11,7 @@ import { useTripView } from "@/lib/store/use-store";
 
 const STATUS_COPY = {
   upcoming: "This trip has not started yet, so this is a preview of what the recap will hold.",
-  "under way": "You are on this trip now — the numbers move as things get filed.",
+  "under way": "You are on this trip now. The numbers move as things get filed.",
   complete: "Here is how the trip actually went.",
 } as const;
 
@@ -76,7 +76,7 @@ export default function RecapScreen() {
             <p className="mt-4 border-t border-line pt-3 text-subheadline text-ink-soft">
               Most of this trip arrived as{" "}
               <span className="font-medium text-ink">{SOURCE_LABELS[mostUsed.source]}</span>{" "}
-              content — {mostUsed.count} of {items.length} items.
+              content: {mostUsed.count} of {items.length} items.
             </p>
           )}
         </Card>

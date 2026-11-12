@@ -11,7 +11,7 @@ export const ACCENT_CHOICES: { hue: number; label: string }[] = [
   { hue: 18, label: "Clay" },
   { hue: 96, label: "Olive" },
   { hue: 198, label: "Harbour" },
-  { hue: 268, label: "Plum" },
+  { hue: 330, label: "Plum" },
 ];
 
 export function CoverPicker({
@@ -39,26 +39,6 @@ export function CoverPicker({
         className="relative isolate overflow-hidden rounded-card p-4 text-white shadow-card"
         style={{ backgroundImage: background }}
       >
-        <svg
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.18]"
-          preserveAspectRatio="none"
-          viewBox="0 0 400 140"
-        >
-          {[0, 1, 2, 3, 4].map((ring) => (
-            <ellipse
-              key={ring}
-              cx="330"
-              cy="30"
-              rx={36 + ring * 44}
-              ry={24 + ring * 28}
-              fill="none"
-              stroke="white"
-              strokeWidth="1.2"
-            />
-          ))}
-        </svg>
-
         <div className="relative">
           {/* The same label the trip hero carries over its title. */}
           <p className="text-footnote font-medium text-white/80">Preview</p>

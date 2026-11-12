@@ -31,6 +31,8 @@
 
   --line: rgba(11, 17, 22, 0.1);
   --line-strong: rgba(11, 17, 22, 0.2);
+  /* A control's edge: a field, a checkbox. 3:1 against every surface it sits on (WCAG 1.4.11). */
+  --field-edge: rgba(11, 17, 22, 0.48);
 
   /* The deeper copper, so white text on a filled button reads at 5.2:1. */
   --accent: #9c5e2c;
@@ -70,8 +72,6 @@
   --dur-micro: 100ms;
   --dur-move: 300ms;
   --dur-hero: 460ms;
-  /* Ambient loops: fast enough to be seen in a glance, not a vigil. */
-  --dur-ambient: 7s;
 
   /* ------------------------------------------------------------ elevation */
   /*
@@ -82,6 +82,9 @@
   --edge-highlight: rgba(255, 255, 255, 0.5);
   --edge-shadow: rgba(11, 17, 22, 0.06);
   --lift-shadow: 0 2px 6px rgba(11, 17, 22, 0.06), 0 12px 28px -10px rgba(11, 17, 22, 0.18);
+
+  /* The light that sweeps across a primary button under a pointer (.shine). */
+  --shine: rgba(255, 255, 255, 0.35);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -100,6 +103,7 @@
 
     --line: rgba(244, 246, 243, 0.1);
     --line-strong: rgba(244, 246, 243, 0.2);
+    --field-edge: rgba(244, 246, 243, 0.38);
 
     --accent: #e39a5c;
     --accent-ink: #1a1108;
@@ -128,6 +132,9 @@
     --edge-highlight: rgba(255, 255, 255, 0.07);
     --edge-shadow: rgba(0, 0, 0, 0.5);
     --lift-shadow: 0 2px 8px rgba(0, 0, 0, 0.36), 0 16px 34px -12px rgba(0, 0, 0, 0.6);
+
+    /* Fainter over the light copper, where white at 35% washes out the dark label. */
+    --shine: rgba(255, 255, 255, 0.2);
   }
 }
 
@@ -143,6 +150,7 @@
   --color-ink-faint: var(--ink-faint);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-field-edge: var(--field-edge);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);
@@ -268,6 +276,9 @@ html {
   background: var(--bg);
   /* Keeps the bottom bar put when mobile browsers show and hide their chrome. */
   height: 100%;
+  /* The browser's own surfaces take the palette too, and switch with it. */
+  scrollbar-color: var(--line-strong) transparent;
+  caret-color: var(--accent);
 }
 
 body {
@@ -290,6 +301,13 @@ body {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: 6px;
+  }
+
+  /* Balanced, so a heading on a phone never ends on one stranded word. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
 }
 
@@ -349,6 +367,17 @@ body {
 :root:has(.action-bar) {
   scroll-padding-top: var(--header-height, 0px);
   scroll-padding-bottom: calc(var(--tab-bar-height, 0px) + 6rem);
+}
+
+/*
+ * And of Discover's map strip, where it is held under the header: below lg,
+ * on a screen tall enough (as in SuggestionMap). 11.5rem is its 9rem map plus
+ * the caption.
+ */
+@media (width < 64rem) and (height >= 36rem) {
+  :root:has([data-map-strip]) {
+    scroll-padding-top: calc(var(--header-height, 0px) + 11.5rem);
+  }
 }
 
 /*
@@ -571,28 +600,6 @@ body {
 
 /* ------------------------------------------------------------- ambient */
 /*
- * The hero's decorative rings. Barely-perceptible by design — if you can see
- * it move without looking for it, it is too much.
- */
-@keyframes drift {
-  0%,
-  100% {
-    transform: scale(1) translate3d(0, 0, 0) rotate(0deg);
-    opacity: 0.22;
-  }
-  50% {
-    transform: scale(1.16) translate3d(-4%, 3%, 0) rotate(2.5deg);
-    opacity: 0.4;
-  }
-}
-
-.animate-drift {
-  animation: drift var(--dur-ambient) var(--ease-soft) infinite;
-  /* Promoted once, so the loop never costs a layout or paint. */
-  will-change: transform, opacity;
-}
-
-/*
  * Gradients this large band visibly on cheap panels. A little noise breaks
  * the bands up and reads as texture rather than as a defect.
  */
@@ -606,53 +613,20 @@ body {
 }
 
 /* --------------------------------------------------------- celebration */
-@keyframes bounce-in {
-  0% {
-    transform: scale(0.2) rotate(-25deg);
+/* A tick fades and grows into place, and stops at its size: no overshoot. */
+@keyframes tick-in {
+  from {
+    transform: scale(0.6);
     opacity: 0;
   }
-  55% {
-    transform: scale(1.35) rotate(8deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
+  to {
+    transform: none;
     opacity: 1;
   }
 }
 
 .animate-check {
-  animation: bounce-in var(--dur-move) var(--ease-spring) both;
-}
-
-@keyframes glow-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.35);
-  }
-}
-
-.animate-pulse-dot {
-  animation: glow-pulse 2.4s var(--ease-soft) infinite;
-}
-
-@keyframes float-idle {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-.animate-float {
-  animation: float-idle 4.5s var(--ease-soft) infinite;
+  animation: tick-in var(--dur-move) var(--ease-spring) both;
 }
 
 .skeleton {
@@ -693,63 +667,29 @@ body {
 
 /* ----------------------------------------------------------- nav feedback */
 /*
- * The pill already slides between tabs; the icon itself gets a small spring
- * pop the frame it becomes current, so landing on a tab reads as arriving
- * rather than a colour swap.
+ * The pill already slides between tabs; the icon itself settles in the frame
+ * it becomes current, so landing on a tab reads as arriving rather than a
+ * colour swap. It grows to its size and stops there: no overshoot, no turn.
  */
 @keyframes tab-pop {
-  0% {
-    transform: scale(0.6) rotate(-8deg);
+  from {
+    transform: scale(0.9);
   }
-  55% {
-    transform: scale(1.3) rotate(4deg);
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
+  to {
+    transform: none;
   }
 }
 
 [aria-current="page"] .tab-icon {
-  animation: tab-pop var(--dur-move) var(--ease-spring) both;
-}
-
-/*
- * The Add tab is where every visit eventually leads. A slow breathing ring
- * behind it keeps it feeling live without asking for attention — the loop
- * is barely faster than a resting heartbeat, not a notification badge.
- */
-@keyframes fab-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.55;
-  }
-  50% {
-    transform: scale(1.85);
-    opacity: 0;
-  }
-}
-
-/* The ring sits behind the button's own icon, never over it. */
-.fab-ring {
-  position: relative;
-  isolation: isolate;
-}
-.fab-ring::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: 9999px;
-  background: var(--accent);
-  animation: fab-breathe 1.6s var(--ease-soft) infinite;
-  pointer-events: none;
+  animation: tab-pop var(--dur-move) var(--ease-out) both;
 }
 
 /*
  * A light sweep across a primary action on hover. One gradient, transform
- * only, so it costs nothing — and it reads as "this does something" before
- * the click on the surfaces that matter (Create trip, Save).
+ * only, so it costs nothing: it sits at the left edge and is moved out of
+ * sight and across (the percentages are of its own 40% width, so -150% and
+ * 325% are the button's -60% and 130%). It reads as "this does something"
+ * before the click on the surfaces that matter (Create trip, Save).
  */
 .shine {
   position: relative;
@@ -759,38 +699,18 @@ body {
   content: "";
   position: absolute;
   top: 0;
-  left: -60%;
+  left: 0;
   width: 40%;
   height: 100%;
-  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-  transform: skewX(-20deg);
-  transition: left var(--dur-hero) var(--ease-soft);
+  background: linear-gradient(115deg, transparent, var(--shine), transparent);
+  transform: translateX(-150%) skewX(-20deg);
+  transition: transform var(--dur-hero) var(--ease-soft);
   pointer-events: none;
 }
 @media (hover: hover) {
-  .shine:hover::after {
-    left: 130%;
+  .shine:hover:not(:disabled)::after {
+    transform: translateX(325%) skewX(-20deg);
   }
-}
-
-/*
- * The hero's gradient rotates hue by a few degrees over a slow, long loop.
- * White text and white strokes carry no saturation, so hue-rotate leaves
- * them untouched — only the gradient itself drifts, which is what makes the
- * hero read as alive rather than a static swatch behind static content.
- */
-@keyframes hue-drift {
-  0%,
-  100% {
-    filter: hue-rotate(0deg) saturate(1);
-  }
-  50% {
-    filter: hue-rotate(32deg) saturate(1.25);
-  }
-}
-.animate-hue-drift {
-  animation: hue-drift 8s var(--ease-soft) infinite;
-  will-change: filter;
 }
 
 /*
@@ -810,23 +730,9 @@ body {
     scroll-behavior: auto !important;
   }
 
-  /* The continuous ones stop outright rather than snapping to a keyframe. */
-  .animate-drift,
-  .animate-float,
-  .animate-pulse-dot,
-  .animate-hue-drift,
-  .fab-ring::before,
+  /* The continuous one stops outright rather than snapping to a keyframe. */
   .skeleton {
     animation: none !important;
-  }
-
-  .animate-drift {
-    opacity: 0.2;
-  }
-
-  /* Without its animation the ring would sit as a solid disc: hide it. */
-  .fab-ring::before {
-    opacity: 0;
   }
 
   /* Movement is removed, not accelerated. Opacity still carries the change. */
@@ -937,26 +843,15 @@ html[data-first-run="true"] #splash {
 
 /*
  * Route changes. Next swaps the tree instantly; this gives the incoming page
- * a short rise so navigation registers without feeling slower. Applied to the
- * main region and keyed on the pathname.
+ * a short fade so navigation registers without feeling slower. Applied to the
+ * main region and keyed on the pathname. It is the one entrance a screen
+ * gets: its header does not rise again inside it.
  */
-@keyframes page-in {
-  from {
-    opacity: 0;
-    transform: translateY(22px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 .animate-page {
-  animation: page-in var(--dur-hero) var(--ease-spring) both;
+  animation: fade-only var(--dur-micro) var(--ease-out) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-page,
   .animate-sheet {
     animation-name: fade-only;
   }

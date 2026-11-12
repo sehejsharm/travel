@@ -29,6 +29,26 @@ function groupByDay(items: TripItem[]): [string, TripItem[]][] {
 
 const IDEA_CATEGORIES: ItemCategory[] = ["place", "activity"];
 
+/**
+ * A country's emergency line with each number a link that calls it: "110
+ * police / 119 fire and ambulance" keeps its words, and 110 and 119 dial.
+ */
+function EmergencyNumbers({ numbers }: { numbers: string }) {
+  return numbers.split(/(\d+)/).map((part, index) =>
+    index % 2 === 1 ? (
+      <a
+        key={index}
+        href={`tel:${part}`}
+        className="tap inline-flex min-h-11 items-center font-medium tabular underline underline-offset-2"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
+}
+
 export default function SharedTripPage() {
   // The initial state must match the prerendered HTML, so the fragment is only
   // read after mount. An empty or unreadable token decodes to null on its own.
@@ -94,7 +114,7 @@ export default function SharedTripPage() {
         </p>
         <p className="mt-4 max-w-prose text-subheadline text-ink-soft">
           A read-only view. Names and passports, the budget, prices, booking references and notes
-          were left behind — this is the plan, not the paperwork.
+          were left behind: this is the plan, not the paperwork.
         </p>
       </header>
 
@@ -140,20 +160,25 @@ export default function SharedTripPage() {
       {briefs.length > 0 && (
         <Card className="p-5">
           <h2 className="text-title-3">Good to know</h2>
-          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {briefs.map(({ country }) => (
               <div key={country.code}>
-                <dt className="text-subheadline font-medium text-teal">
-                  {country.name}
-                </dt>
-                <dd className="text-subheadline text-ink-soft">
-                  Emergency {country.emergency} · {country.currency} · plugs Type{" "}
-                  {country.plugTypes.join("/")}
-                </dd>
-                <dd className="text-subheadline text-ink-soft">{country.tipping}</dd>
+                <h3 className="text-subheadline font-medium text-teal">{country.name}</h3>
+                {/* Emergency first, on its own row, each number a tap from a call. */}
+                <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 text-subheadline">
+                  <dt className="text-ink-soft">Emergency</dt>
+                  <dd className="text-ink">
+                    <EmergencyNumbers numbers={country.emergency} />
+                  </dd>
+                  <dt className="text-ink-soft">Currency</dt>
+                  <dd className="text-ink">{country.currency}</dd>
+                  <dt className="text-ink-soft">Plugs</dt>
+                  <dd className="text-ink">Type {country.plugTypes.join("/")}</dd>
+                </dl>
+                <p className="mt-1 text-subheadline text-ink-soft">{country.tipping}</p>
               </div>
             ))}
-          </dl>
+          </div>
         </Card>
       )}
 
@@ -173,7 +198,7 @@ export default function SharedTripPage() {
           <div className="min-w-0 flex-1">
             <p className="text-subheadline font-medium">Made with Manifest</p>
             <p className="mt-1 text-footnote text-ink-soft">
-              Send it a booking email or a screenshot and it files itself — then it checks the plan
+              Send it a booking email or a screenshot and it files itself, then it checks the plan
               for the things that ruin trips. Free, no account, works offline.
             </p>
           </div>

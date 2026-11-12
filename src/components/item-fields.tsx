@@ -220,7 +220,7 @@ export function PlaceField({
               rel="noreferrer"
               className={`${BORDERLESS_BUTTON_CLASSES} shrink-0`}
             >
-              Open in Maps ↗
+              Open in Maps
             </a>
           </div>
         </div>

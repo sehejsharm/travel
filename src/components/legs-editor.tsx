@@ -108,7 +108,7 @@ export function LegsEditor({
     <div className="flex flex-col gap-3">
       <p className="text-footnote text-ink-soft">
         Give each country its own dates and the weather, holiday and packing checks run against
-        the days you are actually there — not a blend of both.
+        the days you are actually there, not a blend of both.
       </p>
 
       {legs.map((leg, index) => {

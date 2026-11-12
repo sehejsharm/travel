@@ -64,20 +64,18 @@ export default function TripSettings() {
 
       <section>
         <SectionTitle>Details</SectionTitle>
-        <Card className="p-5">
-          <TripForm trip={trip} onDone={() => router.push("/")} submitLabel="Save changes" />
-        </Card>
+        {/* Not in a Card: the form's own groups (When, the optional rows) are the cards, one layer deep. */}
+        <TripForm trip={trip} onDone={() => router.push("/")} submitLabel="Save changes" />
       </section>
 
       <section>
         <SectionTitle trailing="shapes what Discover suggests">What you are into</SectionTitle>
-        <Card className="p-5">
-          <InterestPicker
-            selected={trip.interests ?? []}
-            onChange={(interests) => updateTrip(trip.id, { interests })}
-            min={0}
-          />
-        </Card>
+        {/* Each tap saves at once. No Card around it: its rows are split by hairlines and need no box. */}
+        <InterestPicker
+          selected={trip.interests ?? []}
+          onChange={(interests) => updateTrip(trip.id, { interests })}
+          min={0}
+        />
       </section>
 
       <section>

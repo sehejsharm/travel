@@ -49,11 +49,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/*
           Runs before first paint so the splash knows which of its two states
-          to show without React reading storage during render.
+          to show without React reading storage during render. Not on /share:
+          whoever opens a shared trip is nearly always new here, and the plan
+          they were sent should not wait behind the first-run hold.
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(!localStorage.getItem("manifest.state.v2"))document.documentElement.dataset.firstRun="true"}catch(e){}`,
+            __html: `try{if(!localStorage.getItem("manifest.state.v2")&&!/^\\/share(\\/|$)/.test(location.pathname))document.documentElement.dataset.firstRun="true"}catch(e){}`,
           }}
         />
       </head>

@@ -149,6 +149,15 @@ describe("divert spots", () => {
     expect(findSpots(REYKJAVIK, ["coffee", "food"], "Hallgrímskirkja")).toEqual(found);
   });
 
+  it("says what a stand-in stands in for, then why, after a colon", () => {
+    const details = findSpots(REYKJAVIK, ["coffee", "sights", "food", "shopping", "rest"]).map(
+      (spot) => spot.detail,
+    );
+
+    expect(details).toContain("Stood in for a real café: nothing was looked up.");
+    for (const detail of details) expect(detail).toMatch(/^Stood in for a real \S+: nothing was looked up\.$/);
+  });
+
   it("gives stand-ins placed from different spots different ids", () => {
     const [here] = findSpots(REYKJAVIK, ["coffee"]);
     const [there] = findSpots({ lat: 64.15, lng: -21.95 }, ["coffee"]);

@@ -136,7 +136,7 @@ export function DuplicateChoice({
 export function StartsTripNote({ what }: { what: string }) {
   return (
     <p className="mt-2 text-center text-footnote text-ink-soft">
-      You have no trip open. This builds one around {what} — you can rename it and fill in the
+      You have no trip open. This builds one around {what}. You can rename it and fill in the
       dates after.
     </p>
   );

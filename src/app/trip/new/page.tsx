@@ -29,9 +29,8 @@ export default function NewTripScreen() {
         }
       />
 
-      <Card className="p-5">
-        <TripForm onDone={() => router.push("/")} submitLabel="Create trip" />
-      </Card>
+      {/* Not in a Card: the form's own groups (When, the optional rows) are the cards, one layer deep. */}
+      <TripForm onDone={() => router.push("/")} submitLabel="Create trip" />
 
       {state.trips.length > 0 && (
         <section>

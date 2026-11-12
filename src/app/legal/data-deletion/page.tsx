@@ -40,7 +40,7 @@ export default function DataDeletion() {
           goes when you file it, clear it or close the tab. Clearing site data, below, removes the
           lot.
         </p>
-        <Link href="/more" className={`${PRIMARY_BUTTON_CLASSES} sm:max-w-xs`}>
+        <Link href="/more#this-device" className={`${PRIMARY_BUTTON_CLASSES} sm:max-w-xs`}>
           Go to This device
         </Link>
       </Section>
@@ -79,7 +79,7 @@ export default function DataDeletion() {
             </>,
             <>
               <strong className="font-medium text-ink">Share links you sent.</strong> The trip travels inside
-              the link, so anyone holding one keeps that snapshot. There is no way to revoke it —
+              the link, so anyone holding one keeps that snapshot. There is no way to revoke it:
               this is the trade for links that need no server. Only send them to people you mean to.
             </>,
             <>

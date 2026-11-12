@@ -237,7 +237,7 @@ function ItemEditorForm({
                 }}
                 className="-ml-3 mt-2"
               >
-                Clear — send back to ideas
+                Clear: send back to ideas
               </BorderlessButton>
             )
           }

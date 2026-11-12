@@ -29,7 +29,7 @@ export function baggageAllowance({ items }: RuleContext): Flag[] {
       severity: "info",
       category: "prep",
       title: shopping > 0 ? `${shopping} things to buy, and this much room for them` : "Your baggage allowance",
-      detail: `${lines.join(". ")}. Economy allowances — a cheaper fare class may give you less.`,
+      detail: `${lines.join(". ")}. Economy allowances: a cheaper fare class may give you less.`,
       itemIds: [],
     },
   ];

@@ -200,7 +200,7 @@ function TravelerEditorForm({
 
         <Field
           label="Flying from"
-          hint="Where this person sets off from, if it is not where the trip does. Sets their plugs, voltage, jet lag and the customs allowance they come home to — the passport above still decides the visa."
+          hint="Where this person sets off from, if it is not where the trip does. Sets their plugs, voltage, jet lag and the customs allowance they come home to. The passport above still decides the visa."
         >
           <Select
             value={draft.originCountry ?? ""}

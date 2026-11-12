@@ -65,7 +65,7 @@ async function extractImage(image: unknown, source: SourceKind) {
   }
   if (data.length > MAX_IMAGE_CHARS) {
     return Response.json(
-      { error: "That image is too large — under 4 MB works best." },
+      { error: "That image is too large. Under 4 MB works best." },
       { status: 413 },
     );
   }

@@ -17,6 +17,7 @@ import { Disclosure } from "./disclosure";
 import { BorderlessButton, Field, PrimaryButton, Select, TextInput } from "./form";
 import { InterestPicker } from "./interest-picker";
 import { dayError, legErrors, legInputId, LegsEditor } from "./legs-editor";
+import { LineIcon } from "./line-icon";
 import {
   expiryError,
   pendingNameError,
@@ -273,7 +274,8 @@ export function TripForm({
         homeCountry: payload.homeCountry,
         purpose: payload.purpose,
         legs: payload.legs.length ? payload.legs : undefined,
-        interests: payload.interests.length ? payload.interests : undefined,
+        // Left out: an existing trip picks its interests in their own section, which saves each
+        // tap. This draft's copy is from when the form opened, and would put those taps back.
         accentHue: payload.accentHue,
         budgetTarget: budget,
       });
@@ -324,13 +326,13 @@ export function TripForm({
             onClick={() => set("datesTbd", !draft.datesTbd)}
             className="-my-2 -mr-3"
           >
-            {draft.datesTbd ? "I know the dates" : "No dates yet"}
+            {draft.datesTbd ? "I know the dates" : "Skip dates for now"}
           </BorderlessButton>
         </div>
 
         {draft.datesTbd ? (
           <p className="mt-2 text-footnote text-ink-soft">
-            Fine — file ideas now and add dates later. Anything that depends on when you travel
+            Fine. File ideas now and add dates later. Anything that depends on when you travel
             (visa lead times, weather, jet lag) stays quiet until you do.
           </p>
         ) : (
@@ -416,23 +418,26 @@ export function TripForm({
           </Disclosure>
         )}
 
-        <Disclosure
-          label="Personalize suggestions"
-          hint="Pick what you are into, for Discover"
-          summary={draft.interests.length > 0 ? `${draft.interests.length} picked` : undefined}
-        >
-          {purpose?.suppressSuggestions && (
-            <p className="mb-3 rounded-control bg-surface-2 px-3 py-2 text-footnote text-ink-soft">
-              You picked {purpose.label}, so Discover stays quiet by default. Picking interests here
-              turns it back on.
-            </p>
-          )}
-          <InterestPicker
-            selected={draft.interests}
-            onChange={(interests) => set("interests", interests)}
-            min={0}
-          />
-        </Disclosure>
+        {/* Interests are only picked here when the trip is new; an existing trip picks them on its own screen. */}
+        {!trip && (
+          <Disclosure
+            label="Personalize suggestions"
+            hint="Pick what you are into, for Discover"
+            summary={draft.interests.length > 0 ? `${draft.interests.length} picked` : undefined}
+          >
+            {purpose?.suppressSuggestions && (
+              <p className="mb-3 rounded-control bg-surface-2 px-3 py-2 text-footnote text-ink-soft">
+                You picked {purpose.label}, so Discover stays quiet by default. Picking interests here
+                turns it back on.
+              </p>
+            )}
+            <InterestPicker
+              selected={draft.interests}
+              onChange={(interests) => set("interests", interests)}
+              min={0}
+            />
+          </Disclosure>
+        )}
 
         <Disclosure
           label="Rough budget"
@@ -541,7 +546,7 @@ export function TripForm({
 
       {!trip && !wentDeep && (
         <p className="text-center text-caption text-ink-soft">
-          Everything above the button is optional — a destination is enough to start.
+          Everything above the button is optional: a destination is enough to start.
         </p>
       )}
     </div>
@@ -573,20 +578,21 @@ function PurposeChips({
               type="button"
               onClick={() => onChange(active ? undefined : purpose.id)}
               aria-pressed={active}
-              className={`press tap flex min-h-8 shrink-0 items-center gap-1 rounded-badge border px-3 text-footnote ${
+              className={`press tap flex min-h-8 shrink-0 items-center gap-2 rounded-badge border px-3 text-footnote ${
                 active
                   ? "border-accent bg-accent-soft text-accent-strong"
                   : "border-line bg-surface text-ink-soft"
               }`}
             >
-              <span aria-hidden="true">{purpose.emoji}</span> {purpose.label}
+              <LineIcon name={purpose.icon} size={16} />
+              {purpose.label}
             </button>
           );
         })}
       </div>
 
       <p className="text-caption text-ink-soft">
-        {chosen ? chosen.effect : "Optional — it only changes what gets pre-filled."}
+        {chosen ? chosen.effect : "Optional. It only changes what gets pre-filled."}
       </p>
     </div>
   );

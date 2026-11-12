@@ -18,7 +18,7 @@ behaviour changes, this file and `/legal/privacy` both have to change with it.
 | Share target: text shared in from another app arrives in the `/add` URL. Once the service worker is installed it fetches and caches `/add` without the query, so the text stays on the device; on the very first launch it reaches the host in that page request | `src/app/manifest.ts`, `src/app/add/page.tsx`, `public/sw.js` |
 | Preferences in localStorage (intro seen, sidebar folded, install prompt dismissed, review asked/declined); offline cache of pages and build assets | `src/components/onboarding.tsx`, `src/components/app-shell.tsx`, `src/components/install-prompt.tsx`, `src/lib/review.ts`, `public/sw.js` |
 | The one contact address | `src/lib/contact.ts` (`NEXT_PUBLIC_CONTACT_EMAIL`) |
-| Google Maps embeds loaded by the browser (cabinet map, item editor, a place typed in on Add) | `src/components/trip-map.tsx`, `src/components/item-fields.tsx` |
+| Google Maps embeds loaded by the browser (cabinet map, item editor, a place typed in on Add, Discover's map of the first or tapped suggestion, by name and city) | `src/lib/maps.ts`, `src/components/trip-map.tsx`, `src/components/item-fields.tsx`, `src/app/discover/page.tsx` |
 | Local storage of all trip data | `src/lib/store/state.ts` |
 | Affiliate links | `src/lib/partners/index.ts` |
 | Trip purpose, legs and cover (local only) | `src/lib/trip-purpose.ts`, `src/lib/rules/shared.ts` |

@@ -99,10 +99,10 @@ export function offersFor(trip: Trip, items: TripItem[]): Offer[] {
       id: "adapter",
       kind: "adapter",
       title: `A plug adapter that fits${needsAdapter.everyone ? "" : ` for ${nameList(needsAdapter.travelers)}`}`,
-      why: `${foreign.map((country) => country.name).join(" and ")} use type ${types}; ${needsAdapter.groups
+      why: `${foreign.map((country) => country.name).join(" and ")} ${foreign.length === 1 ? "uses" : "use"} Type ${types}; ${needsAdapter.groups
         .map((group) => {
           const home = getCountry(group.countryCode)!;
-          return known.length === 1 ? `home is type ${home.plugTypes.join(", ")}` : `${home.name} is type ${home.plugTypes.join(", ")}`;
+          return known.length === 1 ? `home is Type ${home.plugTypes.join(", ")}` : `${home.name} is Type ${home.plugTypes.join(", ")}`;
         })
         .join(", ")}.`,
       partner: "Amazon",
@@ -127,7 +127,7 @@ export function offersFor(trip: Trip, items: TripItem[]): Offer[] {
     offers.push({
       id: "voltage",
       kind: "power",
-      title: `Check your chargers take 240V${wrongVoltage.everyone ? "" : ` for ${nameList(wrongVoltage.travelers)}`}`,
+      title: `Check your chargers take ${mismatch.voltage}V${wrongVoltage.everyone ? "" : ` for ${nameList(wrongVoltage.travelers)}`}`,
       why: `${mismatch.name} runs at ${mismatch.voltage}V against ${[
         ...new Set(wrongVoltage.groups.map((group) => getCountry(group.countryCode)!.voltage)),
       ].join(" or ")}V where you set off. Laptops and phones cope; heating appliances do not.`,

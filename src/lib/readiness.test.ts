@@ -45,6 +45,14 @@ describe("readiness", () => {
     expect(after.share).toBeGreaterThan(before.share);
   });
 
+  it("counts open warnings apart from criticals, and drops one when its task is ticked", () => {
+    const flags = [flag({ severity: "warning" })];
+
+    expect(readiness(flags, [entry({ sourceFlagId: "f1" })]).warningOpen).toBe(1);
+    expect(readiness(flags, [entry({ sourceFlagId: "f1" })]).criticalOpen).toBe(0);
+    expect(readiness(flags, [entry({ sourceFlagId: "f1", done: true })]).warningOpen).toBe(0);
+  });
+
   it("settles an older entry that has no flag id, by its label", () => {
     const after = readiness([flag()], [entry({ sourceFlagId: undefined, done: true })]);
     expect(after.criticalOpen).toBe(0);
@@ -70,6 +78,21 @@ describe("readiness", () => {
 
   it("ignores info-level checks, which are not work", () => {
     expect(readiness([flag({ severity: "info" })], []).total).toBe(0);
+  });
+
+  it("splits its count into checks and packing, so each can be labelled on its own", () => {
+    const progress = readiness(
+      [flag(), flag({ id: "f2", severity: "warning", title: "Roaming" }), flag({ id: "f3", severity: "info" })],
+      [
+        entry({ sourceFlagId: "f1", done: true }),
+        entry({ id: "p1", kind: "packing", label: "Passport", done: true }),
+        entry({ id: "p2", kind: "packing", label: "Adapter" }),
+        entry({ id: "p3", kind: "packing", label: "Umbrella" }),
+      ],
+    );
+
+    expect(progress.checks).toEqual({ done: 1, total: 2 });
+    expect(progress.packing).toEqual({ done: 1, total: 3 });
   });
 
   it("reports which checks a ticked box has settled", () => {

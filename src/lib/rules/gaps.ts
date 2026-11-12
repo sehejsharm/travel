@@ -75,7 +75,7 @@ export function lodgingAfterDeparture({ items }: RuleContext): Flag[] {
         title: `${stay.title} runs past your flight home`,
         detail: `Check-out is ${formatDay(stay.endsAt!)} but ${departure.title} leaves ${formatDay(
           departure.startsAt!,
-        )}. You are paying for a night you will not sleep in — unless the check-out date is wrong.`,
+        )}. You are paying for a night you will not sleep in, unless the check-out date is wrong.`,
         itemIds: [stay.id, departure.id],
       },
     ];

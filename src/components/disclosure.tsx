@@ -52,7 +52,8 @@ export function Disclosure({
       >
         <span className="min-w-0 flex-1">
           <span className="block text-headline">{label}</span>
-          <span className="block truncate text-footnote text-ink-soft">
+          {/* Wraps rather than truncates: on a phone the cut-off end was the part that explained the row. */}
+          <span className="block text-pretty text-footnote text-ink-soft">
             {summary || hint || "Optional"}
           </span>
         </span>

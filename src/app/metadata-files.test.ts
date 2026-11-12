@@ -138,7 +138,7 @@ describe("social card", () => {
     const card = await import("./opengraph-image");
     expect(card.size).toEqual({ width: 1200, height: 630 });
     expect(card.contentType).toBe("image/png");
-    expect(card.alt.length).toBeGreaterThan(0);
+    expect(card.alt).toBe("Manifest: everything about your trip, in one file.");
 
     const png = Buffer.from(await card.default().arrayBuffer());
     expect(png.subarray(1, 4).toString()).toBe("PNG");

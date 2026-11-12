@@ -3,7 +3,7 @@ import { BRAND, CHECK_PATH, STUB_PATH } from "@/lib/brand";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Manifest — everything about your trip, in one file.";
+export const alt = "Manifest: everything about your trip, in one file.";
 
 /** Secondary text, as in the app's dark theme: paper at 60% on ink. */
 const PAPER_SOFT = "rgba(244, 246, 243, 0.6)";

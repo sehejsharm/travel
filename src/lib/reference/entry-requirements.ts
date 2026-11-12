@@ -44,7 +44,7 @@ const MATRIX: Record<string, Omit<EntryRequirement, "lastVerified" | "source">> 
     outcome: "visa-free",
     maxStayDays: 60,
     passportValidityMonths: 6,
-    notes: "Exemption scheme has changed repeatedly — reconfirm close to travel.",
+    notes: "Exemption scheme has changed repeatedly. Reconfirm close to travel.",
   },
   "IN->AE": {
     outcome: "e-visa",
@@ -127,5 +127,5 @@ export const VISA_OUTCOME_LABELS: Record<VisaOutcome, string> = {
   "visa-on-arrival": "Visa on arrival",
   "e-visa": "e-Visa required",
   "visa-required": "Visa required in advance",
-  unknown: "Not in dataset — check yourself",
+  unknown: "Not in dataset: check yourself",
 };

@@ -13,10 +13,16 @@ export interface Readiness {
   done: number;
   /** 0 to 1. A trip with nothing to do is ready, not zero. */
   share: number;
+  /** The non-info checks alone, so a counter can say what it counts. */
+  checks: { done: number; total: number };
+  /** The packing list alone, which its own panel counts the same way. */
+  packing: { done: number; total: number };
   /** Criticals still outstanding — the "N things to fix" counter. */
   criticalOpen: number;
   /** Criticals a ticked task has settled, so progress is visible. */
   criticalSettled: number;
+  /** Warnings still outstanding, which the trip hero names so a trip-level one is not lost off the overview. */
+  warningOpen: number;
 }
 
 export function readiness(flags: Flag[], checklist: ChecklistEntry[]): Readiness {
@@ -48,10 +54,13 @@ export function readiness(flags: Flag[], checklist: ChecklistEntry[]): Readiness
     total,
     done,
     share: total === 0 ? 1 : done / total,
+    checks: { done: flagsDone, total: actionable.length },
+    packing: { done: packingDone, total: packing.length },
     criticalOpen: actionable.filter((flag) => flag.severity === "critical" && !isSettled(flag))
       .length,
     criticalSettled: actionable.filter((flag) => flag.severity === "critical" && isSettled(flag))
       .length,
+    warningOpen: actionable.filter((flag) => flag.severity === "warning" && !isSettled(flag)).length,
   };
 }
 

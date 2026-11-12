@@ -14,10 +14,12 @@ import { useTripView } from "@/lib/store/use-store";
 import { BorderlessButton, DestructiveButton, PrimaryButton, SecondaryButton } from "./form";
 import { Card } from "./ui";
 
-function formatBytes(bytes: number): string {
+/** A browser's quota runs to gigabytes, so this goes that far, with the thousands grouped. */
+export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 ** 3).toLocaleString(undefined, { maximumFractionDigits: 1 })} GB`;
 }
 
 /**
@@ -119,7 +121,7 @@ export function BackupPanel() {
         <p className="text-headline">Back up your trips</p>
         <p className="mt-1 text-footnote text-ink-soft">
           Everything is stored in this browser and nowhere else. Clearing site data, reinstalling,
-          or switching phones takes it with them — a backup file is how it survives.
+          or switching phones takes it with them. A backup file is how it survives.
         </p>
       </div>
 
@@ -144,7 +146,7 @@ export function BackupPanel() {
 
       {nearFull && (
         <p className="rounded-control bg-critical-soft px-3 py-2 text-footnote text-critical">
-          This site is near its storage limit. Export a backup now — the browser may start evicting
+          This site is near its storage limit. Export a backup now: the browser may start evicting
           data.
         </p>
       )}
@@ -207,7 +209,8 @@ export function BackupPanel() {
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-        <button
+        {/* Red from the first tap, and short enough on the second never to wrap. */}
+        <DestructiveButton
           type="button"
           onClick={() => {
             if (!confirmWipe) {
@@ -218,12 +221,10 @@ export function BackupPanel() {
             setConfirmWipe(false);
             setMessage("Every trip on this device has been deleted.");
           }}
-          className={`press -ml-3 inline-flex min-h-11 items-center rounded-control px-3 py-2 text-left text-subheadline font-medium hover:bg-critical-soft ${
-            confirmWipe ? "text-critical" : "text-ink-soft hover:text-critical"
-          }`}
+          className="whitespace-nowrap"
         >
-          {confirmWipe ? "Tap again to delete every trip on this device" : "Delete all my data"}
-        </button>
+          {confirmWipe ? "Tap again to delete all" : "Delete all my data"}
+        </DestructiveButton>
         {confirmWipe && (
           <BorderlessButton type="button" onClick={() => setConfirmWipe(false)}>
             Cancel

@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import { DraftHeading, DuplicateChoice, FiledNotice, StartsTripNote } from "@/components/filing";
-import { BorderlessButton, PrimaryButton, SecondaryButton, TextArea } from "@/components/form";
+import { BorderlessButton, Field, PrimaryButton, SecondaryButton, TextArea } from "@/components/form";
 import { ManualAddTripItem } from "@/components/manual-add-trip-item";
 import { Card, Chip, ScreenHeader, ScreenSkeleton } from "@/components/ui";
 import { editReadText, setAddMode, takeShare, useAddDraft, type AddMode } from "@/lib/add-draft";
@@ -147,7 +147,7 @@ function AddScreenInner() {
         setFiled(null);
       }
     } catch {
-      setError("Your browser would not share the clipboard — paste into the box instead.");
+      setError("Your browser would not share the clipboard. Paste into the box instead.");
     }
   }
 
@@ -212,7 +212,7 @@ function AddScreenInner() {
       <ScreenHeader
         eyebrow="Add"
         title="Drop anything in"
-        meta="A screenshot, a Reel link, a booking email, or a scribbled note — or type it in yourself. It gets filed and checked."
+        meta="A screenshot, a Reel link, a booking email, or a scribbled note (or fill it in by hand). It gets filed and checked."
       />
 
       <input
@@ -302,8 +302,9 @@ function AddScreenInner() {
                 </>
               }
             />
+            {/* Not "Type it in": the box below takes typing too, and reads what it is given. This opens a form. */}
             <CaptureButton
-              label="Type it in"
+              label="Fill in by hand"
               pressed={typing}
               onClick={() => chooseMode(typing ? "drop" : "type")}
               icon={
@@ -328,18 +329,23 @@ function AddScreenInner() {
       ) : (
         <>
           <Card className="p-4">
-            <TextArea
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              rows={5}
-              aria-label="Content to extract"
-              placeholder="…or paste a link, an email, or just type what you want to remember"
-            />
+            {/* A visible label, so the placeholder can be an example rather than the only instruction. */}
+            <Field label="Or paste a link, an email, or a note">
+              <TextArea
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                rows={5}
+                placeholder="Bamboo grove at Arashiyama, go at 7am"
+              />
+            </Field>
 
             <div className="mt-3 flex flex-col items-start gap-3 border-t border-line pt-3">
-              <Chip tone={image ? "accent" : "neutral"}>
-                {image ? "Screenshot" : SOURCE_LABELS[sourceForText(text)]}
-              </Chip>
+              {/* What it was read as, so only once there is something to read: empty, it said "Manual". */}
+              {ready && (
+                <Chip tone={image ? "accent" : "neutral"}>
+                  {image ? "Screenshot" : SOURCE_LABELS[sourceForText(text)]}
+                </Chip>
+              )}
 
               {/* Once something has been read, filing it is the screen's one primary action. */}
               {result ? (
@@ -504,7 +510,7 @@ function Preview({
               ? result.link.caption
                 ? `Read the caption: “${result.link.caption.slice(0, 140)}”`
                 : "Read the page for its title and caption."
-              : "That post would not share its caption — paste the caption text and it will read that instead."}
+              : "That post would not share its caption. Paste the caption text and it will read that instead."}
           </p>
         </div>
       )}

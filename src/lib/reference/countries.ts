@@ -24,7 +24,7 @@ type Row = [
 ];
 
 // Shared tipping notes, since most countries fall into a handful of cultures.
-const NO_TIP = "Not expected — staff are paid a full wage";
+const NO_TIP = "Not expected: staff are paid a full wage";
 const ROUND_UP = "Round up the bill; 5–10% for good service";
 const EU_SERVICE = "Service is usually included; round up for good service";
 const TEN = "10% at restaurants unless service is already added";
@@ -43,7 +43,7 @@ const ROWS: Row[] = [
   ["UZ", "Uzbekistan", "UZS", "C,F", 220, 5, "112", "cash-heavy", TEN],
 
   // ---- East Asia ----
-  ["JP", "Japan", "JPY", "A,B", 100, 9, "110 police / 119 fire and ambulance", "cash-heavy", "No tipping — it can cause offence"],
+  ["JP", "Japan", "JPY", "A,B", 100, 9, "110 police / 119 fire and ambulance", "cash-heavy", "No tipping: it can cause offence"],
   ["KR", "South Korea", "KRW", "C,F", 220, 9, "112 police / 119 ambulance", "card-friendly", NO_TIP],
   ["CN", "China", "CNY", "A,C,I", 220, 8, "110 police / 120 ambulance", "mixed", "Not customary; mobile payment is everywhere"],
   ["HK", "Hong Kong", "HKD", "G", 220, 8, "999", "card-friendly", "10% service charge is usual"],

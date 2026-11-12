@@ -1,15 +1,17 @@
 "use client";
 
+import type { IconName } from "@/lib/icons";
 import { anyAffiliate, type Offer } from "@/lib/partners";
+import { LineIcon } from "./line-icon";
 import { SECONDARY_BUTTON_CLASSES } from "./styles";
 import { Card, Chip, SectionTitle } from "./ui";
 
-const KIND_EMOJI: Record<string, string> = {
-  esim: "📶",
-  adapter: "🔌",
-  power: "⚡️",
-  gear: "🧥",
-  comfort: "🛫",
+const KIND_ICON: Record<string, IconName> = {
+  esim: "signal",
+  adapter: "plug",
+  power: "bolt",
+  gear: "jacket",
+  comfort: "plane",
 };
 
 /**
@@ -31,9 +33,7 @@ export function Offers({ offers }: { offers: Offer[] }) {
             style={{ animationDelay: `${Math.min(index, 6) * 30}ms` }}
           >
             <Card as="div" className="flex items-start gap-3 p-4">
-              <span aria-hidden="true" className="text-title-2">
-                {KIND_EMOJI[offer.kind] ?? "🧳"}
-              </span>
+              <LineIcon name={KIND_ICON[offer.kind] ?? "suitcase"} className="shrink-0 text-ink-soft" />
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -48,7 +48,7 @@ export function Offers({ offers }: { offers: Offer[] }) {
                   rel="noreferrer sponsored"
                   className={`${SECONDARY_BUTTON_CLASSES} mt-3`}
                 >
-                  Look on {offer.partner} ↗
+                  Look on {offer.partner}
                 </a>
               </div>
             </Card>
@@ -59,7 +59,7 @@ export function Offers({ offers }: { offers: Offer[] }) {
       {anyAffiliate(offers) && (
         <p className="mt-3 text-caption text-ink-soft">
           Some links here earn us a commission if you buy, at no extra cost to you. They are chosen
-          by the checks above — never by who pays most — and the app works identically if you
+          by the checks above (never by who pays most), and the app works identically if you
           ignore them.
         </p>
       )}

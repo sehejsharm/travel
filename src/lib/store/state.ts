@@ -61,8 +61,10 @@ export function tripItems(state: AppState, tripId: string): TripItem[] {
 }
 
 /**
- * Generated entries are added if missing; a ticked box or an assignment is
- * never overwritten.
+ * Generated entries are added if missing, and an untouched one the trip no
+ * longer produces is retired: move the dates and "Layers for 16–22°C" gives
+ * way to the new range instead of sitting beside it. A ticked box or an
+ * assignment is someone's work, so that entry is never removed or overwritten.
  */
 function withGeneratedChecklists(state: AppState): AppState {
   const trip = activeTrip(state);
@@ -75,8 +77,20 @@ function withGeneratedChecklists(state: AppState): AppState {
     ["task", [...purposeTasks(trip), ...generateTasks(flags)]],
   ];
 
+  const current = new Set(
+    generated.flatMap(([kind, entries]) => entries.map((entry) => `${kind}:${entry.label}`)),
+  );
+  const checklist = state.checklist.filter(
+    (entry) =>
+      entry.tripId !== trip.id ||
+      !entry.generatedFrom ||
+      entry.done ||
+      Boolean(entry.assigneeId) ||
+      current.has(`${entry.kind}:${entry.label}`),
+  );
+
   const existing = new Set(
-    state.checklist
+    checklist
       .filter((entry) => entry.tripId === trip.id)
       .map((entry) => `${entry.kind}:${entry.label}`),
   );
@@ -98,8 +112,8 @@ function withGeneratedChecklists(state: AppState): AppState {
     }
   }
 
-  if (additions.length === 0) return state;
-  return { ...state, checklist: [...state.checklist, ...additions] };
+  if (additions.length === 0 && checklist.length === state.checklist.length) return state;
+  return { ...state, checklist: [...checklist, ...additions] };
 }
 
 function migrateLegacy(raw: string): AppState | undefined {

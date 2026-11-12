@@ -66,7 +66,7 @@ export function GroupStatusCard() {
             )}
           </div>
           <Link href="/divert" className={`${BORDERLESS_BUTTON_CLASSES} shrink-0`}>
-            Options ›
+            Options
           </Link>
         </div>
         <PrimaryButton onClick={rejoinGroup} className="mt-3">

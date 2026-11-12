@@ -15,14 +15,6 @@ import { useTripView } from "@/lib/store/use-store";
 
 type Filter = ItemCategory | "all" | "unscheduled" | "unpriced";
 
-/** The stripe down a card's edge, so a category is legible without reading. */
-const CATEGORY_TONE: Record<string, string> = {
-  booking: "bg-accent",
-  activity: "bg-teal",
-  place: "bg-line-strong",
-  purchase: "bg-warning",
-};
-
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "unscheduled", label: "Not scheduled" },
@@ -105,7 +97,17 @@ function CabinetScreenInner() {
             ? !item.cost
             : item.category === filter,
     )
-    .filter((item) => matches(item, query));
+    .filter((item) => matches(item, query))
+    // In date order, since each card leads with its date; what is on no day yet goes last.
+    .sort((a, b) =>
+      a.startsAt && b.startsAt
+        ? Date.parse(a.startsAt) - Date.parse(b.startsAt)
+        : a.startsAt
+          ? -1
+          : b.startsAt
+            ? 1
+            : 0,
+    );
 
   return (
     <div className="flex flex-col gap-4">
@@ -120,7 +122,7 @@ function CabinetScreenInner() {
           type="search"
           value={query}
           aria-label="Search filed items"
-          placeholder="Search places, refs, notes…"
+          placeholder="Search"
           onChange={(event) => setQuery(event.target.value)}
         />
         {/* Drawn as the shared Segmented control, kept as toggle buttons for their aria-pressed. */}
@@ -207,15 +209,9 @@ function CabinetScreenInner() {
                 onClick={() => setEditing(item)}
                 className="liftable block w-full rounded-card text-left"
               >
-                <Card as="div" className="raised relative overflow-hidden p-4 pl-5">
-                  <span
-                    aria-hidden="true"
-                    className={`absolute inset-y-0 left-0 w-1 ${
-                      CATEGORY_TONE[item.category] ?? "bg-ink-faint"
-                    }`}
-                  />
+                <Card as="div" className="raised p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-headline">{item.title}</h3>
+                    <h2 className="text-headline">{item.title}</h2>
                     <Chip>{SOURCE_LABELS[item.source]}</Chip>
                   </div>
 
@@ -235,16 +231,16 @@ function CabinetScreenInner() {
                     )}
                   </div>
 
-                  {(item.place || item.confirmationCode) && (
-                    <p className="mt-1 text-footnote text-ink-soft">
-                      {[
-                        item.place?.name,
-                        item.confirmationCode && `Ref ${item.confirmationCode}`,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  )}
+                  {/* The category in words, as the filter chips name it. */}
+                  <p className="mt-1 text-footnote text-ink-soft">
+                    {[
+                      CATEGORY_LABELS[item.category],
+                      item.place?.name,
+                      item.confirmationCode && `Ref ${item.confirmationCode}`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
                 </Card>
               </button>
             </li>

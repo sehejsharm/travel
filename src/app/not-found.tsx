@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <Card className="raised flex flex-col items-center gap-2 px-6 py-10 text-center">
-      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" className="animate-float mb-2">
+      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" className="mb-2">
         {/* The mark's stub, drawn at a thin stroke the way an SF Symbol is, with a question in it. */}
         <path
           d="M6 10.5h36v7.9a5.6 5.6 0 0 0 0 11.2v7.9H6v-7.9a5.6 5.6 0 0 0 0-11.2z"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adviceKey, CALENDAR_INTEREST, calendarSection, shownSections } from "./advisor/calendar";
+import { adviceKey, CALENDAR_INTEREST, calendarSection, mappedSuggestion, shownSections } from "./advisor/calendar";
 import { getInterest } from "./advisor/interests";
 import { TIER_LABELS, type AdviceResult } from "./advisor/types";
 import type { Trip, TripItem } from "./domain/types";
@@ -445,6 +445,27 @@ describe("what Discover lists from the calendar", () => {
       { interestId: "festivals", source: "calendar" },
     ]);
     expect(shownSections(["food"], true, undefined)).toEqual([]);
+  });
+
+  it("maps the suggestion last tapped, else the first, and goes back to the first once it has gone", () => {
+    const pick = (id: string, interestId: string) => ({ id, interestId, name: id, why: "", place: { name: id }, tier: "web" as const });
+    const advice: AdviceResult = {
+      destination: "Kyoto",
+      sections: [
+        { interestId: "food", suggestions: [pick("a", "food"), pick("b", "food")] },
+        { interestId: "art", suggestions: [pick("c", "art")] },
+      ],
+      tiersUsed: ["web"],
+      generatedAt: "2026-10-17T00:00:00Z",
+    };
+    const shown = shownSections(["food", "festivals", "art"], true, advice);
+
+    expect(mappedSuggestion(shown, undefined)?.id).toBe("a");
+    expect(mappedSuggestion(shown, "c")?.id).toBe("c");
+    // A new search no longer holds the one tapped.
+    expect(mappedSuggestion(shown, "gone")?.id).toBe("a");
+    // The calendar's own section has no place to map.
+    expect(mappedSuggestion(shownSections(["festivals"], true, undefined), undefined)).toBeUndefined();
   });
 });
 

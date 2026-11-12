@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { CONTACT_EMAIL } from "@/lib/contact";
 import { ScreenHeader } from "./ui";
 
-export const LEGAL_UPDATED = "2026-11-08";
+export const LEGAL_UPDATED = "2026-11-10";
 
 export const LEGAL_PAGES: { href: string; title: string; blurb: string }[] = [
   { href: "/legal/privacy", title: "Privacy policy", blurb: "What is stored, and what leaves the device" },
@@ -24,24 +24,37 @@ export function LegalPage({
 }) {
   return (
     <div className="flex flex-col gap-5">
-      <ScreenHeader eyebrow="Legal" title={title} meta={summary} />
+      {/* The summary and the document share one reading measure. */}
+      <ScreenHeader
+        eyebrow="Legal"
+        back={{ label: "More", href: "/more" }}
+        title={title}
+        meta={<p className="max-w-prose">{summary}</p>}
+      />
 
-      <article className="prose-legal flex flex-col gap-5 text-callout text-ink-soft">
+      {/* The document is what the page is for, so it is running text in primary ink, not secondary. */}
+      <article className="prose-legal flex max-w-prose flex-col gap-5 text-body text-ink">
         {children}
       </article>
 
       <nav className="border-t border-line pt-4">
         <p className="section-label mb-1">Also here</p>
-        <ul className="flex flex-col">
+        {/*
+          Each row is one link holding its blurb, so a blurb that wraps sits tight under its
+          own title, and the gap keeps it clear of the next one.
+        */}
+        <ul className="flex flex-col gap-2">
           {LEGAL_PAGES.filter((page) => page.title !== title).map((page) => (
-            <li key={page.href} className="flex flex-wrap items-baseline gap-x-2">
+            <li key={page.href}>
               <Link
                 href={page.href}
-                className="press tap inline-flex min-h-11 items-center text-subheadline text-accent-strong underline underline-offset-2"
+                className="press tap inline-flex min-h-11 flex-wrap content-center items-baseline gap-x-2"
               >
-                {page.title}
+                <span className="text-subheadline text-accent-strong underline underline-offset-2">
+                  {page.title}
+                </span>
+                <span className="text-caption text-ink-soft">{page.blurb}</span>
               </Link>
-              <span className="text-caption text-ink-soft">{page.blurb}</span>
             </li>
           ))}
         </ul>
@@ -67,8 +80,8 @@ export function Bullets({ items }: { items: ReactNode[] }) {
     <ul className="flex flex-col gap-2">
       {items.map((item, index) => (
         <li key={index} className="flex gap-3">
-          {/* One line of callout text tall, so the dot centres on the first line. */}
-          <span aria-hidden="true" className="flex h-6 shrink-0 items-center">
+          {/* One line of text tall, so the dot centres on the first line. */}
+          <span aria-hidden="true" className="flex h-lh shrink-0 items-center">
             <span className="h-1 w-1 rounded-full bg-ink-faint" />
           </span>
           <span className="min-w-0">{item}</span>

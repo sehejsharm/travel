@@ -15,7 +15,7 @@ export default function Terms() {
       <Section heading="Agreement">
         <p>
           By using Manifest you accept these terms. If you do not, do not use it. There is no
-          account to close — deleting the app, or clearing its data, ends the relationship
+          account to close: deleting the app, or clearing its data, ends the relationship
           completely.
         </p>
       </Section>
@@ -31,7 +31,7 @@ export default function Terms() {
         </p>
         <p>
           Every such finding is a prompt to verify with an authority that can actually bind
-          anyone — the relevant embassy or consulate, your airline, your insurer, or your own
+          anyone: the relevant embassy or consulate, your airline, your insurer, or your own
           government&rsquo;s travel advice. Never rely on Manifest as the last word before booking
           or travelling. You remain solely responsible for meeting the entry, health and documentary
           requirements of every country you travel to or through.
@@ -43,7 +43,7 @@ export default function Terms() {
           Reading a booking out of an email, a screenshot or a caption is a best effort, whether
           it is done by pattern matching or by an AI model. Dates, times, time zones, prices,
           currencies and confirmation numbers can be misread or missed. Check anything that matters
-          against the original confirmation — Manifest shows you what it read before you file it
+          against the original confirmation: Manifest shows you what it read before you file it
           precisely so you can.
         </p>
       </Section>
@@ -89,7 +89,7 @@ export default function Terms() {
           link all run on your device, and work with no signal on screens Manifest has already
           loaded on this device. Reading what you add, and Discover,
           need our server and, for some of what they do, third-party services we may switch on or
-          off — reading screenshots needs an AI model, for one. They may be slow, rate-limited or
+          off (reading screenshots needs an AI model, for one). They may be slow, rate-limited or
           unavailable, and are provided as they are, with no uptime promise.
         </p>
       </Section>

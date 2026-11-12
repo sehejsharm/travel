@@ -7,7 +7,7 @@ import { PrimaryButton } from "@/components/form";
 import { PRIMARY_BUTTON_CLASSES } from "@/components/styles";
 import { Offers } from "@/components/offers";
 import { ReferenceFreshness } from "@/components/reference-freshness";
-import { FlagCard, SeveritySummary } from "@/components/flag-card";
+import { FlagCard, SeveritySummary, severityLabel } from "@/components/flag-card";
 import { EmptyState, ScreenHeader, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import type { FlagSeverity } from "@/lib/domain/types";
 import { offersFor } from "@/lib/partners";
@@ -21,9 +21,14 @@ const FILTERS: { value: FlagSeverity | "all"; label: string }[] = [
   { value: "info", label: "Good to know" },
 ];
 
+const SEVERITIES: FlagSeverity[] = ["critical", "warning", "info"];
+
 export default function ChecksScreen() {
   const { trip, items, checklist, flags, hydrated } = useTripView();
   const [filter, setFilter] = useState<FlagSeverity | "all">("all");
+  // The findings rise in once, as the screen opens. A filter tap swaps rows in
+  // place: replaying the cascade on every tap would be motion performing.
+  const [filtered, setFiltered] = useState(false);
 
   if (!hydrated) return <ScreenSkeleton variant="checks" />;
   if (!trip) {
@@ -52,6 +57,12 @@ export default function ChecksScreen() {
       (a, b) =>
         Number(isSettled(a.id, a.title)) - Number(isSettled(b.id, b.title)),
     );
+  // One group per severity, under its name: the heading and the position say
+  // how urgent a finding is, so its chip is free to say what kind it is.
+  const groups = SEVERITIES.map((severity) =>
+    visible.filter((flag) => flag.severity === severity),
+  ).filter((group) => group.length > 0);
+  const ordered = groups.flat();
   const offers = offersFor(trip, items);
   const tasks = checklist.filter((entry) => entry.kind === "task");
   const packing = checklist.filter((entry) => entry.kind === "packing");
@@ -64,16 +75,21 @@ export default function ChecksScreen() {
         meta={
           <div className="flex flex-col gap-2">
             <SeveritySummary flags={flags} settledIds={settled} />
-            <span className="text-footnote text-ink-soft tabular">
-              {progress.done}/{progress.total} done
-              {progress.criticalSettled > 0 &&
-                ` · ${progress.criticalSettled} critical ticked off`}
-            </span>
+            {/* Each line names what it counts, so it can be squared with the chips and panels. */}
+            <p className="flex flex-col text-footnote text-ink-soft tabular">
+              <span>
+                {progress.checks.done} of {progress.checks.total} checks handled
+              </span>
+              <span>
+                {progress.packing.done} of {progress.packing.total} packed
+              </span>
+            </p>
           </div>
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* grid-cols-1 is a minmax(0, 1fr) track, so a panel can never be wider than the screen. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Checklist
           tripId={trip.id}
           title="Pre-trip tasks"
@@ -111,7 +127,10 @@ export default function ChecksScreen() {
               <button
                 key={option.value}
                 type="button"
-                onClick={() => setFilter(option.value)}
+                onClick={() => {
+                  setFilter(option.value);
+                  setFiltered(true);
+                }}
                 aria-pressed={active}
                 className={`press tap flex min-h-8 shrink-0 items-center gap-1 rounded-badge border px-3 text-footnote ${
                   active
@@ -145,16 +164,26 @@ export default function ChecksScreen() {
             }
           />
         ) : (
-          <ul key={filter} className="stagger flex flex-col gap-3">
-            {visible.map((flag, index) => (
-              <FlagCard
-                key={flag.id}
-                flag={flag}
-                settled={isSettled(flag.id, flag.title)}
-                index={Math.min(index, 10)}
-              />
+          <div className="flex flex-col gap-6">
+            {groups.map((group) => (
+              <section key={group[0].severity}>
+                <h3 className="section-label mb-2 flex gap-2">
+                  {severityLabel(group[0].severity)}{" "}
+                  <span className="tabular">{group.length}</span>
+                </h3>
+                <ul className={`${filtered ? "" : "stagger "}flex flex-col gap-3`}>
+                  {group.map((flag) => (
+                    <FlagCard
+                      key={flag.id}
+                      flag={flag}
+                      settled={isSettled(flag.id, flag.title)}
+                      index={Math.min(ordered.indexOf(flag), 10)}
+                    />
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 

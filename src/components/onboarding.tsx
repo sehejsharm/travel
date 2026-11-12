@@ -16,7 +16,7 @@ const STEPS: { title: string; body: string; art: "add" | "cabinet" | "checks" | 
   },
   {
     title: "It comes back filed",
-    body: "Dates, prices, confirmation numbers and a place on the map — pulled out and sorted into your cabinet, without you typing any of it.",
+    body: "Dates, prices, confirmation numbers and a place on the map: pulled out and sorted into your cabinet, without you typing any of it.",
     art: "cabinet",
   },
   {
@@ -26,7 +26,7 @@ const STEPS: { title: string; body: string; art: "add" | "cabinet" | "checks" | 
   },
   {
     title: "Your trip stays on this device",
-    body: "No account, and it works with no signal — exactly when you need a booking reference most. Our server reads what you send it and keeps none of it.",
+    body: "No account, and it works with no signal, exactly when you need a booking reference most. Our server reads what you send it and keeps none of it.",
     art: "ready",
   },
 ];

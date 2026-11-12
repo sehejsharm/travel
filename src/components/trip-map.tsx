@@ -137,7 +137,7 @@ export function TripMap({
                   aria-label={`Open ${item.title} in Google Maps`}
                   className={`${BORDERLESS_BUTTON_CLASSES} shrink-0`}
                 >
-                  Maps ↗
+                  Maps
                 </a>
 
                 <BorderlessButton

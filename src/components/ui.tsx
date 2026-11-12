@@ -1,21 +1,58 @@
 "use client";
 
+import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import { useCountUp } from "@/lib/use-motion";
+
+const BACK_CLASSES =
+  "press -ml-2 mb-2 inline-flex min-h-11 items-center gap-1 rounded-control pl-1 pr-3 text-subheadline font-medium text-accent-strong hover:bg-accent-soft";
+
+/** The way back, as iOS draws it: a chevron and the name of where it goes. */
+function BackControl({ label, href, onClick }: { label: string; href?: string; onClick?: () => void }) {
+  const content = (
+    <>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path
+          d="m14.5 6-6 6 6 6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      {label}
+    </>
+  );
+  return href ? (
+    <Link href={href} className={BACK_CLASSES}>
+      {content}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} className={BACK_CLASSES}>
+      {content}
+    </button>
+  );
+}
 
 export function ScreenHeader({
   eyebrow,
   title,
   meta,
   action,
+  back,
 }: {
   eyebrow: string;
   title: string;
   meta?: ReactNode;
+  /** The screen's own action, at the end of the title row. Not the way back. */
   action?: ReactNode;
+  /** For a screen opened from another: above the title, at the leading edge. */
+  back?: { label: string; href?: string; onClick?: () => void };
 }) {
+  // No entrance of its own: the page's fade (.animate-page) is the one a screen gets.
   return (
-    <header className="animate-rise mb-6">
+    <header className="mb-6">
+      {back && <BackControl {...back} />}
       <p className="flex items-center gap-2 text-caption uppercase text-accent-strong">
         <span aria-hidden="true" className="h-px w-4 bg-accent" />
         {eyebrow}
@@ -127,18 +164,20 @@ export function Stat({
   const valueTone =
     tone === "critical" ? "text-critical" : tone === "ok" ? "text-ok" : "text-ink";
 
-  // Most callers pass a plain count (items filed, nights, things to fix) —
-  // that one tweens in on mount rather than appearing as a flat number.
-  // Anything else (a joined country list, a formatted money string) is
-  // printed as given, since there is nothing numeric to animate.
-  const numeric = /^-?\d+$/.test(value) ? Number(value) : null;
-  const tweened = useCountUp(numeric ?? 0, 700);
-  const display = numeric === null ? value : String(Math.round(tweened));
+  // Most callers pass a plain count (items filed, nights, things to fix), set
+  // big. Anything else (a joined country list, a formatted money string) is
+  // longer: a step down until the tiles are wide enough for it, and broken
+  // rather than run under the tile beside it if it still does not fit.
+  const count = /^-?\d+$/.test(value);
 
   return (
     <Card as="div" className="raised px-4 py-3">
       <p className="text-caption text-ink-soft">{label}</p>
-      <p className={`mt-1 text-title-1 tabular ${valueTone}`}>{display}</p>
+      <p
+        className={`mt-1 break-words tabular ${count ? "text-title-1" : "text-title-3 md:text-title-1"} ${valueTone}`}
+      >
+        {value}
+      </p>
     </Card>
   );
 }
@@ -159,7 +198,7 @@ export function EmptyState({
 }) {
   return (
     <Card className="raised flex flex-col items-center gap-2 px-6 py-10 text-center">
-      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" className="animate-float mb-2">
+      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" className="mb-2">
         {/* A tray, drawn at a thin stroke the way an SF Symbol is. */}
         <path
           d="M8 27 13 12.5A3 3 0 0 1 15.8 10.5h16.4a3 3 0 0 1 2.8 2L40 27v8a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3z"
