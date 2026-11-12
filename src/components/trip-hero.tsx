@@ -101,7 +101,10 @@ export function TripHero({
                 : "Nothing blocking: you are clear to fly"}
             </p>
             <p className="mt-1 text-footnote text-white/80 tabular">
-              {readiness.done}/{readiness.total} done · {items.length} filed
+              {readiness.done}/{readiness.total} done
+              {/* The hero counts criticals once, as the headline; warnings get the same words as their Checks group. */}
+              {readiness.warningOpen > 0 && ` · ${readiness.warningOpen} worth a look`}
+              {` · ${items.length} filed`}
               {!trip.datesTbd && !underway && daysToGo > 0 && (
                 <>
                   {" · "}

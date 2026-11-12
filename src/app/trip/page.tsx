@@ -70,7 +70,7 @@ export default function TripSettings() {
 
       <section>
         <SectionTitle trailing="shapes what Discover suggests">What you are into</SectionTitle>
-        {/* Each tap saves at once. Not in a Card, since each tile is one. */}
+        {/* Each tap saves at once. No Card around it: its rows are split by hairlines and need no box. */}
         <InterestPicker
           selected={trip.interests ?? []}
           onChange={(interests) => updateTrip(trip.id, { interests })}

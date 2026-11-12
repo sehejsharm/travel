@@ -56,9 +56,11 @@ function show(current: Trip, advice: AppState["advice"] = [], items: TripItem[] 
   return renderToStaticMarkup(createElement(Discover));
 }
 
-/** The section headings, in order. */
+/** The section headings' text, in order, without the icons drawn inside them. */
 function sections(html: string): string[] {
-  return [...html.matchAll(/<h2 class="text-title-3">([^<]*)</g)].map((match) => match[1]);
+  return [...html.matchAll(/<h2 class="text-title-3">([\s\S]*?)<\/h2>/g)].map((match) =>
+    match[1].replace(/<svg[\s\S]*?<\/svg>/g, ""),
+  );
 }
 
 describe("Discover's Festivals & shows", () => {
@@ -124,7 +126,10 @@ describe("Discover's Festivals & shows", () => {
     // The key holds every interest, festivals included, as the cache always did.
     const html = show(current, [{ tripId: "t1", key: adviceKey("July", ["food", "festivals"]), result }]);
 
-    expect(sections(html)).toEqual(["🎭 Festivals &amp; shows", "From Manifest&#x27;s calendar"]);
+    expect(sections(html)).toEqual(["Festivals &amp; shows", "From Manifest&#x27;s calendar"]);
+    // The section's icon is a hidden line drawing beside the name, so the heading is named by its text alone.
+    expect(html).toMatch(/<h2 class="text-title-3"><svg[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/svg>Festivals &amp; shows<\/h2>/);
+    expect(html).not.toContain("🎭");
     expect(html).toContain("Summer opera");
     expect(html).toContain("Look again");
   });
@@ -142,12 +147,12 @@ describe("Discover's interest question", () => {
     return html.match(/<div class="action-bar [^"]*">([\s\S]*?)<\/div>/)?.[1] ?? null;
   }
 
-  it("keeps its button in the action bar, after the tiles, on the first visit", () => {
+  it("keeps its button in the action bar, after the rows, on the first visit", () => {
     const html = show(trip({ interests: [] }));
 
     expect(html).toContain("What are you into?");
     expect(actionBar(html)).toMatch(/<button[^>]*>Save and find things to do<\/button>/);
-    // Last on the screen, so the bar settles below the tiles at the end.
+    // Last on the screen, so the bar settles below the rows at the end.
     expect(html.indexOf("action-bar")).toBeGreaterThan(html.lastIndexOf("aria-pressed"));
   });
 
@@ -160,6 +165,17 @@ describe("Discover's interest question", () => {
 
   it("has no action bar once interests are picked", () => {
     expect(actionBar(show(trip()))).toBeNull();
+  });
+
+  it("names the picked interests in chips, each with a hidden line icon rather than an emoji", () => {
+    const html = show(trip({ interests: ["food", "festivals"] }));
+
+    for (const label of ["Eating", "Festivals &amp; shows"]) {
+      expect(html).toMatch(
+        new RegExp(`<span class="inline-flex items-center gap-1 rounded-badge[^"]*"><svg[^>]*aria-hidden="true"[^>]*>(?:(?!</?span)[\\s\\S])*?</svg>${label}</span>`),
+      );
+    }
+    expect(html).not.toMatch(/🍜|🎭/u);
   });
 });
 

@@ -1,5 +1,6 @@
 import type { GeoPoint } from "../domain/types";
 import type { TravelMode } from "../geo";
+import type { IconName } from "../icons";
 
 /**
  * Whether the person holding this device is with the rest of the party or
@@ -16,8 +17,8 @@ export type UserGroupStatus = "IN_GROUP" | "DIVERTED";
  */
 export type DivertCategory = "coffee" | "sights" | "food" | "shopping" | "rest";
 
-/** Keys into the icon set, so the data stays free of JSX. */
-export type DivertIcon = "cup" | "camera" | "bowl" | "bag" | "bench";
+/** The glyphs Divert uses from the app's line-icon set, so the data stays free of JSX. */
+export type DivertIcon = Extract<IconName, "cup" | "camera" | "bowl" | "bag" | "bench">;
 
 export interface DivertInterest {
   /** A divert interest id; see DivertCategory for why these are their own list. */

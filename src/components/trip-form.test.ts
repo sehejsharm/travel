@@ -2,6 +2,7 @@ import { createElement, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/domain/types";
+import { PURPOSES } from "@/lib/trip-purpose";
 
 /*
  * The trip form as static HTML. Pressing its button is calling the handler
@@ -78,5 +79,18 @@ describe("the When toggle", () => {
     expect(html).toMatch(/<button[^>]*>Skip dates for now<\/button>/);
     expect(html).not.toContain("No dates yet");
     expect(html).toContain('value="2026-11-28"');
+  });
+});
+
+describe("the purpose chips", () => {
+  it("draw a hidden line icon beside each name, not an emoji", () => {
+    const html = show(trip);
+
+    for (const purpose of PURPOSES) {
+      expect(html).toMatch(
+        new RegExp(`<button[^>]*aria-pressed="false"[^>]*><svg[^>]*aria-hidden="true"[^>]*>(?:(?!</?button)[\\s\\S])*?</svg>${purpose.label}</button>`),
+      );
+    }
+    expect(html).not.toMatch(/🌤|💼|🧸|🥂|🎒|👥|🥾/u);
   });
 });

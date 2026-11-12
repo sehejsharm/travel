@@ -45,6 +45,14 @@ describe("readiness", () => {
     expect(after.share).toBeGreaterThan(before.share);
   });
 
+  it("counts open warnings apart from criticals, and drops one when its task is ticked", () => {
+    const flags = [flag({ severity: "warning" })];
+
+    expect(readiness(flags, [entry({ sourceFlagId: "f1" })]).warningOpen).toBe(1);
+    expect(readiness(flags, [entry({ sourceFlagId: "f1" })]).criticalOpen).toBe(0);
+    expect(readiness(flags, [entry({ sourceFlagId: "f1", done: true })]).warningOpen).toBe(0);
+  });
+
   it("settles an older entry that has no flag id, by its label", () => {
     const after = readiness([flag()], [entry({ sourceFlagId: undefined, done: true })]);
     expect(after.criticalOpen).toBe(0);

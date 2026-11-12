@@ -1,4 +1,5 @@
 import type { TripPurpose } from "./domain/types";
+import type { IconName } from "./icons";
 
 /**
  * Purpose changes defaults, never capabilities. Everything a purpose turns on
@@ -8,7 +9,7 @@ import type { TripPurpose } from "./domain/types";
 export interface PurposeProfile {
   id: TripPurpose;
   label: string;
-  emoji: string;
+  icon: IconName;
   /** What choosing it actually does, shown under the chips once picked. */
   effect: string;
   /** Interests pre-selected when the traveller has not chosen their own. */
@@ -25,17 +26,17 @@ export const PURPOSES: PurposeProfile[] = [
   {
     id: "leisure",
     label: "Leisure",
-    emoji: "🌤️",
+    icon: "sun",
     effect: "The usual: suggestions on, nothing special assumed.",
   },
   {
     id: "business",
     label: "Business",
-    emoji: "💼",
+    icon: "briefcase",
     effect: "Adds a receipts and expenses checklist, and keeps Discover quiet unless you ask.",
     suppressSuggestions: true,
     tasks: [
-      { label: "Keep every receipt", detail: "Photograph each one as you go — they file into the cabinet with a price." },
+      { label: "Keep every receipt", detail: "Photograph each one as you go. They file into the cabinet with a price." },
       { label: "Check the expense policy", detail: "Per-diem, class of travel, and what needs approval before you book." },
       { label: "Confirm the meeting addresses", detail: "Put them on days so the travel-time checks can see them." },
     ],
@@ -43,34 +44,34 @@ export const PURPOSES: PurposeProfile[] = [
   {
     id: "family",
     label: "Family",
-    emoji: "🧸",
+    icon: "family",
     effect: "Turns on the With kids suggestions.",
     interests: ["family", "food", "nature"],
   },
   {
     id: "romantic",
     label: "Honeymoon",
-    emoji: "🥂",
+    icon: "heart",
     effect: "Leans the suggestions toward eating, slowing down and views.",
     interests: ["food", "wellness", "nature"],
   },
   {
     id: "solo",
     label: "Solo",
-    emoji: "🎒",
+    icon: "person",
     effect: "Assumes one traveller, and keeps the checks focused on you.",
   },
   {
     id: "group",
     label: "Group",
-    emoji: "👥",
+    icon: "people",
     effect: "Nudges you to add everyone, since visas and passports check per person.",
     expectsGroup: true,
   },
   {
     id: "backpacking",
     label: "Backpacking",
-    emoji: "🥾",
+    icon: "backpack",
     effect:
       "Expects loose dates and long stays, and leans toward the outdoors, hidden gems, local life and meeting people.",
     // What backpackers say they travel for: other travellers, the local way of

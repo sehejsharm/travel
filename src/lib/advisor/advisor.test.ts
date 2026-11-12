@@ -68,10 +68,10 @@ describe("interest sections", () => {
     ]);
   });
 
-  it("gives every interest a label, an emoji and a line under it", () => {
+  it("gives every interest a label, an icon and a line under it", () => {
     for (const interest of INTERESTS) {
       expect(interest.label.trim()).not.toBe("");
-      expect(interest.emoji.trim()).not.toBe("");
+      expect(interest.icon).toBeTruthy();
       expect(interest.blurb.trim()).not.toBe("");
     }
   });

@@ -33,8 +33,8 @@ export default function PrivacyPolicy() {
     >
       <Section heading="The short version">
         <p>
-          Your trips — bookings, notes, prices, passport details, confirmation numbers, everything
-          you file — are stored on this device. We run no account system and no user database, so
+          Your trips (bookings, notes, prices, passport details, confirmation numbers, everything
+          you file) are stored on this device. We run no account system and no user database, so
           we hold no copy of your trips and could not hand one over if asked.
         </p>
         <p>
@@ -98,9 +98,9 @@ export default function PrivacyPolicy() {
         <Bullets
           items={[
             <>
-              the destination — what you typed under Where, or else the city you have filed most
+              the destination (what you typed under Where, or else the city you have filed most
               in, the trip&rsquo;s first destination country, or failing those the trip&rsquo;s
-              name — and the code of the trip&rsquo;s first destination country;
+              name) and the code of the trip&rsquo;s first destination country;
             </>,
             <>the interests you picked;</>,
             <>
@@ -121,7 +121,7 @@ export default function PrivacyPolicy() {
               For any interest still short of suggestions, the <Term>Google Places API</Term>{" "}
               receives a search made only of the kind of place that interest covers and the
               destination as described above (whatever you typed under Where, or else your
-              trip&rsquo;s name) — none of your filed titles, notes or anything else about you. This
+              trip&rsquo;s name): none of your filed titles, notes or anything else about you. This
               step runs only when the writing step below is switched on, since only it can use the
               results.
             </>,
@@ -139,15 +139,15 @@ export default function PrivacyPolicy() {
         <p>
           Our server keeps none of it. The suggestions that come back are saved on this device so
           the same question is not asked twice. If you would rather your notes stayed put, keep
-          private details out of notes on places, or skip Discover — everything else works
+          private details out of notes on places, or skip Discover: everything else works
           without it.
         </p>
       </Section>
 
       <Section heading="3. Maps, and links out">
         <p>
-          Where a map is shown — on the Cabinet&rsquo;s map view, in an item&rsquo;s editor, under a
-          place you type in on the Add screen, and next to Discover&rsquo;s suggestions — it is a
+          Where a map is shown (on the Cabinet&rsquo;s map view, in an item&rsquo;s editor, under a
+          place you type in on the Add screen, and next to Discover&rsquo;s suggestions), it is a
           Google Maps embed your browser loads straight from Google. Google receives your IP
           address, your browser&rsquo;s details, and the place name or coordinates shown, and may
           set or read its own cookies inside the map, under{" "}
@@ -183,8 +183,8 @@ export default function PrivacyPolicy() {
 
       <Section heading="4. Hosting, and keeping the server from being abused">
         <p>
-          Manifest is served by Vercel. As with any website, each request your device makes —
-          opening a page, or asking it to read something or find things to do — reaches Vercel
+          Manifest is served by Vercel. As with any website, each request your device makes
+          (opening a page, or asking it to read something or find things to do) reaches Vercel
           with your IP address, your browser&rsquo;s details and the address requested, and
           Vercel keeps short-lived request logs to run and secure the service. What you send to be
           read or to Discover is not part of those logs.
@@ -247,20 +247,20 @@ export default function PrivacyPolicy() {
         <Bullets
           items={[
             <>
-              <Term>Camera</Term> — only if you tap Camera on the Add screen, to photograph a
+              <Term>Camera:</Term> only if you tap Camera on the Add screen, to photograph a
               booking. The photo is sent to be read only when you tap Read the screenshot, and is
               not stored.
             </>,
             <>
-              <Term>Photo library</Term> — only if you tap Screenshot, to pick an image. Only the one
+              <Term>Photo library:</Term> only if you tap Screenshot, to pick an image. Only the one
               image you choose is read, and only when you ask.
             </>,
             <>
-              <Term>Clipboard</Term> — read once, only when you tap Paste. Pasting into the box
+              <Term>Clipboard:</Term> read once, only when you tap Paste. Pasting into the box
               yourself needs no permission.
             </>,
             <>
-              <Term>Storage</Term> — to keep your trip on this device. This is the whole product.
+              <Term>Storage:</Term> to keep your trip on this device. This is the whole product.
             </>,
           ]}
         />
@@ -274,7 +274,7 @@ export default function PrivacyPolicy() {
         <p>
           Visa rules, vaccination advice, duty-free allowances, plug types and exchange rates are
           compiled into the app itself. Running a check contacts nobody and reveals nothing about
-          you or where you are going — which is also why those figures carry a verification date
+          you or where you are going, which is also why those figures carry a verification date
           and can go out of date between releases.
         </p>
         <p>
@@ -293,7 +293,7 @@ export default function PrivacyPolicy() {
         <p>
           A share link puts a compressed copy of the plan in the part of the address after the{" "}
           <code className="rounded-badge bg-surface-2 px-1 font-mono text-footnote">#</code>, which
-          browsers never send to a server — ours included. It carries the trip&rsquo;s name and
+          browsers never send to a server, ours included. It carries the trip&rsquo;s name and
           dates, its home and destination countries and any legs, how many people are going, and
           each item&rsquo;s title, type, place and times, with when and how it was filed.
         </p>
@@ -316,8 +316,8 @@ export default function PrivacyPolicy() {
           The Checks screen may show product suggestions (an eSIM, a plug adapter) chosen by the
           checks themselves. Where a link earns us a commission it is labelled &ldquo;Paid
           link&rdquo; on the card and disclosed underneath. Tapping one takes you to that merchant
-          with the search it opens in the address — the country, for an eSIM, or the product,
-          such as a plug adapter — and the merchant then applies its own privacy policy and may
+          with the search it opens in the address (the country, for an eSIM, or the product,
+          such as a plug adapter), and the merchant then applies its own privacy policy and may
           set a cookie attributing the visit. We receive nothing about you from them beyond
           aggregate commission reports.
         </p>
@@ -335,11 +335,11 @@ export default function PrivacyPolicy() {
           Rights of access, portability, correction and erasure normally mean asking a company to
           act on a database. There is no such database: you hold the only copy of your trips.
           Export it from More → This device, edit any of it in the app, and delete all of it in one
-          tap — see{" "}
+          tap (see{" "}
           <Link href="/legal/data-deletion" className="text-accent-strong underline">
             deleting your data
           </Link>
-          . For anything else, write to the address below.
+          ). For anything else, write to the address below.
         </p>
       </Section>
 

@@ -154,7 +154,7 @@ export function TravelerQuickAdd({
                       {[
                         hasDocs
                           ? `${flagEmoji(traveler.passportCountry)} passport, expires ${traveler.passportExpiry}`
-                          : "Passport details optional — the visa checks use them",
+                          : "Passport details optional: the visa checks use them",
                         flyingElsewhere ? `flying from ${getCountry(origin)?.name ?? origin}` : "",
                         traveler.needsVisaHelp ? "wants visa help" : "",
                       ]

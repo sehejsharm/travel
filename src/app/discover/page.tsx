@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { InterestPicker } from "@/components/interest-picker";
+import { LineIcon } from "@/components/line-icon";
 import { Field, PrimaryButton, TextInput } from "@/components/form";
 import {
   BORDERLESS_BUTTON_CLASSES,
@@ -192,7 +193,7 @@ export default function DiscoverScreen() {
           title="Kept quiet for this trip"
           meta="You marked this a business trip, so suggestions are off by default."
         />
-        {/* No card around the tiles: they are the screen's one container layer. */}
+        {/* No card around the picker: its rows, split by hairlines, need no box. */}
         <div>
           <p className="text-subheadline text-ink-soft">
             Pick a few interests and Discover starts suggesting things to do around your meetings.
@@ -230,7 +231,7 @@ export default function DiscoverScreen() {
         />
 
         <InterestPicker selected={picked} onChange={setDraftInterests} />
-        {/* Kept in reach: on a phone the end of 22 tiles is screens away. */}
+        {/* Kept in reach: on a phone the end of 22 rows is screens away. */}
         <ActionBar>
           <PrimaryButton
             onClick={() => {
@@ -349,7 +350,8 @@ export default function DiscoverScreen() {
             return (
               <li key={id}>
                 <Chip>
-                  {interest.emoji} {interest.label}
+                  <LineIcon name={interest.icon} size={16} />
+                  {interest.label}
                 </Chip>
               </li>
             );
@@ -491,7 +493,15 @@ export default function DiscoverScreen() {
                 }
 
                 const interest = getInterest(shown.interestId);
-                const title = interest ? `${interest.emoji} ${interest.label}` : shown.interestId;
+                // The icon is drawn inline and hidden, so the heading's name is the label alone.
+                const title = interest ? (
+                  <>
+                    <LineIcon name={interest.icon} size={20} className="mr-2 inline-block align-middle text-ink-soft" />
+                    {interest.label}
+                  </>
+                ) : (
+                  shown.interestId
+                );
 
                 return (
                   <section key={shown.interestId}>

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { BudgetCard } from "@/components/budget-card";
-import { SeveritySummary } from "@/components/flag-card";
 import { ItemEditor } from "@/components/item-editor";
 import { Timeline } from "@/components/timeline";
 import { DeferredPrompts } from "@/components/deferred-prompts";
@@ -13,17 +12,10 @@ import { Onboarding } from "@/components/onboarding";
 import { ReviewPrompt } from "@/components/review-prompt";
 import { TripHero } from "@/components/trip-hero";
 import { PRIMARY_BUTTON_CLASSES } from "@/components/styles";
-import {
-  Card,
-  Chip,
-  EmptyState,
-  ScreenSkeleton,
-  SectionTitle,
-  Stat,
-} from "@/components/ui";
+import { Card, Chip, EmptyState, ScreenSkeleton, SectionTitle } from "@/components/ui";
 import type { TripItem } from "@/lib/domain/types";
 import { formatMoney } from "@/lib/reference/fx";
-import { readiness, settledFlagIds } from "@/lib/readiness";
+import { readiness } from "@/lib/readiness";
 import { daysBetween, formatDay, formatTime, rollUpBudget } from "@/lib/rules";
 import { useTripView } from "@/lib/store/use-store";
 import { tripCalendar } from "@/lib/trip-calendar";
@@ -45,7 +37,6 @@ export default function TripScreen() {
   const now = new Date();
   const rollup = rollUpBudget(trip, items);
   const progress = readiness(flags, checklist);
-  const critical = progress.criticalOpen;
   const scheduled = items
     .filter((item) => item.startsAt)
     .sort((a, b) => Date.parse(a.startsAt!) - Date.parse(b.startsAt!));
@@ -59,6 +50,9 @@ export default function TripScreen() {
 
   return (
     <div className="flex flex-col gap-7">
+      {/* The hero is the one place this screen counts what is left to fix, and
+          its Checks button the one way there: saying either again only pushes
+          the timeline further down. */}
       <TripHero trip={trip} items={items} readiness={progress} />
 
       <ReviewPrompt
@@ -70,29 +64,8 @@ export default function TripScreen() {
 
       <DeferredPrompts trip={trip} items={items} />
 
-      <div className="stagger grid grid-cols-3 gap-3">
-        <Stat label="Scheduled" value={String(scheduled.length)} />
-        <Stat label="Ideas" value={String(unscheduled.length)} />
-        <Stat
-          label="To fix"
-          value={String(critical)}
-          tone={critical > 0 ? "critical" : "ok"}
-        />
-      </div>
-
       {/* Only a group, or someone already out, has anything to show here. */}
       {(trip.travelers.length >= 2 || state.divert?.tripId === trip.id) && <GroupStatusCard />}
-
-      {flags.length > 0 && (
-        <Link href="/checks" className="liftable block rounded-card">
-          <Card className="raised flex items-center justify-between gap-3 p-4">
-            <SeveritySummary flags={flags} settledIds={settledFlagIds(checklist)} />
-            <span className="flex shrink-0 items-center gap-1 text-footnote text-ink-soft">
-              Open checks <span aria-hidden="true" className="text-ink-faint">›</span>
-            </span>
-          </Card>
-        </Link>
-      )}
 
       {nextUp && (
         <section>
@@ -122,43 +95,6 @@ export default function TripScreen() {
         </section>
       )}
 
-      {unscheduled.length > 0 && (
-        <section>
-          <SectionTitle trailing={`${unscheduled.length} waiting`}>Not on a day yet</SectionTitle>
-          <Card className="divide-y divide-line">
-            {unscheduled.slice(0, 5).map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setEditing(item)}
-                className="press flex w-full items-center justify-between gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2"
-              >
-                <span className="min-w-0">
-                  <span className="block text-headline">{item.title}</span>
-                  <span className="mt-1 block text-footnote text-ink-soft">
-                    {item.place?.city ?? item.place?.name ?? "No place set"}
-                  </span>
-                </span>
-                <Chip tone="accent">Schedule</Chip>
-              </button>
-            ))}
-            {unscheduled.length > 5 && (
-              <Link
-                href="/cabinet"
-                className="press flex min-h-11 items-center px-4 py-3 text-subheadline font-medium text-accent-strong last:rounded-b-card hover:bg-surface-2"
-              >
-                See all {unscheduled.length} →
-              </Link>
-            )}
-          </Card>
-        </section>
-      )}
-
-      <section>
-        <SectionTitle>Budget</SectionTitle>
-        <BudgetCard rollup={rollup} />
-      </section>
-
       <section>
         <SectionTitle>Timeline</SectionTitle>
         {scheduled.length === 0 ? (
@@ -182,6 +118,43 @@ export default function TripScreen() {
         ) : (
           <Timeline items={items} flags={flags} onSelect={setEditing} trip={trip} />
         )}
+      </section>
+
+      {unscheduled.length > 0 && (
+        <section>
+          <SectionTitle trailing={`${unscheduled.length} waiting`}>Not on a day yet</SectionTitle>
+          <Card className="divide-y divide-line">
+            {unscheduled.slice(0, 5).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setEditing(item)}
+                className="press flex w-full items-center justify-between gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2"
+              >
+                <span className="min-w-0">
+                  <span className="block text-headline">{item.title}</span>
+                  <span className="mt-1 block text-footnote text-ink-soft">
+                    {item.place?.city ?? item.place?.name ?? "No place set"}
+                  </span>
+                </span>
+                <Chip tone="accent">Schedule</Chip>
+              </button>
+            ))}
+            {unscheduled.length > 5 && (
+              <Link
+                href="/cabinet?filter=unscheduled"
+                className="press flex min-h-11 items-center px-4 py-3 text-subheadline font-medium text-accent-strong last:rounded-b-card hover:bg-surface-2"
+              >
+                See all {unscheduled.length}
+              </Link>
+            )}
+          </Card>
+        </section>
+      )}
+
+      <section>
+        <SectionTitle>Budget</SectionTitle>
+        <BudgetCard rollup={rollup} />
       </section>
 
       <ItemEditor item={editing} trip={trip} onClose={() => setEditing(null)} />

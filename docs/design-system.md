@@ -145,6 +145,11 @@ Rules:
 - A screen opened from another puts its way back above the eyebrow, at the
   leading edge: a chevron and the name of where it goes (`ScreenHeader`'s
   `back`). The `action` slot is for the screen's own actions.
+- The trip screen says each thing once. The hero holds the countdown, what is
+  left to fix and open warnings, and its Checks button is the screen's one
+  way to Checks. Below it come any prompts, the group card, Next up, the
+  timeline, what is not on a day yet and the budget, in that order. No stat
+  tile or severity strip counts the fixes again.
 - Overlays (bars, menus, popovers, sheets) use a material, never an opaque
   fill: `.nav-surface` (72%) or `.material-thick` (80%), each a 20px blur with
   saturation at 180%.
@@ -193,3 +198,14 @@ Rules:
   borderless or remove button) and the not-allowed cursor.
 - Empty states (`EmptyState`): a thin-stroke icon, a bold title, a sentence on
   why it is empty, and a required action that fills it.
+- Icons: one set of line icons, `LineIcon` in `src/components/line-icon.tsx`,
+  named for what each one depicts (`src/lib/icons.ts`), so data holds a name
+  and never a drawing. Each is drawn in a 24 box with a 1.7 stroke, round caps
+  and joins, no fills and no text, in `currentColor`, like the tab bar's. An
+  icon sits beside a text label that names it and is `aria-hidden`. Country
+  flags are the one emoji: no emoji stands in for an icon.
+- Picking several from a long list (`InterestPicker`) is a list, not tiles:
+  each row is its icon in `ink-soft`, the name over a one-line blurb, and a
+  selection circle, with a `field-edge` ring unticked and a drawn check on a
+  copper fill ticked. Rows are at least 44px tall, split by hairlines, with no
+  border or fill of their own, and run in two columns from `sm` up.

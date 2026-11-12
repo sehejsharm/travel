@@ -25,14 +25,14 @@ const ADVISORIES: Record<string, Omit<HealthAdvisory, "lastVerified">> = {
     recommended: ["Hepatitis A", "Typhoid", "Tetanus booster"],
     yellowFeverIfArrivingFrom: true,
     notes: [
-      "Dengue is mosquito-borne and there is no vaccine for most travellers — repellent matters more than pills.",
+      "Dengue is mosquito-borne and there is no vaccine for most travellers. Repellent matters more than pills.",
       "Rabies risk from dogs and monkeys; consider pre-exposure shots for longer or rural stays.",
     ],
   },
   IN: {
     recommended: ["Hepatitis A", "Typhoid", "Tetanus booster"],
     yellowFeverIfArrivingFrom: true,
-    notes: ["Malaria risk varies sharply by region and season — check your specific destinations."],
+    notes: ["Malaria risk varies sharply by region and season. Check your specific destinations."],
   },
   ID: {
     recommended: ["Hepatitis A", "Typhoid"],
@@ -47,7 +47,7 @@ const ADVISORIES: Record<string, Omit<HealthAdvisory, "lastVerified">> = {
   NP: {
     recommended: ["Hepatitis A", "Typhoid"],
     yellowFeverIfArrivingFrom: true,
-    notes: ["Altitude sickness is the main risk above 2,500 m — plan an acclimatisation schedule."],
+    notes: ["Altitude sickness is the main risk above 2,500 m. Plan an acclimatisation schedule."],
   },
   SG: {
     recommended: ["Routine vaccinations up to date"],

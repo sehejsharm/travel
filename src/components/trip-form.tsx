@@ -17,6 +17,7 @@ import { Disclosure } from "./disclosure";
 import { BorderlessButton, Field, PrimaryButton, Select, TextInput } from "./form";
 import { InterestPicker } from "./interest-picker";
 import { dayError, legErrors, legInputId, LegsEditor } from "./legs-editor";
+import { LineIcon } from "./line-icon";
 import {
   expiryError,
   pendingNameError,
@@ -577,13 +578,14 @@ function PurposeChips({
               type="button"
               onClick={() => onChange(active ? undefined : purpose.id)}
               aria-pressed={active}
-              className={`press tap flex min-h-8 shrink-0 items-center gap-1 rounded-badge border px-3 text-footnote ${
+              className={`press tap flex min-h-8 shrink-0 items-center gap-2 rounded-badge border px-3 text-footnote ${
                 active
                   ? "border-accent bg-accent-soft text-accent-strong"
                   : "border-line bg-surface text-ink-soft"
               }`}
             >
-              <span aria-hidden="true">{purpose.emoji}</span> {purpose.label}
+              <LineIcon name={purpose.icon} size={16} />
+              {purpose.label}
             </button>
           );
         })}

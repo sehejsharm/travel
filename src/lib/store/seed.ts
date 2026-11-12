@@ -193,7 +193,7 @@ const SEED_ENTRIES: SeedItem[] = [
   },
   {
     id: "item-sumo",
-    title: "Sumo tournament — Ryogoku",
+    title: "Sumo tournament, Ryogoku",
     category: "activity",
     source: "screenshot",
     startsAt: "2026-10-20T13:00:00+09:00",

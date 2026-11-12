@@ -36,7 +36,7 @@ export async function extract(input: ExtractionInput): Promise<ExtractionResult>
     ...cheap,
     link,
     escalationReason: hasCredentials()
-      ? `${reason} Model pass unavailable — review the fields below.`
+      ? `${reason} Model pass unavailable. Review the fields below.`
       : `${reason} No API key set, so nothing was escalated.`,
   };
 }

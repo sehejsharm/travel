@@ -21,6 +21,8 @@ export interface Readiness {
   criticalOpen: number;
   /** Criticals a ticked task has settled, so progress is visible. */
   criticalSettled: number;
+  /** Warnings still outstanding, which the trip hero names so a trip-level one is not lost off the overview. */
+  warningOpen: number;
 }
 
 export function readiness(flags: Flag[], checklist: ChecklistEntry[]): Readiness {
@@ -58,6 +60,7 @@ export function readiness(flags: Flag[], checklist: ChecklistEntry[]): Readiness
       .length,
     criticalSettled: actionable.filter((flag) => flag.severity === "critical" && isSettled(flag))
       .length,
+    warningOpen: actionable.filter((flag) => flag.severity === "warning" && !isSettled(flag)).length,
   };
 }
 

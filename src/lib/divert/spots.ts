@@ -90,11 +90,11 @@ const SPOTS: DivertSpot[] = [
 ];
 
 const STAND_INS: Record<DivertCategory, { noun: string; detail: string }> = {
-  coffee: { noun: "coffee stand", detail: "Stood in for a real café — nothing was looked up." },
-  sights: { noun: "viewpoint", detail: "Stood in for a real spot — nothing was looked up." },
-  food: { noun: "noodle counter", detail: "Stood in for a real place — nothing was looked up." },
-  shopping: { noun: "convenience store", detail: "Stood in for a real shop — nothing was looked up." },
-  rest: { noun: "bench in the shade", detail: "Stood in for a real spot — nothing was looked up." },
+  coffee: { noun: "coffee stand", detail: "Stood in for a real café: nothing was looked up." },
+  sights: { noun: "viewpoint", detail: "Stood in for a real spot: nothing was looked up." },
+  food: { noun: "noodle counter", detail: "Stood in for a real place: nothing was looked up." },
+  shopping: { noun: "convenience store", detail: "Stood in for a real shop: nothing was looked up." },
+  rest: { noun: "bench in the shade", detail: "Stood in for a real spot: nothing was looked up." },
 };
 
 const CATEGORY_ORDER: DivertCategory[] = ["coffee", "sights", "food", "shopping", "rest"];

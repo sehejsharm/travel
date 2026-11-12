@@ -79,7 +79,7 @@ export default function DataDeletion() {
             </>,
             <>
               <strong className="font-medium text-ink">Share links you sent.</strong> The trip travels inside
-              the link, so anyone holding one keeps that snapshot. There is no way to revoke it —
+              the link, so anyone holding one keeps that snapshot. There is no way to revoke it:
               this is the trade for links that need no server. Only send them to people you mean to.
             </>,
             <>
